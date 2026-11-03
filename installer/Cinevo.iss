@@ -1,9 +1,10 @@
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "0.1.0"
 #endif
 [Setup]
 AppId={{AEAD2361-3C54-45F4-BCE9-6D8D821D281C}
-AppName=Cinevo
+AppName=Cinevo Beta
+AppVerName=Cinevo {#AppVersion} Beta
 AppVersion={#AppVersion}
 AppPublisher=BlackGen3ral
 AppPublisherURL=https://github.com/BlackGen3ral/cinevo

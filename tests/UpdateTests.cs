@@ -9,11 +9,13 @@ public static class UpdateTests
     {
         var bytes = Encoding.UTF8.GetBytes("fake installer for integrity testing only");
         var hash = Convert.ToHexString(SHA256.HashData(bytes));
-        string Json(string version, string origin = "https://github.com/BlackGen3ral/cinevo/releases/download/v1.0.1/") => JsonSerializer.Serialize(new { tag_name = version, assets = new[] { new { name = "Cinevo-Setup.exe", browser_download_url = origin + "Cinevo-Setup.exe" }, new { name = "SHA256SUMS.txt", browser_download_url = origin + "SHA256SUMS.txt" } } });
+        string Json(string version, string origin = "https://github.com/BlackGen3ral/cinevo/releases/download/v1.0.1/") => JsonSerializer.Serialize(new[] { new { tag_name = version, draft = false, assets = new[] { new { name = "Cinevo-Setup.exe", browser_download_url = origin + "Cinevo-Setup.exe" }, new { name = "SHA256SUMS.txt", browser_download_url = origin + "SHA256SUMS.txt" } } } });
         using var handler = new FakeHandler(Json("v1.0.1"), hash, bytes);
         using var http = new HttpClient(handler);
         var target = await Updater.DownloadAsync(http, new Version(1, 0, 0), Path.Combine(root, "update-valid"));
         if (target == null || !File.ReadAllBytes(target).SequenceEqual(bytes)) throw new Exception("Atualização válida não foi preparada");
+        handler.ReleaseJson = Json("v0.1.1-beta.2");
+        if (await Updater.DownloadAsync(http, new Version(0, 1, 0), Path.Combine(root, "update-beta")) == null) throw new Exception("Atualização beta não foi preparada");
         handler.ReleaseJson = Json("v1.0.0");
         if (await Updater.DownloadAsync(http, new Version(1, 0, 0), root) != null) throw new Exception("Versão igual deve ser ignorada");
         handler.ReleaseJson = Json("v1.0.1", "https://example.com/");

@@ -1,8 +1,10 @@
-# Cinevo
+# Cinevo 0.1.0 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador](https://github.com/BlackGen3ral/cinevo/releases/latest/download/Cinevo-Setup.exe) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.0-beta.1/Cinevo-Setup.exe) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+
+O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
 <img src="Cinevo/Assets/cinevo.png" width="96" alt="Ícone Cinevo: letra C violeta com símbolo de reprodução" />
 
@@ -47,7 +49,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime é incluído 
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 1.0.0
+./scripts/build.ps1 -Version 0.1.0-beta.1
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.

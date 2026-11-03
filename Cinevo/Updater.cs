@@ -17,12 +17,13 @@ public static class Updater
     }
     public static async Task<string?> DownloadAsync(HttpClient http, Version current, string stagingDirectory)
     {
-        using var response = await http.GetAsync($"https://api.github.com/repos/{Repository}/releases/latest");
+        using var response = await http.GetAsync($"https://api.github.com/repos/{Repository}/releases?per_page=10");
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
         response.EnsureSuccessStatusCode();
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        var release = json.RootElement;
-        if (!Version.TryParse(release.GetProperty("tag_name").GetString()?.TrimStart('v'), out var latest) || latest <= current) return null;
+        var release = json.RootElement.EnumerateArray().FirstOrDefault(r => !r.TryGetProperty("draft", out var draft) || !draft.GetBoolean());
+        if (release.ValueKind == JsonValueKind.Undefined) return null;
+        if (!Version.TryParse(release.GetProperty("tag_name").GetString()?.TrimStart('v').Split('-')[0], out var latest) || latest <= current) return null;
         var assets = release.GetProperty("assets").EnumerateArray().ToArray();
         var installer = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == "Cinevo-Setup.exe");
         var checksums = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == "SHA256SUMS.txt");

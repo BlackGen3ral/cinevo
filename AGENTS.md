@@ -8,4 +8,6 @@ Em cada melhoria: implemente, execute scripts/build.ps1, verifique o app, increm
 
 Runtime .NET 10. Sem dependências NuGet externas. Dados em %LOCALAPPDATA%\Cinevo, com gravação atômica e backup. Use virtualização na lista e indexação fora da thread de interface. Atualizador só aceita assets da release oficial e verifica SHA-256. Não habilite atualização em builds de desenvolvimento.
 
+O app está em Beta por pedido do proprietário. Exiba o número e a indicação Beta juntos (por exemplo Cinevo 0.1.0 · Beta). Tags usam v0.1.0-beta.1; incremente o componente numérico do núcleo em cada melhoria (0.1.1-beta.2 etc.), pois o atualizador compara esse núcleo. Releases devem ser prerelease. Não promover para 1.0.0 sem pedido. Atualize também o link de download no README.
+
 O SDK local pode estar em .tools/dotnet/dotnet.exe. O compilador local Inno Setup pode estar em .tools/inno/ISCC.exe. Ambos são ignorados pelo Git.

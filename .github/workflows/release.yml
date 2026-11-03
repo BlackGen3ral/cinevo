@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Versão, por exemplo 1.0.1'
+        description: 'Versão beta, por exemplo 0.1.1-beta.2'
         required: true
 permissions:
   contents: write
@@ -23,7 +23,7 @@ jobs:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
           $version = if ($env:INPUT_VERSION) { $env:INPUT_VERSION } else { $env:GITHUB_REF_NAME.TrimStart('v') }
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid version' }
+          if ($version -notmatch '^\d+\.\d+\.\d+(-beta\.\d+)?$') { throw 'Invalid version' }
           ./scripts/build.ps1 -Version $version
           "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
       - name: Publish installer
@@ -31,4 +31,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v$env:RELEASE_VERSION" dist/Cinevo-Setup.exe dist/SHA256SUMS.txt --title "Cinevo $env:RELEASE_VERSION" --generate-notes --target $env:GITHUB_SHA
+          $displayVersion = ($env:RELEASE_VERSION -split '-')[0]
+          gh release create "v$env:RELEASE_VERSION" dist/Cinevo-Setup.exe dist/SHA256SUMS.txt --title "Cinevo $displayVersion Beta" --prerelease --generate-notes --target $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Publicação falhou' }
+          if ($env:RELEASE_VERSION -eq '0.1.0-beta.1') {
+            gh release delete v1.0.0 --yes
+          }

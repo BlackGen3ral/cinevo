@@ -20,7 +20,7 @@ public partial class MainWindow : Window
         try { library = Library.Load(); }
         catch (Exception ex) { MessageBox.Show(ex.Message, "Cinevo — biblioteca preservada"); Application.Current.Shutdown(); return; }
         ready = true;
-        VersionLabel.Text = $"Cinevo {Updater.CurrentVersion} · Windows";
+        VersionLabel.Text = $"Cinevo {Updater.CurrentVersion} · Beta";
         Refresh();
         Loaded += async (_, _) => { if (library.Folders.Count > 0) await ScanAsync(); if (library.AutoUpdate && Updater.IsInstalled) await CheckUpdate(false); };
         Closing += OnClosing;
@@ -103,7 +103,7 @@ public partial class MainWindow : Window
     {
         var window = new Window { Title = "Configurações do Cinevo", Width = 560, Height = 360, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         var panel = new StackPanel { Margin = new Thickness(26) };
-        panel.Children.Add(new TextBlock { Text = "Cinevo " + Updater.CurrentVersion, FontSize = 24, Margin = new Thickness(0, 0, 0, 20) });
+        panel.Children.Add(new TextBlock { Text = $"Cinevo {Updater.CurrentVersion} · Beta", FontSize = 24, Margin = new Thickness(0, 0, 0, 20) });
         var auto = new CheckBox { Content = "Baixar atualizações e instalar ao fechar", IsChecked = library.AutoUpdate, Foreground = System.Windows.Media.Brushes.White, Margin = new Thickness(0, 0, 0, 20) };
         auto.Click += (_, _) => { library.AutoUpdate = auto.IsChecked == true; library.Save(); }; panel.Children.Add(auto);
         var check = new Button { Content = "Verificar atualização agora", Margin = new Thickness(0, 0, 0, 12) }; check.Click += async (_, _) => { window.Close(); await CheckUpdate(true); }; panel.Children.Add(check);
