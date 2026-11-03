@@ -1,0 +1,34 @@
+name: Windows release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versão, por exemplo 1.0.1'
+        required: true
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build and verify installer
+        shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          $version = if ($env:INPUT_VERSION) { $env:INPUT_VERSION } else { $env:GITHUB_REF_NAME.TrimStart('v') }
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid version' }
+          ./scripts/build.ps1 -Version $version
+          "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
+      - name: Publish installer
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v$env:RELEASE_VERSION" dist/Cinevo-Setup.exe dist/SHA256SUMS.txt --title "Cinevo $env:RELEASE_VERSION" --generate-notes --target $env:GITHUB_SHA
