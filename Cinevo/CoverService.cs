@@ -28,7 +28,7 @@ public sealed class CoverService : IDisposable
         if (score < 5) return -100;
         score += Math.Max(0, 4 - index);
         if (Regex.IsMatch(lead, @"\b(filme|film|movie)\b")) score += 5;
-        else score -= 8;
+        else return -100;
         if (year.Length == 4)
         {
             var explicitYear = Regex.Match(title, @"\((19\d{2}|20\d{2})\)");
@@ -67,7 +67,7 @@ public sealed class CoverService : IDisposable
             }
             if (candidates.Any(c => c.Score >= 16)) break;
         }
-        return candidates.DistinctBy(c => c.ImageUrl).OrderByDescending(c => c.Score).ToList();
+        return candidates.Where(c => c.Score > -100).DistinctBy(c => c.ImageUrl).OrderByDescending(c => c.Score).ToList();
     }
     public static bool IsImageUrl(string url) => Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == "https" && (uri.Host.Equals("upload.wikimedia.org", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("thumb.wikimedia.org", StringComparison.OrdinalIgnoreCase));
     public async Task<string> DownloadAsync(CoverCandidate candidate, string directory, CancellationToken token)

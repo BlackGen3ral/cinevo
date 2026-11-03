@@ -9,6 +9,7 @@ public sealed class CoverPicker : Window
     public CoverPicker(Movie movie, CoverService service)
     {
         Title = "Escolher capa — " + movie.Title; Width = 760; Height = 590; MinWidth = 620; MinHeight = 440; WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Background = new SolidColorBrush(Color.FromRgb(16,18,24)); Foreground = Brushes.White;
         var cancel = new CancellationTokenSource(); Closed += (_, _) => cancel.Cancel();
         var panel = new DockPanel { Margin = new Thickness(24) };
         var header = new StackPanel(); DockPanel.SetDock(header, Dock.Top); panel.Children.Add(header);
@@ -18,7 +19,7 @@ public sealed class CoverPicker : Window
         var input = new TextBox { Text = movie.Title }; searchRow.Children.Add(input); header.Children.Add(searchRow);
         var status = new TextBlock { Text = "Escolha um resultado para usar como capa.", Foreground = Brushes.Gray, Margin = new Thickness(0,14,0,12) }; header.Children.Add(status);
         var apply = new Button { Content = "Usar capa selecionada", Margin = new Thickness(0,16,0,0) }; DockPanel.SetDock(apply, Dock.Bottom); panel.Children.Add(apply);
-        var list = new ListBox { Background = new SolidColorBrush(Color.FromRgb(25,28,37)), BorderThickness = new Thickness(0), Foreground = Brushes.White }; panel.Children.Add(list);
+        var list = new ListBox { Background = new SolidColorBrush(Color.FromRgb(25,28,37)), BorderThickness = new Thickness(0), Foreground = Brushes.White, HorizontalContentAlignment = HorizontalAlignment.Stretch }; ScrollViewer.SetHorizontalScrollBarVisibility(list, ScrollBarVisibility.Disabled); panel.Children.Add(list);
         async Task Find()
         {
             if (!search.IsEnabled) return; search.IsEnabled = false; apply.IsEnabled = false; status.Text = "Buscando pôsteres…"; list.Items.Clear();

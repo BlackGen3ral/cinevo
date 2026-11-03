@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
-    <Version>0.1.1-beta.2</Version><ApplicationIcon>Assets\cinevo.ico</ApplicationIcon>
+    <Version>0.1.2-beta.3</Version><ApplicationIcon>Assets\cinevo.ico</ApplicationIcon>
     <AssemblyName>Cinevo</AssemblyName><Product>Cinevo</Product>
     <PublishSingleFile>true</PublishSingleFile><IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <DebugType>none</DebugType>
