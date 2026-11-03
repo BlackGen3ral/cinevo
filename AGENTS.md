@@ -11,3 +11,7 @@ Runtime .NET 10. Sem dependências NuGet externas. Dados em %LOCALAPPDATA%\Cinev
 O app está em Beta por pedido do proprietário. Exiba o número e a indicação Beta juntos (por exemplo Cinevo 0.1.0 · Beta). Tags usam v0.1.0-beta.1; incremente o componente numérico do núcleo em cada melhoria (0.1.1-beta.2 etc.), pois o atualizador compara esse núcleo. Releases devem ser prerelease. Não promover para 1.0.0 sem pedido. Atualize também o link de download no README.
 
 O SDK local pode estar em .tools/dotnet/dotnet.exe. O compilador local Inno Setup pode estar em .tools/inno/ISCC.exe. Ambos são ignorados pelo Git.
+
+O player usa LibVLC 3.0.24 via interoperabilidade nativa, sem NuGet. scripts/prepare-vlc.ps1 baixa os binários oficiais e os fontes correspondentes com hashes fixos. Preserve as licenças e publique o asset vlc-3.0.24-source.tar.xz junto ao instalador. scripts/build.ps1 inclui teste real de vídeo, áudio e legenda no LibVLC.
+
+Capas usam a API MediaWiki/Wikipédia por título e ano, com cache, fonte acessível e opção de corrigir correspondência. Não inclua capas ou vídeos nos arquivos versionados. Para QA visual, use CINEVO_TEST_DATA apontando para .tools/qa-profile; esse perfil e a instância ficam separados do catálogo instalado. Nunca sobrescreva o catálogo real para preparar demonstrações.

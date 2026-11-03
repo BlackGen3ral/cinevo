@@ -1,4 +1,5 @@
 using Cinevo;
+if (args.Length == 3 && args[0] == "--live-covers") { await LiveCoverCheck.Run(args[1], args[2]); return; }
 static void Assert(bool condition, string reason) { if (!condition) throw new Exception(reason); }
 var parsed = Scanner.Parse("Duna.Parte.Dois.2024.1080p.BluRay.mkv");
 Assert(parsed.Title == "Duna Parte Dois" && parsed.Year == "2024", "Título e ano com tags de release");
@@ -20,5 +21,14 @@ try {
  var restored = System.Text.Json.JsonSerializer.Deserialize<Library>(json)!;
  Assert(restored.Movies[0].Favorite && restored.Movies[0].Watched && restored.Movies[0].Rating == 5 && restored.Movies[0].Notes == "Ótimo", "Metadados persistem");
  await UpdateTests.Run(root);
+ await CoverTests.Run(root);
+ Environment.SetEnvironmentVariable("CINEVO_TEST_DATA", Path.Combine(root, "profile"));
+ var persisted = new Library { Movies = [new Movie { Title = "Persistência", ResumeMilliseconds = 45000, DurationMilliseconds = 90000, CoverSource = "https://pt.wikipedia.org/wiki/Teste" }] };
+ persisted.Save(); persisted.Movies[0].Notes = "Segunda gravação"; persisted.Save();
+ var loaded = Library.Load();
+ Assert(loaded.Movies[0].ResumeMilliseconds == 45000 && loaded.Movies[0].Progress == 50 && File.Exists(Library.DataPath + ".bak"), "Progresso e backup preservados em gravação atômica");
+ File.WriteAllText(Library.DataPath, "{invalid");
+ try { Library.Load(); throw new Exception("Biblioteca corrompida aceita"); } catch (InvalidDataException) { }
+ Assert(File.ReadAllText(Library.DataPath) == "{invalid", "Catálogo corrompido deve ser preservado");
  Console.WriteLine("PASS: títulos, indexação recursiva, deduplicação, formatos, tamanho, disco ausente, cancelamento e persistência.");
-} finally { Directory.Delete(root, true); }
+} finally { Environment.SetEnvironmentVariable("CINEVO_TEST_DATA", null); Directory.Delete(root, true); }

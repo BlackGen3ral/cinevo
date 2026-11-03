@@ -32,8 +32,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $displayVersion = ($env:RELEASE_VERSION -split '-')[0]
-          gh release create "v$env:RELEASE_VERSION" dist/Cinevo-Setup.exe dist/SHA256SUMS.txt --title "Cinevo $displayVersion Beta" --prerelease --generate-notes --target $env:GITHUB_SHA
+          gh release create "v$env:RELEASE_VERSION" dist/Cinevo-Setup.exe dist/SHA256SUMS.txt dist/vlc-3.0.24-source.tar.xz --title "Cinevo $displayVersion Beta" --prerelease --generate-notes --target $env:GITHUB_SHA
           if ($LASTEXITCODE -ne 0) { throw 'Publicação falhou' }
-          if ($env:RELEASE_VERSION -eq '0.1.0-beta.1') {
-            gh release delete v1.0.0 --yes
-          }

@@ -1,15 +1,24 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 namespace Cinevo;
-public sealed class Movie
+public sealed class Movie : INotifyPropertyChanged
 {
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void Changed([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new(name));
     public string Path { get; set; } = "";
     public string Title { get; set; } = "";
     public string Year { get; set; } = "";
     public string Genre { get; set; } = "";
     public string Notes { get; set; } = "";
-    public string Cover { get; set; } = "";
+    private string cover = "";
+    public string Cover { get => cover; set { cover = value; Changed(); } }
+    public string CoverSource { get; set; } = "";
+    public DateTime CoverLastAttempt { get; set; }
+    public long ResumeMilliseconds { get; set; }
+    public long DurationMilliseconds { get; set; }
     public bool Watched { get; set; }
     public bool Favorite { get; set; }
     public int Rating { get; set; }
@@ -20,13 +29,16 @@ public sealed class Movie
     [System.Text.Json.Serialization.JsonIgnore] public string State => !Available ? "Arquivo indisponível" : Watched ? "✓ Assistido" : "Para assistir";
     [System.Text.Json.Serialization.JsonIgnore] public string Badge => Favorite ? "★ FAVORITO" : Rating > 0 ? new string('★', Rating) : "CINEVO";
     [System.Text.Json.Serialization.JsonIgnore] public string Initial => string.IsNullOrWhiteSpace(Title) ? "C" : Title[..1].ToUpperInvariant();
+    [System.Text.Json.Serialization.JsonIgnore] public string PlayLabel => ResumeMilliseconds > 30000 && !Watched ? "▶  Continuar" : "▶  Assistir";
+    [System.Text.Json.Serialization.JsonIgnore] public double Progress => DurationMilliseconds > 0 ? Math.Clamp(ResumeMilliseconds * 100d / DurationMilliseconds, 0, 100) : 0;
 }
 public sealed class Library
 {
     public List<string> Folders { get; set; } = [];
     public List<Movie> Movies { get; set; } = [];
     public bool AutoUpdate { get; set; } = true;
-    public static string DataDirectory => System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Cinevo");
+    public bool AutoCovers { get; set; } = true;
+    public static string DataDirectory => Environment.GetEnvironmentVariable("CINEVO_TEST_DATA") is { Length: > 0 } testDirectory ? System.IO.Path.GetFullPath(testDirectory) : System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Cinevo");
     public static string DataPath => System.IO.Path.Combine(DataDirectory, "library.json");
     public static Library Load()
     {
