@@ -190,7 +190,7 @@ $('#torrent-form').onsubmit = async event => {
 setInterval(() => refreshTransfers(), 1500);
 
 async function showSourceDownloads(movie, trigger) {
-  const panel = $('#detail-content');
+  const panel = $('#detail-content .detail-information');
   let choices = panel.querySelector('.source-downloads');
   if (choices) return;
   choices = node('div', 'source-downloads');

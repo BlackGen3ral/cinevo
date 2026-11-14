@@ -159,7 +159,7 @@ public partial class MainWindow : Window
         panel.Children.Add(new TextBlock { Text = $"Cinevo {Updater.CurrentVersion} · Beta", FontSize = 24, Margin = new Thickness(0, 0, 0, 20) });
         var auto = new CheckBox { Content = "Baixar atualizações e instalar ao fechar", IsChecked = library.AutoUpdate, Foreground = System.Windows.Media.Brushes.White, Margin = new Thickness(0, 0, 0, 20) };
         auto.Click += (_, _) => { library.AutoUpdate = auto.IsChecked == true; library.Save(); }; panel.Children.Add(auto);
-        var art = new CheckBox { Content = "Buscar capas automaticamente pelo título e ano", IsChecked = library.AutoCovers, Foreground = System.Windows.Media.Brushes.White, Margin = new Thickness(0,0,0,8) };
+        var art = new CheckBox { Content = "Buscar capas, sinopses e trailers pelo título e ano", IsChecked = library.AutoCovers, Foreground = System.Windows.Media.Brushes.White, Margin = new Thickness(0,0,0,8) };
         art.Click += (_, _) => { library.AutoCovers = art.IsChecked == true; library.Save(); if (!library.AutoCovers) coverSearch?.Cancel(); }; panel.Children.Add(art);
         panel.Children.Add(new TextBlock { Text = "A busca envia somente título e ano à Wikipédia. Seus vídeos,\ncaminhos e anotações ficam neste computador.", Foreground = Brush("#9691A5"), FontSize = 11, Margin = new Thickness(0,0,0,20) });
         var check = new Button { Content = "Atualizar e reiniciar", Margin = new Thickness(0, 0, 0, 12) }; check.Click += (_, _) => { window.Close(); Dispatcher.BeginInvoke(new Action(() => _ = CheckUpdate(true))); }; panel.Children.Add(check);

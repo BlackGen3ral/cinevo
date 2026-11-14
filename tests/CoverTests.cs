@@ -12,6 +12,19 @@ public static class CoverTests
         if (CoverService.Score("Interestelar", "2014", "Interstellar", "Interstellar (no Brasil, Interestelar) é um filme épico de ficção científica.", 1) < 16) throw new Exception("Título alternativo não reconhecido");
         if (CoverService.Normalize("Ação: O Filme") != "acao o filme") throw new Exception("Normalização de acentos");
         if (CoverService.IsImageUrl("https://upload.wikimedia.org.evil.test/a.png") || CoverService.IsImageUrl("http://upload.wikimedia.org/a.png")) throw new Exception("Host de capa inseguro aceito");
+        if (MovieTrailer.FromUrl("https://youtu.be/AbCd1234_-0?t=3")?.VideoId != "AbCd1234_-0" ||
+            MovieTrailer.FromUrl("https://www.youtube.com/watch?v=AbCd1234_-0")?.VideoId != "AbCd1234_-0" ||
+            MovieTrailer.FromUrl("https://www.youtube.com.other.org/watch?v=AbCd1234_-0") != null ||
+            MovieTrailer.FromUrl("https://www.youtube.com:8443/watch?v=AbCd1234_-0") != null)
+            throw new Exception("Validação incorreta de link do trailer");
+        using var trailerData = JsonDocument.Parse("""
+            {"claims":{"P1651":[
+              {"mainsnak":{"datavalue":{"value":"00000000000"}}},
+              {"qualifiers":{"P3831":[{"datavalue":{"value":{"id":"Q622550"}}}]},"mainsnak":{"datavalue":{"value":"AbCd1234_-0"}}}
+            ]}}
+            """);
+        if (CoverService.ReadTrailer(trailerData.RootElement)?.VideoId != "AbCd1234_-0")
+            throw new Exception("Só o vídeo identificado como trailer deve ser usado");
         using var handler = new FakeCoverHandler(); using var service = new CoverService(handler);
         var results = await service.SearchAsync("Duna Parte Dois", "2024", CancellationToken.None);
         if (results.Count != 1 || results[0].Title != "Duna: Parte Dois") throw new Exception("Seleção de pôster inválida");

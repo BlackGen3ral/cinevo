@@ -24,6 +24,15 @@ public sealed class MovieDialog : Window
         }
         TextBox Field(string label, string text) { stack.Children.Add(new TextBlock { Text = label, Margin = new Thickness(0, 10, 0, 6) }); var input = new TextBox { Text = text }; stack.Children.Add(input); return input; }
         var title = Field("Título", movie.Title); var year = Field("Ano", movie.Year); var genre = Field("Gênero", movie.Genre);
+        var synopsis = Field("Sinopse personalizada", movie.CustomSynopsis);
+        synopsis.MaxLength = 3000;
+        synopsis.Height = 74;
+        synopsis.AcceptsReturn = true;
+        synopsis.TextWrapping = TextWrapping.Wrap;
+        var trailer = Field("Link do trailer no YouTube", movie.TrailerUrl);
+        trailer.MaxLength = 512;
+        var trailerHint = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = System.Windows.Media.Brushes.Salmon };
+        stack.Children.Add(trailerHint);
         var notes = Field("Suas anotações", movie.Notes); notes.AcceptsReturn = true; notes.Height = 80; notes.TextWrapping = TextWrapping.Wrap;
         stack.Children.Add(new TextBlock { Text = "Avaliação", Margin = new Thickness(0, 12, 0, 6) });
         var rating = new ComboBox { ItemsSource = new[] { "Sem avaliação", "★", "★★", "★★★", "★★★★", "★★★★★" }, SelectedIndex = Math.Clamp(movie.Rating, 0, 5) }; stack.Children.Add(rating);
@@ -39,7 +48,17 @@ public sealed class MovieDialog : Window
         stack.Children.Add(new TextBlock { Text = movie.Path, TextWrapping = TextWrapping.Wrap, Foreground = System.Windows.Media.Brushes.Gray, FontSize = 11, Margin = new Thickness(0, 0, 0, 14) });
         var buttons = new StackPanel { Orientation = Orientation.Horizontal };
         var save = new Button { Content = "Salvar", Background = System.Windows.Media.Brushes.MediumPurple, IsDefault = true };
-        save.Click += (_, _) => { if (string.IsNullOrWhiteSpace(title.Text)) { title.Focus(); return; } movie.Title = title.Text.Trim(); movie.Year = year.Text.Trim(); movie.Genre = genre.Text.Trim(); movie.Notes = notes.Text; movie.Rating = rating.SelectedIndex; movie.Watched = watched.IsChecked == true; movie.Favorite = favorite.IsChecked == true;
+        save.Click += (_, _) => { if (string.IsNullOrWhiteSpace(title.Text)) { title.Focus(); return; }
+            var video = MovieTrailer.FromUrl(trailer.Text);
+            if (trailer.Text.Trim().Length > 0 && video == null)
+            {
+                trailerHint.Text = "Cole o endereço do vídeo no YouTube ou deixe o campo vazio para buscar automaticamente.";
+                trailer.Focus();
+                return;
+            }
+            movie.TrailerUrl = video == null ? "" : "https://www.youtube.com/watch?v=" + video.VideoId;
+            movie.CustomSynopsis = synopsis.Text.Trim();
+            movie.Title = title.Text.Trim(); movie.Year = year.Text.Trim(); movie.Genre = genre.Text.Trim(); movie.Notes = notes.Text; movie.Rating = rating.SelectedIndex; movie.Watched = watched.IsChecked == true; movie.Favorite = favorite.IsChecked == true;
             if (coverPath != movie.Cover && File.Exists(coverPath)) { var dir = System.IO.Path.Combine(Library.DataDirectory, "covers"); Directory.CreateDirectory(dir); var dest = System.IO.Path.Combine(dir, Guid.NewGuid() + System.IO.Path.GetExtension(coverPath)); File.Copy(coverPath, dest); movie.Cover = dest; }
             movie.CoverSource = coverSource;
             DialogResult = true; }; buttons.Children.Add(save);

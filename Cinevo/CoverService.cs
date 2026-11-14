@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 namespace Cinevo;
-public record CoverCandidate(string Title, string ImageUrl, string PageUrl, string Description, double Score);
+public record CoverCandidate(string Title, string ImageUrl, string PageUrl, string Description, double Score, string Entity = "");
 public sealed class CoverService : IDisposable
 {
     private readonly HttpClient http;
@@ -37,37 +37,68 @@ public sealed class CoverService : IDisposable
         }
         return score;
     }
-    public async Task<List<CoverCandidate>> SearchAsync(string title, string year, CancellationToken token)
+    public async Task<List<CoverCandidate>> SearchAsync(string title, string year, CancellationToken token, bool includeWithoutPoster = false)
     {
         var candidates = new List<CoverCandidate>();
-        var titleWords = title.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var searches = new List<(string Language, string Term)> { ("pt", title) };
+        var titleWords = title.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (titleWords.Length > 6) searches.Add(("pt", string.Join(' ', titleWords.TakeLast(4))));
         searches.Add(("en", title));
         foreach (var (language, searchTitle) in searches)
         {
             var term = Uri.EscapeDataString(searchTitle);
-            var uri = $"https://{language}.wikipedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=0&gsrlimit=5&gsrsearch={term}&prop=pageimages%7Cinfo%7Cextracts&piprop=thumbnail&pithumbsize=960&pilicense=any&inprop=url&exintro=1&explaintext=1&exchars=800&exlimit=5";
+            var uri = $"https://{language}.wikipedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=0&gsrlimit=5&gsrsearch={term}&prop=pageimages%7Cinfo%7Cextracts%7Cpageprops&ppprop=wikibase_item&piprop=thumbnail&pithumbsize=960&pilicense=any&inprop=url&exintro=1&explaintext=1&exchars=1400&exlimit=5";
             using var response = await http.GetAsync(uri, token); response.EnsureSuccessStatusCode();
             using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token));
             if (!json.RootElement.TryGetProperty("query", out var query) || !query.TryGetProperty("pages", out var pages)) continue;
             foreach (var entry in pages.EnumerateObject())
             {
                 var page = entry.Value;
-                if (!page.TryGetProperty("thumbnail", out var image)) continue;
-                var imageUrl = image.GetProperty("source").GetString()!;
-                if (!IsImageUrl(imageUrl) || image.GetProperty("width").GetInt32() >= image.GetProperty("height").GetInt32()) continue;
-                // WPF decodes JPEG and PNG on every supported Windows installation.
-                if (new Uri(imageUrl).AbsolutePath.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) || new Uri(imageUrl).AbsolutePath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)) continue;
+                var imageUrl = "";
+                if (page.TryGetProperty("thumbnail", out var image))
+                {
+                    var url = image.GetProperty("source").GetString() ?? "";
+                    if (IsImageUrl(url) && image.GetProperty("width").GetInt32() < image.GetProperty("height").GetInt32() &&
+                        !Regex.IsMatch(new Uri(url).AbsolutePath, @"\.(?:webp|svg)$", RegexOptions.IgnoreCase)) imageUrl = url;
+                }
+                if (imageUrl.Length == 0 && !includeWithoutPoster) continue;
                 var name = page.GetProperty("title").GetString()!;
                 var text = page.TryGetProperty("extract", out var extract) ? extract.GetString() ?? "" : "";
                 var source = page.GetProperty("fullurl").GetString()!;
                 if (!Uri.TryCreate(source, UriKind.Absolute, out var sourceUri) || sourceUri.Scheme != "https" || !sourceUri.Host.EndsWith(".wikipedia.org", StringComparison.OrdinalIgnoreCase)) continue;
-                candidates.Add(new(name, imageUrl, source, text, Score(searchTitle, year, name, text, page.GetProperty("index").GetInt32())));
+                var entity = page.TryGetProperty("pageprops", out var props) && props.TryGetProperty("wikibase_item", out var item) ? item.GetString() ?? "" : "";
+                candidates.Add(new(name, imageUrl, source, text,
+                    Score(includeWithoutPoster ? title : searchTitle, year, name, text, page.GetProperty("index").GetInt32()), entity));
             }
             if (candidates.Any(c => c.Score >= 16)) break;
         }
-        return candidates.Where(c => c.Score > -100).DistinctBy(c => c.ImageUrl).OrderByDescending(c => c.Score).ToList();
+        return candidates.Where(c => c.Score > -100).DistinctBy(c => includeWithoutPoster ? c.PageUrl : c.ImageUrl).OrderByDescending(c => c.Score).ToList();
+    }
+
+    internal async Task<MovieTrailer?> FindTrailerAsync(string entity, CancellationToken token)
+    {
+        if (!Regex.IsMatch(entity, @"\AQ[1-9][0-9]{0,15}\z")) return null;
+        var url = $"https://www.wikidata.org/w/api.php?action=wbgetclaims&entity={entity}&property=P1651&format=json";
+        using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, token);
+        response.EnsureSuccessStatusCode();
+        var bytes = await RemoteFiles.ReadBoundedAsync(response, 1024 * 1024, token);
+        using var json = JsonDocument.Parse(bytes);
+        return ReadTrailer(json.RootElement);
+    }
+
+    internal static MovieTrailer? ReadTrailer(JsonElement data)
+    {
+        if (!data.TryGetProperty("claims", out var claims) || !claims.TryGetProperty("P1651", out var videos)) return null;
+        foreach (var claim in videos.EnumerateArray())
+        {
+            if (claim.TryGetProperty("rank", out var rank) && rank.GetString() == "deprecated") continue;
+            if (!claim.TryGetProperty("qualifiers", out var qualifiers) || !qualifiers.TryGetProperty("P3831", out var roles)) continue;
+            if (!roles.EnumerateArray().Any(role => role.TryGetProperty("datavalue", out var dv) &&
+                dv.GetProperty("value").TryGetProperty("id", out var id) && id.GetString() == "Q622550")) continue;
+            if (claim.GetProperty("mainsnak").TryGetProperty("datavalue", out var value) &&
+                value.GetProperty("value").GetString() is { } video && MovieTrailer.IsVideoId(video)) return new MovieTrailer(video);
+        }
+        return null;
     }
     public static bool IsImageUrl(string url) => Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == "https" && (uri.Host.Equals("upload.wikimedia.org", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("thumb.wikimedia.org", StringComparison.OrdinalIgnoreCase));
     public async Task<string> DownloadAsync(CoverCandidate candidate, string directory, CancellationToken token)
@@ -90,4 +121,23 @@ public sealed class CoverService : IDisposable
         return path;
     }
     public void Dispose() => http.Dispose();
+}
+
+internal sealed record MovieTrailer(string VideoId)
+{
+    public static bool IsVideoId(string id) => Regex.IsMatch(id, @"\A[A-Za-z0-9_-]{11}\z");
+
+    public static MovieTrailer? FromUrl(string value)
+    {
+        if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var url) || url.Scheme != "https" ||
+            !url.IsDefaultPort || url.UserInfo.Length > 0) return null;
+        var id = url.IdnHost switch
+        {
+            "youtu.be" => url.AbsolutePath.Trim('/'),
+            "youtube.com" or "www.youtube.com" or "m.youtube.com" when url.AbsolutePath == "/watch" =>
+                url.Query.TrimStart('?').Split('&').FirstOrDefault(part => part.StartsWith("v=", StringComparison.Ordinal))?[2..],
+            _ => null
+        };
+        return id != null && IsVideoId(id) ? new MovieTrailer(id) : null;
+    }
 }

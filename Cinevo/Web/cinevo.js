@@ -337,25 +337,44 @@ function render(data) {
   $('#clear-library').disabled = !data.total && !data.folderCount;
 }
 
+const movieDetails = new Map();
 function showDetails(movie) {
   const signature = JSON.stringify(movie);
   if ($('#details').open && detailKey === signature) return;
+  const dialog = $('#details');
+  const isSameMovie = dialog.open && detailId === movie.id;
   detailKey = signature;
   detailId = movie.id;
   const panel = $('#detail-content');
   const title = node('h2', '', movie.title);
   title.id = 'detail-title';
-  panel.replaceChildren(title);
+  const introduction = node('div', 'detail-intro');
+  introduction.append(title);
   const tags = [movie.year, movie.genre, movie.watched ? 'Assistido' : '', movie.rating ? '★ ' + movie.rating + '/5' : ''].filter(Boolean);
-  if (tags.length) panel.append(node('p', 'meta', tags.join(' · ')));
-  if (movie.description) panel.append(node('p', 'description', movie.description));
-  const actions = playActions(movie);
-  if (movie.importedOnly) actions.append(command('+ Adicionar à biblioteca', 'accent', 'add-to-library', movie.id));
-  actions.append(command(movie.favorite ? 'Remover favorito' : 'Favoritar', 'secondary', 'favorite', movie.id),
+  if (tags.length) introduction.append(node('p', 'detail-tags', tags.join('  ·  ')));
+  const mainActions = playActions(movie);
+  if (movie.importedOnly) mainActions.append(command('+ Adicionar à biblioteca', 'accent', 'add-to-library', movie.id));
+  introduction.append(mainActions);
+  const artwork = node('div', 'detail-artwork');
+  artwork.append(node('span', '', movie.title[0]?.toUpperCase() || 'C'));
+  const image = poster(movie, 'detail-poster');
+  if (image) {
+    image.alt = 'Capa de ' + movie.title;
+    artwork.append(image);
+  }
+  const header = node('div', 'detail-header');
+  header.append(artwork, introduction);
+  const information = node('div', 'detail-information');
+  const synopsis = node('section', 'detail-synopsis');
+  synopsis.append(node('h3', '', 'Sinopse'));
+  const summary = node('p', '', movie.description || 'Buscando sinopse…');
+  synopsis.append(summary);
+  const tools = node('div', 'actions detail-tools');
+  tools.append(command(movie.favorite ? 'Remover favorito' : 'Favoritar', 'secondary', 'favorite', movie.id),
     command(movie.watched ? 'Marcar como não assistido' : 'Marcar como assistido', 'secondary', 'watched', movie.id),
     command('Editar detalhes', 'secondary', 'details', movie.id));
-  if (movie.isOnline) actions.append(button('Opções de download', 'secondary', event => showSourceDownloads(movie, event.currentTarget)));
-  if (!movie.importedOnly) actions.append(button('Remover da biblioteca', 'secondary', () => {
+  if (movie.isOnline) tools.append(button('Opções de download', 'secondary', event => showSourceDownloads(movie, event.currentTarget)));
+  if (!movie.importedOnly) tools.append(button('Remover da biblioteca', 'secondary', () => {
     $('#details').close();
     confirmRemoval('Remover da biblioteca?', movie.title + (movie.isOnline
       ? ' volta para Filmes importados. Os arquivos do PC são preservados.'
@@ -364,8 +383,63 @@ function showDetails(movie) {
       await refresh(false, true);
     });
   }));
-  panel.append(actions);
-  if (!$('#details').open) $('#details').showModal();
+  const trailer = isSameMovie && panel.querySelector('.detail-trailer') || node('section', 'detail-trailer');
+  const downloads = isSameMovie && panel.querySelector('.source-downloads');
+  information.append(synopsis, trailer, tools);
+  if (downloads) information.append(downloads);
+  panel.replaceChildren(header, information);
+  if (!dialog.open) {
+    dialog.showModal();
+    dialog.scrollTop = 0;
+  }
+  if (image) loadImage(image);
+
+  const key = JSON.stringify([movie.id, movie.title, movie.year, movie.description, movie.customTrailer]);
+  if (!movieDetails.has(key)) {
+    movieDetails.set(key, transferAction('movie-details', movie.id).catch(() => ({ retry: true })).then(details => {
+      if (details?.retry) movieDetails.delete(key);
+      return details;
+    }));
+    if (movieDetails.size > 150) movieDetails.delete(movieDetails.keys().next().value);
+  }
+  movieDetails.get(key).then(details => {
+    if (!summary.isConnected || !dialog.open) return;
+    summary.textContent = details?.synopsis || movie.description || 'Sinopse indisponível para este título.';
+    if (details?.synopsisSource) {
+      const citation = node('a', 'detail-source', 'Fonte da sinopse · Wikipédia');
+      citation.href = details.synopsisSource;
+      citation.target = '_blank';
+      citation.rel = 'noopener noreferrer';
+      synopsis.append(citation);
+    }
+    renderMovieTrailer(trailer, mainActions, movie, details?.trailerId);
+  });
+}
+
+function renderMovieTrailer(section, actions, movie, id) {
+  actions.append(button(id ? '▶ Ver trailer' : 'Buscar trailer', 'secondary', () => {
+    if (id && !section.querySelector('iframe')) {
+      const iframe = node('iframe');
+      iframe.title = 'Trailer de ' + movie.title;
+      iframe.allow = 'fullscreen; encrypted-media';
+      iframe.allowFullscreen = true;
+      iframe.referrerPolicy = 'origin';
+      iframe.src = 'https://www.youtube-nocookie.com/embed/' + id;
+      section.insertBefore(iframe, section.querySelector('a'));
+    }
+    section.scrollIntoView({ block: 'nearest' });
+    section.querySelector('iframe, a')?.focus({ preventScroll: true });
+  }));
+  if (section.dataset.trailer === (id || '') && section.childElementCount) return;
+  section.dataset.trailer = id || '';
+  const link = node('a', 'detail-source', id ? 'Abrir trailer no YouTube ↗' : 'Pesquisar trailer no YouTube ↗');
+  link.href = id ? 'https://www.youtube.com/watch?v=' + id :
+    'https://www.youtube.com/results?search_query=' + encodeURIComponent([movie.title, movie.year, 'trailer oficial'].filter(Boolean).join(' '));
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  section.replaceChildren(node('h3', '', 'Trailer'));
+  if (!id) section.append(node('p', '', 'Nenhum trailer vinculado. Você pode pesquisar ou adicionar um link em Editar detalhes.'));
+  section.append(link);
 }
 
 async function catalog(page, limit, signal) {
@@ -572,7 +646,11 @@ document.addEventListener('click', event => {
   }
 });
 $('.dialog-close').onclick = () => $('#details').close();
-$('#details').addEventListener('close', () => { detailId = null; });
+$('#details').addEventListener('close', () => {
+  if ($('#details').open) return;
+  detailId = null;
+  $('#detail-content').replaceChildren();
+});
 $('#clear-library').onclick = () => {
   $('details.menu').open = false;
   $('#clear-status').textContent = '';

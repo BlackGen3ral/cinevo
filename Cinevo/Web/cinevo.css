@@ -146,3 +146,56 @@ dialog h2 { margin: 15px 28px 6px 0; font-size: clamp(25px, 4vw, 40px); line-hei
   .transfer-card, #torrent-form { padding: 14px }
   .transfer-card-header { align-items: start; flex-direction: column }
 }
+
+#details {
+  width: min(980px, calc(100vw - 40px));
+  max-width: none;
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  overflow: auto;
+  border-radius: 18px;
+  border-color: #ffffff24;
+  background: #151419;
+  scrollbar-width: thin;
+}
+#details::backdrop { background: #09080cda; backdrop-filter: blur(7px) }
+#details .dialog-close { z-index: 2; background: #100e16e8; width: 40px; height: 40px; top: 16px; right: 16px }
+.detail-header {
+  display: grid;
+  grid-template-columns: minmax(115px, 212px) minmax(0, 1fr);
+  align-items: end;
+  gap: clamp(18px, 4vw, 45px);
+  padding: clamp(22px, 5vw, 56px);
+  background: radial-gradient(ellipse at 14% 3%, #54303f 0%, transparent 67%), linear-gradient(155deg, #2b202c, #19171d 60%, #151419);
+}
+.detail-intro { padding-bottom: 9px }
+#details h2 { margin: 0; font-size: clamp(30px, 5.2vw, 64px); text-wrap: balance; overflow-wrap: anywhere }
+.detail-tags { font-size: 14px; color: #c6b6c4; margin: 12px 0 0 }
+.detail-artwork {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 9px;
+  background: radial-gradient(ellipse at 73% 15%, #683b4e, #251d29 74%);
+  box-shadow: 0 16px 37px #09070c7a, inset 0 0 0 1px #ffffff24;
+  color: #dc98aeaa;
+  font-size: clamp(44px, 7vw, 100px);
+  font-weight: 800;
+}
+.detail-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #1c1720 }
+.detail-information { padding: 0 clamp(22px, 5vw, 56px) clamp(24px, 5vw, 42px) }
+.detail-information h3 { margin: 0 0 12px; font-size: 20px }
+.detail-information p { color: #d0c7cf; line-height: 1.75; margin: 0 0 10px; max-width: 76ch; overflow-wrap: anywhere }
+.detail-source { display: inline-block; color: #e2a9b9; text-underline-offset: 3px; font-size: 14px; margin-top: 5px }
+.detail-trailer { margin-top: 25px; padding-top: 20px; border-top: 1px solid #ffffff1c }
+.detail-trailer:empty { display: none }
+.detail-trailer iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 9px; margin-bottom: 8px; background: #0d0d11 }
+.detail-tools { padding-top: 19px; border-top: 1px solid #ffffff1c }
+@media (max-width: 590px) {
+  #details { width: calc(100vw - 20px); max-height: calc(100dvh - 20px) }
+  .detail-header { padding-top: 54px; grid-template-columns: minmax(0, 100px) minmax(0, 1fr); align-items: start }
+  #details h2 { font-size: clamp(22px, 6vw, 38px) }
+  .detail-intro .actions { margin-top: 14px }
+}

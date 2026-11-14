@@ -175,8 +175,9 @@ public partial class MainWindow
         }
         return new
         {
-            id, movie.Title, movie.Year, movie.Genre, movie.Description, movie.Favorite, movie.Watched,
+            id, movie.Title, movie.Year, movie.Genre, description = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description, movie.Favorite, movie.Watched,
             site = movie.IsOnline ? SourceSite(movie) : "",
+            customTrailer = MovieTrailer.FromUrl(movie.TrailerUrl)?.VideoId,
             movie.IsOnline, movie.ImportedOnly, movie.Progress, movie.Rating, movie.PlayLabel, movie.Available,
             hasCover = movie.Cover.Length > 0,
             coverVersion = movie.Cover.GetHashCode(StringComparison.Ordinal)
@@ -203,6 +204,12 @@ public partial class MainWindow
     private async Task<object?> DispatchWebActionAsync(WebAction command)
     {
         if (command.Name.StartsWith("torrent-", StringComparison.Ordinal)) return await TorrentActionAsync(command);
+        if (command.Name == "movie-details")
+        {
+            if (command.Id == null || !webMovies.TryGetValue(command.Id, out var movie) || !library.Movies.Contains(movie))
+                throw new InvalidDataException("O título não está mais disponível.");
+            return await MovieDetailsAsync(movie);
+        }
         if (command.Name == "hero-slide")
         {
             if (!int.TryParse(command.Address, out var offset) || offset < 0) throw new InvalidDataException("Destaque inválido.");
