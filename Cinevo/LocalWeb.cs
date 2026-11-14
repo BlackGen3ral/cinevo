@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Cinevo;
 
-internal sealed class LocalWeb(Func<string, string, int, int, Task<object>> catalog, Func<WebAction, Task<object?>> action,
+internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, Task<object>> catalog, Func<WebAction, Task<object?>> action,
     Func<string, Task<byte[]?>> cover, Func<Task<object>> status)
 {
     private readonly string key = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
@@ -69,8 +69,8 @@ internal sealed class LocalWeb(Func<string, string, int, int, Task<object>> cata
             connected = true;
             return Results.Json(data);
         });
-        app.MapGet("/api/catalog", async (string? section, string? search, int? page, int? limit) =>
-            Results.Json(await catalog(section ?? "library", search ?? "", Math.Clamp(page ?? 1, 1, 100000), Math.Clamp(limit ?? 30, 1, 60))));
+        app.MapGet("/api/catalog", async (string? section, string? search, int? page, int? limit, string? site, string? type) =>
+            Results.Json(await catalog(section ?? "library", search ?? "", Math.Clamp(page ?? 1, 1, 100000), Math.Clamp(limit ?? 30, 1, 60), site, type)));
         app.MapGet("/api/cover/{id}", async (string id) =>
             await cover(id) is { } data ? Results.Bytes(data, ImageType(data)) : Results.NotFound());
         app.MapPost("/api/action", async (HttpContext context) =>

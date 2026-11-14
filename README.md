@@ -1,8 +1,8 @@
-# Cinevo 0.1.16 · Beta
+# Cinevo 0.1.17 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.16-beta.17/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.17-beta.18/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -39,6 +39,8 @@ O Cinevo não move, apaga ou envia seus vídeos. A busca de capas envia somente 
 No player: **Espaço** pausa/continua; **← / →** recuam/avançam 10 segundos; **F** alterna tela cheia; **Esc** sai da tela cheia ou volta à biblioteca; **M** ativa/desativa o som. O progresso é salvo a cada dez segundos e ao fechar o player. A continuação começa após 30 segundos de progresso salvo. No final, o filme é marcado como assistido automaticamente; você pode alterar isso nos detalhes.
 
 ## Atualizações
+
+Em **Filmes importados**, filtre pelo site ou escolha apenas filmes ou séries. As séries ficam reunidas pelo nome dentro de cada site, com temporadas e episódios em ordem quando identificados. Reimportar um catálogo preserva sinopses, capas e links encontrados em importações anteriores quando a listagem fornece menos informações.
 
 Para usar o **The Movie Database**, abra **⋯ → Configurar TMDB** na interface web do Cinevo. Use o token de leitura ou a chave API v3 da [sua conta do TMDB](https://www.themoviedb.org/settings/api). A credencial é protegida no Windows. Nos detalhes do título, a integração exibe a sinopse disponível em português do Brasil, a nota e a quantidade de avaliações da comunidade, o elenco, a direção, o roteiro ou a criação e um trailer do YouTube quando cadastrado. A busca envia ao TMDB o título e usa o ano da biblioteca para conferir a correspondência. A nota do TMDB fica separada da sua avaliação pessoal.
 
@@ -90,7 +92,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.16-beta.17
+./scripts/build.ps1 -Version 0.1.17-beta.18
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.

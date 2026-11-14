@@ -26,7 +26,7 @@ public partial class MainWindow
             if (web == null)
             {
                 var server = new LocalWeb(
-                    (section, search, page, limit) => Dispatcher.InvokeAsync(() => WebCatalog(section, search, page, limit)).Task,
+                    (section, search, page, limit, site, type) => Dispatcher.InvokeAsync(() => WebCatalog(section, search, page, limit, site, type)).Task,
                     command => Dispatcher.InvokeAsync(() => DispatchWebActionAsync(command)).Task.Unwrap(),
                     ReadWebCoverAsync,
                     () => Dispatcher.InvokeAsync<object>(() => new
@@ -120,13 +120,19 @@ public partial class MainWindow
         }
     }
 
-    private object WebCatalog(string section, string search, int page, int limit)
+    private object WebCatalog(string section, string search, int page, int limit, string? site, string? type)
     {
         var saved = library.Movies.Where(movie => !movie.ImportedOnly).ToList();
         var imports = library.Movies.Where(movie => movie.IsOnline).ToList();
+        var importGroups = section == "imports" ? imports.Select(movie => (Movie: movie, Site: SourceSite(movie), Info: ImportedTitle.Describe(movie))).ToArray() : [];
         var collection = section switch
         {
-            "imports" => imports.OrderBy(SourceSite, StringComparer.OrdinalIgnoreCase).ThenBy(movie => !movie.ImportedOnly).ThenByDescending(movie => movie.Added),
+            "imports" => importGroups.Where(item => string.IsNullOrEmpty(site) || item.Site == site)
+                .Where(item => string.IsNullOrEmpty(type) || item.Info.Type == type)
+                .OrderBy(item => item.Site, StringComparer.OrdinalIgnoreCase).ThenBy(item => item.Info.Type)
+                .ThenBy(item => item.Info.Series, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(item => item.Info.Season ?? -1).ThenBy(item => item.Info.Episode ?? -1)
+                .ThenByDescending(item => item.Movie.Added).Select(item => item.Movie),
             "favorites" => saved.Where(movie => movie.Favorite).OrderBy(movie => movie.Title, StringComparer.CurrentCultureIgnoreCase),
             "continue" => saved.Where(movie => !movie.Watched && movie.ResumeMilliseconds > 30000).OrderByDescending(movie => movie.Added),
             _ => saved.OrderByDescending(movie => movie.Added)
@@ -149,6 +155,8 @@ public partial class MainWindow
             total = saved.Count,
             folderCount = library.Folders.Count,
             imported = imports.Count(movie => movie.ImportedOnly),
+            sites = importGroups.GroupBy(item => item.Site).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(group => new { name = group.Key, count = group.Count() }).ToArray(),
             version = Updater.CurrentVersion
         };
     }
@@ -158,6 +166,7 @@ public partial class MainWindow
 
     private object WebMovie(Movie movie)
     {
+        var kind = ImportedTitle.Describe(movie);
         if (!webIds.TryGetValue(movie, out var id))
         {
             if (webIds.Count > library.Movies.Count + 100)
@@ -177,6 +186,10 @@ public partial class MainWindow
         {
             id, movie.Title, movie.Year, movie.Genre, description = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description, movie.Favorite, movie.Watched,
             site = movie.IsOnline ? SourceSite(movie) : "",
+            mediaType = kind.Type,
+            seriesTitle = kind.Series,
+            kind.Season,
+            kind.Episode,
             customTrailer = MovieTrailer.FromUrl(movie.TrailerUrl)?.VideoId,
             tmdbLink = movie.TmdbUrl,
             tmdbConfigured = File.Exists(TmdbClient.CredentialPath),

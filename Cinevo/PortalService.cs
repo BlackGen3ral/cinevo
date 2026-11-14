@@ -18,6 +18,10 @@ public sealed class PortalItem
     public string DownloadUrl { get; set; } = "";
     public string CoverUrl { get; set; } = "";
     public string ImportedFrom { get; set; } = "";
+    public string MediaType { get; set; } = "";
+    public string SeriesTitle { get; set; } = "";
+    public int? Season { get; set; }
+    public int? Episode { get; set; }
 }
 public sealed class PortalFeed
 {
@@ -139,7 +143,14 @@ public static class PortalService
                 library.Movies.Add(movie);
                 imported++;
             }
-            movie.SourceUrl = item.SourceUrl; movie.StreamUrl = RemoteFiles.IsPublicHttps(item.StreamUrl) ? item.StreamUrl : ""; movie.DownloadUrl = RemoteFiles.IsPublicHttps(item.DownloadUrl) ? item.DownloadUrl : ""; movie.Description = item.Description;
+            movie.SourceUrl = item.SourceUrl;
+            if (RemoteFiles.IsPublicHttps(item.StreamUrl)) movie.StreamUrl = item.StreamUrl;
+            if (RemoteFiles.IsPublicHttps(item.DownloadUrl)) movie.DownloadUrl = item.DownloadUrl;
+            if (!string.IsNullOrWhiteSpace(item.Description)) movie.Description = item.Description;
+            if (item.MediaType is "movie" or "series") movie.MediaType = item.MediaType;
+            if (!string.IsNullOrWhiteSpace(item.SeriesTitle)) movie.SeriesTitle = item.SeriesTitle;
+            movie.Season = item.Season ?? movie.Season;
+            movie.Episode = item.Episode ?? movie.Episode;
             if (RemoteFiles.IsPublicHttps(item.ImportedFrom)) movie.ImportedFrom = item.ImportedFrom;
             if (item.CoverUrl.Length > 0 && (movie.Cover.Length == 0 || !File.Exists(movie.Cover)))
                 missingCovers.Add((movie, item));

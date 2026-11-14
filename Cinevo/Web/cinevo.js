@@ -5,7 +5,7 @@ if (location.hash && key) {
   history.replaceState(null, '', '/');
 }
 const headers = { Authorization: 'Bearer ' + key };
-const state = { section: 'library', search: '', page: 1, movies: [], revision: null, busy: false };
+const state = { section: 'library', search: '', site: '', type: '', page: 1, movies: [], revision: null, busy: false };
 const images = new Map();
 const imageObserver = new IntersectionObserver(entries => {
   for (const { target, isIntersecting } of entries) {
@@ -164,7 +164,7 @@ function movieCard(movie) {
     progress.setAttribute('aria-label', 'Progresso assistido');
     art.append(progress);
   }
-  open.append(art, node('strong', '', movie.title), node('small', '', [movie.year, movie.genre].filter(Boolean).join(' · ')));
+  open.append(art, node('strong', '', movie.title), node('small', '', [mediaLabel(movie), movie.year, movie.genre].filter(Boolean).join(' · ')));
   card.append(open);
   if (movie.importedOnly) {
     const add = command('+ Adicionar à biblioteca', 'secondary', 'add-to-library', movie.id);
@@ -172,6 +172,47 @@ function movieCard(movie) {
     card.append(add);
   }
   return card;
+}
+
+function mediaLabel(movie) {
+  if (movie.mediaType !== 'series') return '';
+  return [movie.season == null ? '' : 'Temporada ' + movie.season,
+    movie.episode == null ? '' : 'Episódio ' + movie.episode].filter(Boolean).join(' · ') || 'Série';
+}
+
+function importFilters() {
+  const bar = node('div', 'import-filters');
+  for (const [field, label] of [['site', 'Site'], ['type', 'Categoria']]) {
+    const group = node('label', '', label);
+    const select = node('select');
+    select.id = 'import-' + field;
+    select.onchange = () => {
+      state[field] = select.value;
+      refresh();
+    };
+    group.append(select);
+    bar.append(group);
+  }
+  return bar;
+}
+
+function updateImportFilters(sites) {
+  const site = $('#import-site');
+  const type = $('#import-type');
+  const options = (select, values, selected) => {
+    const signature = JSON.stringify(values);
+    if (select.dataset.options !== signature) {
+      select.replaceChildren(...values.map(([value, label]) => {
+        const item = node('option', '', label);
+        item.value = value;
+        return item;
+      }));
+      select.dataset.options = signature;
+    }
+    select.value = selected;
+  };
+  options(site, [['', 'Todos os sites'], ...sites.map(item => [item.name, item.name + ' (' + item.count + ')'])], state.site);
+  options(type, [['', 'Filmes e séries'], ['movie', 'Só filmes'], ['series', 'Só séries']], state.type);
 }
 
 function shelf(title, rail = false) {
@@ -293,11 +334,12 @@ function render(data) {
       info.append(node('p', '', 'Escolha quais títulos você quer guardar na sua biblioteca.'));
       const actions = node('div', 'actions');
       actions.append(button('+ Importar endereço', 'accent', openImport), command('Sincronizar portal', 'secondary', 'sync'));
-      heading.append(info, actions);
+      heading.append(info, actions, importFilters());
     } else {
       heading.append(info);
     }
   }
+  if (state.section === 'imports') updateImportFilters(data.sites || []);
   const rows = $('#rows');
   const visibleShelves = new Set();
   function showShelf(id, title, movies, rail = false) {
@@ -310,13 +352,19 @@ function render(data) {
   if (state.movies.length) {
     if (state.section === 'imports') {
       const bySite = Map.groupBy(state.movies, movie => movie.site || 'Origem desconhecida');
-      for (const [site, movies] of bySite) showShelf('site-' + site, site, movies);
+      for (const [site, movies] of bySite) {
+        const films = movies.filter(movie => movie.mediaType !== 'series');
+        if (films.length) showShelf('films-' + site, site + ' · Filmes', films);
+        const series = Map.groupBy(movies.filter(movie => movie.mediaType === 'series'), movie => movie.seriesTitle);
+        for (const [title, entries] of series)
+          showShelf(JSON.stringify([site, title]), site + ' · Série · ' + title, entries, true);
+      }
     } else {
       showShelf(state.section + (home ? '-home' : '-grid'), home ? 'Minha biblioteca' : '', state.movies);
     }
     rows.querySelector('.empty')?.remove();
   } else if (!home || state.search) {
-    const text = state.search ? 'Nenhum título corresponde à sua busca.' :
+    const text = state.search || state.site || state.type ? 'Nenhum título corresponde aos filtros.' :
       state.section === 'imports' ? 'Cole o endereço de um filme ou catálogo para começar.' : 'Você ainda não marcou nenhum filme como favorito.';
     let empty = rows.querySelector('.empty');
     if (!empty) { empty = node('p', 'empty'); rows.append(empty); }
@@ -350,7 +398,7 @@ function showDetails(movie) {
   title.id = 'detail-title';
   const introduction = node('div', 'detail-intro');
   introduction.append(title);
-  const tags = [movie.year, movie.genre, movie.watched ? 'Assistido' : '', movie.rating ? '★ ' + movie.rating + '/5' : ''].filter(Boolean);
+  const tags = [mediaLabel(movie), movie.year, movie.genre, movie.watched ? 'Assistido' : '', movie.rating ? '★ ' + movie.rating + '/5' : ''].filter(Boolean);
   if (tags.length) introduction.append(node('p', 'detail-tags', tags.join('  ·  ')));
   const mainActions = playActions(movie);
   if (movie.importedOnly) mainActions.append(command('+ Adicionar à biblioteca', 'accent', 'add-to-library', movie.id));
@@ -519,7 +567,7 @@ function renderMovieTrailer(section, actions, movie, id) {
 }
 
 async function catalog(page, limit, signal) {
-  const query = new URLSearchParams({ section: state.section, search: state.search, page, limit });
+  const query = new URLSearchParams({ section: state.section, search: state.search, page, limit, site: state.site, type: state.type });
   return (await request('/api/catalog?' + query, { signal })).json();
 }
 
@@ -562,6 +610,7 @@ function changeSection(section) {
   fetchCatalog?.abort();
   state.section = section;
   state.search = '';
+  state.site = state.type = '';
   $('#search').value = '';
   for (const tab of document.querySelectorAll('nav button')) {
     if (tab.dataset.section === section) tab.setAttribute('aria-current', 'page');

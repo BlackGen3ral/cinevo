@@ -37,7 +37,8 @@ export default {async fetch(request,env){
    const statements=[];
    for(const item of imported){
     const key=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(owner+'|'+item.sourceUrl+'|'+item.title.toLowerCase()));const id=[...new Uint8Array(key)].map(b=>b.toString(16).padStart(2,'0')).join('');
-    statements.push(env.DB.prepare('INSERT INTO catalog_items(id,owner_hash,source_url,title,data,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(owner_hash,source_url,title) DO UPDATE SET data=excluded.data').bind(id,owner,item.sourceUrl,item.title,JSON.stringify(item),new Date().toISOString()));
+    const available = Object.fromEntries(Object.entries(item).filter(([, value]) => value !== '' && value != null));
+    statements.push(env.DB.prepare('INSERT INTO catalog_items(id,owner_hash,source_url,title,data,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT DO UPDATE SET data=json_patch(catalog_items.data, excluded.data)').bind(id,owner,item.sourceUrl,item.title,JSON.stringify(available),new Date().toISOString()));
    }
    for(let start=0;start<statements.length;start+=40) await env.DB.batch(statements.slice(start,start+40));
    const count = imported.length;

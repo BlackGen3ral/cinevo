@@ -93,6 +93,23 @@ async function nextCatalogPage(html, url, Rewriter = HTMLRewriter) {
 }
 const filmPath = /\/(?:filme?s?|movies?|film|titulo|title|watch|tv|series|epis[oó]dios?|episodes?)\//i;
 const listingPath = /\/(?:category|categoria|tag|genre|genero|page|pagina|search|busca)\//i;
+const seriesPath = /\/(?:tv|series|séries|epis[oó]dios?|episodes?)\//i;
+
+function classify(item, type, data = {}) {
+ const name = item.title.replace(/\s*\(?\b(?:19|20)\d{2}\)?\s*$/, '').trim();
+ const season = name.match(/\b(?:temporada\s*(\d{1,3})|(\d{1,3})\s*[ªºoa]?\s*temporada|(?:season\s*|s)(\d{1,3})(?=\b|e\d))/i);
+ const episode = name.match(/(?:\bepis[oó]dio\s*|\bepisode\s*|\bs\d{1,3}e)(\d{1,4})\b/i);
+ const number = value => /^\d{1,4}$/.test(String(value ?? '')) ? Number(value) : null;
+ const structuredSeries = ['TVSeries', 'TVSeason', 'TVEpisode'].includes(type);
+ const isSeries = structuredSeries || type !== 'Movie' && (season || episode || seriesPath.test(new URL(item.sourceUrl).pathname));
+ if (!isSeries) return {...item, mediaType: type === 'Movie' ? 'movie' : ''};
+ const suffix = Math.min(season?.index ?? name.length, episode?.index ?? name.length);
+ const seriesTitle = clean(data.partOfSeries?.name || data.partOfSeason?.partOfSeries?.name, 240)
+  || name.slice(0, suffix).replace(/[\s:–—-]+$/, '') || name;
+ return {...item, mediaType: 'series', seriesTitle,
+  season: number(data.seasonNumber ?? data.partOfSeason?.seasonNumber ?? (season && (season[1] || season[2] || season[3]))),
+  episode: number(data.episodeNumber ?? episode?.[1])};
+}
 
 async function catalogCards(html, pageUrl, Rewriter) {
  const cards = new Map();
@@ -129,9 +146,11 @@ async function catalogCards(html, pageUrl, Rewriter) {
   .on('a[href] h2, a[href] h3, a[href] h4', {
    element(element) { heading = card; element.onEndTag(() => { heading = undefined; }); },
    text(part) { if (heading && heading.heading.length < 300) heading.heading += part.text; }
+  }).on('h2 a[href], h3 a[href], h4 a[href]', {
+   text(part) { if (card && card.heading.length < 300) card.heading += part.text; }
   });
  await parser.transform(new Response(html)).text();
- return [...cards.values()];
+ return [...cards.values()].map(item => classify(item));
 }
 export async function parsePage(html,url,Rewriter=HTMLRewriter, catalogPage=false){
  const meta={},scripts=[],downloads=[],videos=[],headings=[];let title='',script=null,heading;
@@ -144,7 +163,8 @@ export async function parsePage(html,url,Rewriter=HTMLRewriter, catalogPage=fals
  await parser.transform(new Response(html)).text();
  const nodes=[];function visit(n,depth=0){if(!n||typeof n!=='object'||depth>12||nodes.length>500)return;if(Array.isArray(n)){for(const item of n)visit(item,depth+1);return;}nodes.push(n);for(const key of ['@graph','itemListElement','item','mainEntity','video'])visit(n[key],depth+1);}
  for(const s of scripts){try{visit(JSON.parse(s.text));}catch{}}
- const movies=nodes.filter(n=>[n['@type']].flat().some(t=>['Movie','TVSeries','TVEpisode'].includes(t)));
+ const filmTypes = ['Movie','TVSeries','TVSeason','TVEpisode'];
+ const movies=nodes.filter(n=>[n['@type']].flat().some(t=>filmTypes.includes(t)));
  const structured=movies.length?movies:nodes.filter(n=>[n['@type']].flat().includes('VideoObject'));
  const detailPage = /^(?:article|video\.)/i.test(meta['og:type'] || '');
  const items=[];
@@ -153,7 +173,8 @@ export async function parsePage(html,url,Rewriter=HTMLRewriter, catalogPage=fals
   const stream=mediaUrl(n.contentUrl||video.contentUrl,url);
   const source=safe(n.url,url)||url;
   const poster=[n.image||n.thumbnailUrl||video.thumbnailUrl].flat()[0];
-  items.push({title:clean(n.name,240),description:clean(n.description),year:String(n.datePublished||'').match(/\b(19\d{2}|20\d{2})\b/)?.[0]||'',coverUrl:safe(typeof poster==='object'?poster?.url:poster,url),sourceUrl:source,streamUrl:stream,downloadUrl:downloads.find(d=>d===stream)||'',importedFrom:url});
+  const item = {title:clean(n.name,240),description:clean(n.description),year:String(n.datePublished||'').match(/\b(19\d{2}|20\d{2})\b/)?.[0]||'',coverUrl:safe(typeof poster==='object'?poster?.url:poster,url),sourceUrl:source,streamUrl:stream,downloadUrl:downloads.find(d=>d===stream)||'',importedFrom:url};
+  items.push(classify(item, [n['@type']].flat().find(t => filmTypes.includes(t)), n));
  }
  if ((catalogPage || !items.length) && !videos.length && !downloads.length && !detailPage && !meta['og:video'] && !meta['og:video:secure_url']) {
   const cards = await catalogCards(html, url, Rewriter);
@@ -162,7 +183,7 @@ export async function parsePage(html,url,Rewriter=HTMLRewriter, catalogPage=fals
    for (const item of items) {
     if (!item.title || item.sourceUrl === url) continue;
     const card = byUrl.get(item.sourceUrl);
-    byUrl.set(item.sourceUrl, card ? {...item, coverUrl: item.coverUrl || card.coverUrl, year: item.year || card.year} : item);
+    byUrl.set(item.sourceUrl, card ? mergeItem(card, item) : item);
    }
    return [...byUrl.values()];
   }
@@ -176,10 +197,17 @@ export async function parsePage(html,url,Rewriter=HTMLRewriter, catalogPage=fals
   i.streamUrl=i.streamUrl||mediaUrl(meta['og:video:secure_url']||meta['og:video']||videos[0]||downloads[0],url);
   i.downloadUrl=i.downloadUrl||downloads[0]||'';i.year=i.year||'';
   i.linkOnly = !items.length && !i.streamUrl && !(detailPage && (meta['og:title'] || meta['og:image']));
-  if(i.title)items.splice(0,items.length,i);
+  if(i.title)items.splice(0,items.length,i.mediaType ? i : classify(i, /^video\.(?:episode|tv_show)$/i.test(meta['og:type']) ? 'TVEpisode' : null));
  }
  const unique=new Map();for(const item of items){if(!item.title)continue;const key=item.sourceUrl+'|'+item.title.toLocaleLowerCase();if(!unique.has(key))unique.set(key,item);}
  return [...unique.values()];
+}
+function mergeItem(previous, item) {
+ if (!previous) return item;
+ return {...previous, ...item, description: item.description || previous.description, coverUrl: item.coverUrl || previous.coverUrl,
+  year: item.year || previous.year, streamUrl: item.streamUrl || previous.streamUrl, downloadUrl: item.downloadUrl || previous.downloadUrl,
+  mediaType: item.mediaType || previous.mediaType, seriesTitle: item.seriesTitle || previous.seriesTitle,
+  season: item.season ?? previous.season, episode: item.episode ?? previous.episode };
 }
 async function importPage(value,options={}){
  const initial=publicUrl(value);const {response,url}=await fetchPublic(initial.href,options);
@@ -222,7 +250,10 @@ export async function importCatalog(value, options = {}) {
    break;
   }
   for (const item of page.items) {
-   if (!item.linkOnly || visited.size === 1 && !page.next && !options.catalogPage) items.set(item.sourceUrl + '|' + item.title.toLowerCase(), item);
+   if (!item.linkOnly || visited.size === 1 && !page.next && !options.catalogPage) {
+    const key = item.sourceUrl + '|' + item.title.toLowerCase();
+    items.set(key, mergeItem(items.get(key), item));
+   }
   }
   next = page.next;
  }

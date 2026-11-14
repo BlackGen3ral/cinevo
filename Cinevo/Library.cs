@@ -16,6 +16,10 @@ public sealed class Movie : INotifyPropertyChanged
     public string PortalId { get; set; } = "";
     public string SourceUrl { get; set; } = "";
     public string ImportedFrom { get; set; } = "";
+    public string MediaType { get; set; } = "";
+    public string SeriesTitle { get; set; } = "";
+    public int? Season { get; set; }
+    public int? Episode { get; set; }
     public string StreamUrl { get; set; } = "";
     public string DownloadUrl { get; set; } = "";
     public string Description { get; set; } = "";

@@ -24,6 +24,14 @@ async function parse(markup){const response=await mf.dispatchFetch('https://port
 test('OpenGraph, HTML video and explicitly offered download',async()=>{const [item]=await parse('<title>Demo film</title><meta property="og:image" content="/poster.jpg"><meta name="description" content="A description"><video><source src="https://media.w3.org/demo.mp4"></video><a download href="https://media.w3.org/demo.mp4">Download</a>');assert.equal(item.title,'Demo film');assert.equal(item.coverUrl,'https://movies.public-domain.org/poster.jpg');assert.equal(item.streamUrl,'https://media.w3.org/demo.mp4');assert.equal(item.downloadUrl,item.streamUrl);});
 test('JSON-LD Movie and nested video do not create duplicates',async()=>{const [item,...other]=await parse('<script type="application/ld+json">'+JSON.stringify({'@type':'Movie',name:'Example',datePublished:'2020-03-01',image:'/a.png',video:{'@type':'VideoObject',name:'Trailer',contentUrl:'https://media.w3.org/trailer.mp4'}})+'</script>');assert.equal(item.title,'Example');assert.equal(item.year,'2020');assert.equal(item.streamUrl,'https://media.w3.org/trailer.mp4');assert.equal(other.length,0);assert.equal(item.downloadUrl,'');});
 test('structured catalog list imports multiple movies',async()=>{const result=await parse('<script type="application/ld+json">'+JSON.stringify({'@type':'ItemList',itemListElement:[{item:{'@type':'Movie',name:'One',url:'/one'}},{item:{'@type':'Movie',name:'Two',url:'/two'}}]})+'</script>');assert.equal(result.length,2);});
+test('catalog cards and JSON-LD keep series, seasons and episode numbers',async()=>{
+ const cards=await parse('<h2><a href="/filmes/aventura">Aventura (2020)</a></h2><h2><a href="/series/aurora-3">Aurora 3ª Temporada (2025)</a></h2>');
+ assert.deepEqual(cards.map(({mediaType,seriesTitle,season})=>[mediaType,seriesTitle,season]),[['',undefined,undefined],['series','Aurora',3]]);
+ const [episode]=await parse('<script type="application/ld+json">'+JSON.stringify({
+  '@type':'TVEpisode',name:'O retorno',episodeNumber:4,partOfSeason:{seasonNumber:2,partOfSeries:{name:'Aurora'}}
+ })+'</script>');
+ assert.deepEqual([episode.mediaType,episode.seriesTitle,episode.season,episode.episode],['series','Aurora',2,4]);
+});
 test('pagination continues in batches and includes a final page with one movie',async()=>{
  const first=await(await mf.dispatchFetch('https://portal.test/__catalog')).json();
  assert.deepEqual(first.items.map(item=>item.title),['Filme 1','Filme 2','Filme 3','Filme 4']);
