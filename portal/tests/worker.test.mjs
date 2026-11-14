@@ -41,7 +41,7 @@ test('numbered pagination retains visible cards missing from metadata and report
  assert.match(result.partial,/bloqueou/);
 });
 test('a film page with related cards imports the selected film',async()=>{
- const items=await parse('<meta property="og:type" content="article"><meta property="og:title" content="Filme selecionado"><a href="/filmes/1"><img src="/1.jpg" alt="Related 1"></a><a href="/filmes/2"><img src="/2.jpg" alt="Related 2"></a>');
+ const items=await parse('<meta property="og:type" content="article"><meta property="og:title" content="Filme selecionado - Nome do site"><main><h1>Filme selecionado</h1></main><a href="/filmes/1"><img src="/1.jpg" alt="Related 1"></a><a href="/filmes/2"><img src="/2.jpg" alt="Related 2"></a>');
  assert.deepEqual(items.map(item=>item.title),['Filme selecionado']);
  assert.equal(items[0].linkOnly,false);
 });

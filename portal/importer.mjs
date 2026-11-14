@@ -134,9 +134,10 @@ async function catalogCards(html, pageUrl, Rewriter) {
  return [...cards.values()];
 }
 export async function parsePage(html,url,Rewriter=HTMLRewriter, catalogPage=false){
- const meta={},scripts=[],downloads=[],videos=[];let title='',script=null;
+ const meta={},scripts=[],downloads=[],videos=[],headings=[];let title='',script=null,heading;
  const parser=new Rewriter().on('meta',{element(el){const key=(el.getAttribute('property')||el.getAttribute('name')||'').toLowerCase();if(key&&!meta[key])meta[key]=el.getAttribute('content')||'';}})
  .on('title',{text(t){title+=t.text;}})
+ .on('main h1, article h1',{element(el){heading={text:''};headings.push(heading);el.onEndTag(()=>{heading=undefined;});},text(t){if(heading&&heading.text.length<300)heading.text+=t.text;}})
  .on('script[type="application/ld+json"]',{element(el){script={text:''};scripts.push(script);el.onEndTag(()=>{script=null;});},text(t){if(script)script.text+=t.text;}})
  .on('video,video source',{element(el){const src=mediaUrl(el.getAttribute('src'),url);if(src)videos.push(src);}})
  .on('a[download]',{element(el){const src=mediaUrl(el.getAttribute('href'),url);if(src&&!/\.(m3u8|mpd)$/i.test(new URL(src).pathname))downloads.push(src);}});
@@ -168,7 +169,8 @@ export async function parsePage(html,url,Rewriter=HTMLRewriter, catalogPage=fals
  }
  if(!items.length||items.length===1){
   const i=items[0]||{sourceUrl:url,importedFrom:url};
-  i.title=i.title||clean(meta['og:title']||meta['twitter:title']||title,240);
+  const detailHeading=detailPage&&headings.map(h=>clean(h.text,240)).find(Boolean);
+  i.title=i.title||detailHeading||clean(meta['og:title']||meta['twitter:title']||title,240);
   i.description=i.description||clean(meta['og:description']||meta.description);
   i.coverUrl=i.coverUrl||safe(meta['og:image']||meta['twitter:image'],url);
   i.streamUrl=i.streamUrl||mediaUrl(meta['og:video:secure_url']||meta['og:video']||videos[0]||downloads[0],url);
