@@ -53,6 +53,7 @@ public sealed class Library
 {
     public List<string> Folders { get; set; } = [];
     public List<Movie> Movies { get; set; } = [];
+    public List<CatalogSource> CatalogSources { get; set; } = [];
     public HashSet<string> RemovedPaths { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public bool AutoUpdate { get; set; } = true;
     public bool AutoCovers { get; set; } = true;

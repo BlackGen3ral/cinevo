@@ -268,7 +268,7 @@ public partial class MainWindow
             {
                 if (TmdbClient.IsSiteUrl(address)) return await ImportTmdbAsync(address);
                 var connection = await PortalService.GetOrCreateConnectionAsync(lifetime.Token);
-                return await PortalService.ImportBatchAsync(connection, address, command.Continuation, lifetime.Token);
+                return await ImportTrackedBatchAsync(connection, address, command.Continuation);
             }
             catch (System.Net.Http.HttpRequestException)
             {

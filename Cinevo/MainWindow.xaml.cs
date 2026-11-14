@@ -42,6 +42,7 @@ public partial class MainWindow : Window
         if (closed) return;
         await SyncPortalAsync(false);
         if (closed) return;
+        if (Updater.IsInstalled) _ = WatchCatalogsAsync();
         if (library.Folders.Count > 0) await ScanAsync();
         else if (library.AutoCovers) await FetchCoversAsync();
         await update;

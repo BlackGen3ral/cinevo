@@ -26,6 +26,7 @@ try {
  await CoverTests.Run(root);
  await TmdbTests.Run();
  await PortalTests.Run(root);
+ await CatalogWatchTests.Run();
  Environment.SetEnvironmentVariable("CINEVO_TEST_DATA", Path.Combine(root, "profile"));
  var persisted = new Library { Movies = [new Movie { Title = "Persistência", ResumeMilliseconds = 45000, DurationMilliseconds = 90000, CoverSource = "https://pt.wikipedia.org/wiki/Teste" }] };
  persisted.Save(); persisted.Movies[0].Notes = "Segunda gravação"; persisted.Save();

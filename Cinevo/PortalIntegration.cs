@@ -20,7 +20,7 @@ public partial class MainWindow
         panel.Children.Add(new TextBlock { Text = "Importar endereço", FontSize = 26, Margin = new Thickness(0, 0, 0, 12) });
         panel.Children.Add(new TextBlock
         {
-            Text = "Cole o link HTTPS de um catálogo ou de um filme. O Cinevo segue as próximas páginas automaticamente.",
+            Text = "Cole o link HTTPS de um catálogo ou de um filme. O Cinevo segue as próximas páginas e busca novos títulos a cada 30 minutos enquanto estiver aberto.",
             TextWrapping = TextWrapping.Wrap, Foreground = Brush("#ADB0BE"), Margin = new Thickness(0, 0, 0, 14)
         });
         var input = new TextBox { MaxLength = 4000 };
@@ -93,7 +93,7 @@ public partial class MainWindow
                 while (!paused && !string.IsNullOrEmpty(next))
                 {
                     var current = next;
-                    var batch = await PortalService.ImportBatchAsync(connection, current, continuation, lifetime.Token);
+                    var batch = await ImportTrackedBatchAsync(connection, current, continuation);
                     count += batch.Count;
                     next = batch.Next;
                     outcome = batch.Message;

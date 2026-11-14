@@ -1,8 +1,8 @@
-# Cinevo 0.1.20 · Beta
+# Cinevo 0.1.21 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.20-beta.21/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.21-beta.22/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -41,6 +41,8 @@ No player: **Espaço** pausa/continua; **← / →** recuam/avançam 10 segundos
 ## Atualizações
 
 Em **Filmes importados**, filtre pelo site ou escolha apenas filmes ou séries. As séries ficam reunidas pelo nome dentro de cada site, com temporadas e episódios em ordem quando identificados. Reimportar um catálogo preserva sinopses, capas e links encontrados em importações anteriores quando a listagem fornece menos informações.
+
+O Cinevo instalado acompanha os endereços importados ao iniciar e verifica novidades a cada 30 minutos enquanto permanece aberto e conectado à internet. Os novos títulos chegam a **Filmes importados**. Catálogos grandes são percorridos em lotes, com continuação salva entre sessões e nova tentativa após falhas temporárias. Catálogos já presentes na biblioteca são reconhecidos pelo endereço de origem.
 
 Com o TMDB conectado, **Importar endereço** também aceita o link da ficha de um filme, série ou temporada no TMDB. A ficha é salva no catálogo deste PC e abre a página do TMDB como origem. Para títulos vindos de outros sites, o Cinevo usa o nome sem os rótulos de qualidade e idioma para buscar a ficha.
 
@@ -96,7 +98,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.20-beta.21
+./scripts/build.ps1 -Version 0.1.21-beta.22
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.
