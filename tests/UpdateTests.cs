@@ -13,11 +13,26 @@ public static class UpdateTests
         using var handler = new FakeHandler(Json("v1.0.1"), hash, bytes);
         using var http = new HttpClient(handler);
         var progress = new ProgressLog();
-        var target = await Updater.DownloadAsync(http, new Version(1, 0, 0), Path.Combine(root, "update-valid"), progress: progress);
+        var cache = Path.Combine(root, "update-valid");
+        var installedCache = Path.Combine(cache, "1.0.0");
+        Directory.CreateDirectory(installedCache);
+        File.WriteAllBytes(Path.Combine(installedCache, "Cinevo-Setup.exe"), bytes);
+        File.WriteAllText(Path.Combine(installedCache, "preservar.txt"), "fora do cache de instaladores");
+        var supersededCache = Path.Combine(cache, "1.0.2");
+        Directory.CreateDirectory(supersededCache);
+        File.WriteAllBytes(Path.Combine(supersededCache, "Cinevo-Setup.exe.download"), bytes);
+        var target = await Updater.DownloadAsync(http, new Version(1, 0, 0), cache, progress: progress);
         if (target == null || !File.ReadAllBytes(target).SequenceEqual(bytes)) throw new Exception("Atualização válida não foi preparada");
         if (progress.Values.Count < 2 || progress.Values[0] != new Updater.UpdateProgress("download", 0, bytes.Length) ||
             progress.Values[^1] != new Updater.UpdateProgress("verify", bytes.Length, bytes.Length))
             throw new Exception("O progresso deve informar os bytes reais antes da verificação.");
+        if (File.Exists(Path.Combine(installedCache, "Cinevo-Setup.exe")) || Directory.Exists(supersededCache) ||
+            !File.Exists(Path.Combine(installedCache, "preservar.txt")))
+            throw new Exception("A limpeza deve remover apenas os instaladores fora de uso.");
+        Updater.CleanCache(cache, new Version(1, 0, 0));
+        if (!File.Exists(target)) throw new Exception("A atualização pendente foi removida antes da instalação.");
+        Updater.CleanCache(cache, new Version(1, 0, 1));
+        if (File.Exists(target)) throw new Exception("O instalador da versão instalada ficou no cache.");
         handler.ReleaseJson = Json("v0.1.1-beta.2");
         if (await Updater.DownloadAsync(http, new Version(0, 1, 0), Path.Combine(root, "update-beta")) == null) throw new Exception("Atualização beta não foi preparada");
         handler.ReleaseJson = Json("v1.0.0");

@@ -35,6 +35,7 @@ public partial class MainWindow : Window
     internal async void Start()
     {
         var webStartup = OpenWebAsync();
+        if (Updater.IsInstalled) _ = Task.Run(Updater.CleanInstalledUpdatesAsync);
         var update = library.AutoUpdate && Updater.IsInstalled ? CheckUpdate(false) : Task.CompletedTask;
         await webStartup;
         if (!closed && !webShown) { Show(); Activate(); }
