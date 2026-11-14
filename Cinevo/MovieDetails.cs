@@ -9,7 +9,7 @@ public partial class MainWindow
 {
     private readonly SemaphoreSlim detailLookup = new(1);
     private readonly Dictionary<(string Title, string Year), (CoverCandidate? Match, MovieTrailer? Trailer)> detailCache = new();
-    private readonly Dictionary<(string Title, string Year), Task<TmdbDetails?>> tmdbCache = new();
+    private readonly Dictionary<(string Title, string Year, string? Route), Task<TmdbDetails?>> tmdbCache = new();
     private int tmdbRevision;
 
     private async Task<object> MovieDetailsAsync(Movie movie)
@@ -19,12 +19,14 @@ public partial class MainWindow
             Regex.Match(movie.Title, @"\(((?:19|20)\d{2})\)\s*$").Groups[1].Value;
         var synopsis = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description;
         var trailer = MovieTrailer.FromUrl(movie.TrailerUrl)?.VideoId;
+        var tmdbState = "disconnected";
         try
         {
             var credential = TmdbClient.ReadCredential();
             if (credential.Length > 0)
             {
-                var key = (title, year);
+                tmdbState = "unmatched";
+                var key = (title, year, TmdbClient.RouteFromUrl(movie.TmdbUrl));
                 if (!tmdbCache.TryGetValue(key, out var lookup))
                 {
                     if (tmdbCache.Count >= 150) tmdbCache.Clear();
@@ -48,24 +50,25 @@ public partial class MainWindow
         catch (Exception ex) when (!lifetime.IsCancellationRequested &&
             ex is HttpRequestException or JsonException or IOException or InvalidDataException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or TaskCanceledException)
         {
-            return new { synopsis, trailerId = trailer, retry = true,
+            return new { synopsis, trailerId = trailer, retry = true, tmdbState = "error",
                 tmdbError = ex is InvalidDataException ? ex.Message : "O TMDB está indisponível no momento. Tente novamente ao reabrir os detalhes." };
         }
-        return await WikiMovieDetailsAsync(movie, title, synopsis, trailer);
+        return await WikiMovieDetailsAsync(movie, title, synopsis, trailer, tmdbState);
     }
 
-    private async Task<TmdbDetails?> LookupTmdbAsync(string credential, (string Title, string Year) key)
+    private async Task<TmdbDetails?> LookupTmdbAsync(string credential, (string Title, string Year, string? Route) key)
     {
         using var client = new TmdbClient(credential);
-        return await client.LookupAsync(key.Title, key.Year, lifetime.Token);
+        return key.Route == null ? await client.LookupAsync(key.Title, key.Year, lifetime.Token) :
+            await client.LookupLinkedAsync(key.Route, lifetime.Token);
     }
 
-    private async Task<object> WikiMovieDetailsAsync(Movie movie, string title, string savedSynopsis, string? savedVideo)
+    private async Task<object> WikiMovieDetailsAsync(Movie movie, string title, string savedSynopsis, string? savedVideo, string tmdbState)
     {
         var year = movie.Year;
         var savedTrailer = savedVideo == null ? null : new MovieTrailer(savedVideo);
         if (!library.AutoCovers || (savedSynopsis.Length > 0 && savedTrailer != null && File.Exists(movie.Cover)))
-            return new { synopsis = savedSynopsis, trailerId = savedTrailer?.VideoId };
+            return new { synopsis = savedSynopsis, trailerId = savedTrailer?.VideoId, tmdbState };
 
         var token = lifetime.Token;
         var key = (title, year);
@@ -89,7 +92,7 @@ public partial class MainWindow
         catch (Exception ex) when (!token.IsCancellationRequested &&
             ex is HttpRequestException or JsonException or IOException or TaskCanceledException)
         {
-            return new { synopsis = savedSynopsis, trailerId = savedTrailer?.VideoId, retry = true };
+            return new { synopsis = savedSynopsis, trailerId = savedTrailer?.VideoId, retry = true, tmdbState };
         }
         finally { detailLookup.Release(); }
 
@@ -113,7 +116,8 @@ public partial class MainWindow
         {
             synopsis = savedSynopsis.Length > 0 ? savedSynopsis : match?.Description,
             synopsisSource = savedSynopsis.Length == 0 ? match?.PageUrl : null,
-            trailerId = (savedTrailer ?? relatedTrailer)?.VideoId
+            trailerId = (savedTrailer ?? relatedTrailer)?.VideoId,
+            tmdbState
         };
     }
 

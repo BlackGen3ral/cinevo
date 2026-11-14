@@ -14,6 +14,11 @@ internal static class TmdbTests
             throw new Exception("Ficha, créditos ou trailer TMDB incorretos.");
         if (await client.LookupAsync("Filme de Teste", "1999", CancellationToken.None) != null)
             throw new Exception("O TMDB associou um filme com ano incorreto.");
+        var linked = TmdbClient.RouteFromUrl("https://www.themoviedb.org/movie/41-filme-teste?language=pt-BR");
+        if (linked != "movie/41" || TmdbClient.RouteFromUrl("https://example.org/movie/41") != null ||
+            (await client.LookupLinkedAsync(linked, CancellationToken.None)).Votes != 31 ||
+            TmdbClient.RouteFromUrl("https://themoviedb.org/tv/42-serie/season/2") != "tv/42/season/2")
+            throw new Exception("O vínculo direto do TMDB precisa aceitar a ficha certa e rejeitar outros domínios.");
         handler.Series = true;
         var season = await client.LookupAsync("Série de Teste 2ª Temporada", "2025", CancellationToken.None);
         if (season is not { Overview: "Sinopse da temporada.", TrailerId: "ENabcdefgh0" } ||

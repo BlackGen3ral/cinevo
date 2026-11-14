@@ -33,6 +33,8 @@ public sealed class MovieDialog : Window
         trailer.MaxLength = 512;
         var trailerHint = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = System.Windows.Media.Brushes.Salmon };
         stack.Children.Add(trailerHint);
+        var tmdb = Field("Link da ficha no TMDB (opcional)", movie.TmdbUrl);
+        tmdb.MaxLength = 512;
         var notes = Field("Suas anotações", movie.Notes); notes.AcceptsReturn = true; notes.Height = 80; notes.TextWrapping = TextWrapping.Wrap;
         stack.Children.Add(new TextBlock { Text = "Avaliação", Margin = new Thickness(0, 12, 0, 6) });
         var rating = new ComboBox { ItemsSource = new[] { "Sem avaliação", "★", "★★", "★★★", "★★★★", "★★★★★" }, SelectedIndex = Math.Clamp(movie.Rating, 0, 5) }; stack.Children.Add(rating);
@@ -50,6 +52,13 @@ public sealed class MovieDialog : Window
         var save = new Button { Content = "Salvar", Background = System.Windows.Media.Brushes.MediumPurple, IsDefault = true };
         save.Click += (_, _) => { if (string.IsNullOrWhiteSpace(title.Text)) { title.Focus(); return; }
             var video = MovieTrailer.FromUrl(trailer.Text);
+            var tmdbRoute = TmdbClient.RouteFromUrl(tmdb.Text);
+            if (tmdb.Text.Trim().Length > 0 && tmdbRoute == null)
+            {
+                trailerHint.Text = "Cole o endereço da página de um filme, série ou temporada do TMDB.";
+                tmdb.Focus();
+                return;
+            }
             if (trailer.Text.Trim().Length > 0 && video == null)
             {
                 trailerHint.Text = "Cole o endereço do vídeo no YouTube ou deixe o campo vazio para buscar automaticamente.";
@@ -57,6 +66,7 @@ public sealed class MovieDialog : Window
                 return;
             }
             movie.TrailerUrl = video == null ? "" : "https://www.youtube.com/watch?v=" + video.VideoId;
+            movie.TmdbUrl = tmdbRoute == null ? "" : "https://www.themoviedb.org/" + tmdbRoute;
             movie.CustomSynopsis = synopsis.Text.Trim();
             movie.Title = title.Text.Trim(); movie.Year = year.Text.Trim(); movie.Genre = genre.Text.Trim(); movie.Notes = notes.Text; movie.Rating = rating.SelectedIndex; movie.Watched = watched.IsChecked == true; movie.Favorite = favorite.IsChecked == true;
             if (coverPath != movie.Cover && File.Exists(coverPath)) { var dir = System.IO.Path.Combine(Library.DataDirectory, "covers"); Directory.CreateDirectory(dir); var dest = System.IO.Path.Combine(dir, Guid.NewGuid() + System.IO.Path.GetExtension(coverPath)); File.Copy(coverPath, dest); movie.Cover = dest; }

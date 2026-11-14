@@ -1,8 +1,8 @@
-# Cinevo 0.1.15 · Beta
+# Cinevo 0.1.16 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.15-beta.16/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.16-beta.17/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -43,6 +43,8 @@ No player: **Espaço** pausa/continua; **← / →** recuam/avançam 10 segundos
 Para usar o **The Movie Database**, abra **⋯ → Configurar TMDB** na interface web do Cinevo. Use o token de leitura ou a chave API v3 da [sua conta do TMDB](https://www.themoviedb.org/settings/api). A credencial é protegida no Windows. Nos detalhes do título, a integração exibe a sinopse disponível em português do Brasil, a nota e a quantidade de avaliações da comunidade, o elenco, a direção, o roteiro ou a criação e um trailer do YouTube quando cadastrado. A busca envia ao TMDB o título e usa o ano da biblioteca para conferir a correspondência. A nota do TMDB fica separada da sua avaliação pessoal.
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+Se o TMDB ainda estiver desconectado, a ficha do filme mostra **Conectar TMDB**. Se a busca automática não localizar o título, procure a ficha no TMDB e cole seu endereço em **Editar detalhes → Link da ficha no TMDB**.
 
 Clique em um pôster ou em **Mais informações** para ver a capa, a sinopse e o trailer no painel do filme. Com a busca automática ativada, o Cinevo consulta a Wikipédia e procura trailers identificados no Wikidata. Em **Editar detalhes**, você pode preencher a própria sinopse ou vincular um vídeo do YouTube. O player do trailer é carregado quando você clica em **Ver trailer**. Se a reprodução incorporada estiver bloqueada, use o link do YouTube. O app também oferece busca manual quando não encontra um trailer.
 
@@ -88,7 +90,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.15-beta.16
+./scripts/build.ps1 -Version 0.1.16-beta.17
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.

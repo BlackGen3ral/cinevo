@@ -20,6 +20,7 @@ public sealed class Movie : INotifyPropertyChanged
     public string DownloadUrl { get; set; } = "";
     public string Description { get; set; } = "";
     public string TrailerUrl { get; set; } = "";
+    public string TmdbUrl { get; set; } = "";
     public string CustomSynopsis { get; set; } = "";
     public bool ImportedOnly { get; set; }
     [System.Text.Json.Serialization.JsonIgnore] public bool IsOnline => PortalId.Length > 0;

@@ -385,6 +385,7 @@ function showDetails(movie) {
   }));
   const trailer = isSameMovie && panel.querySelector('.detail-trailer') || node('section', 'detail-trailer');
   const credits = node('section', 'tmdb-credits');
+  if (movie.tmdbConfigured === false) renderTmdbStatus(credits, movie, 'disconnected');
   const downloads = isSameMovie && panel.querySelector('.source-downloads');
   information.append(synopsis, trailer, credits, tools);
   if (downloads) information.append(downloads);
@@ -395,7 +396,7 @@ function showDetails(movie) {
   }
   if (image) loadImage(image);
 
-  const key = JSON.stringify([movie.id, movie.title, movie.year, movie.description, movie.customTrailer, movie.tmdbRevision]);
+  const key = JSON.stringify([movie.id, movie.title, movie.year, movie.description, movie.customTrailer, movie.tmdbRevision, movie.tmdbLink, movie.tmdbConfigured]);
   if (!movieDetails.has(key)) {
     movieDetails.set(key, transferAction('movie-details', movie.id).catch(() => ({ retry: true })).then(details => {
       if (details?.retry) movieDetails.delete(key);
@@ -414,9 +415,29 @@ function showDetails(movie) {
       synopsis.append(citation);
     }
     if (details?.tmdb) renderTmdb(credits, introduction, synopsis, details.tmdb, details.tmdbSynopsis, movie);
-    if (details?.tmdbError) credits.append(node('p', '', details.tmdbError));
+    else if (details?.tmdbState && details.tmdbState !== 'disconnected')
+      renderTmdbStatus(credits, movie, details.tmdbState, details.tmdbError);
     renderMovieTrailer(trailer, mainActions, movie, details?.trailerId);
   });
+}
+
+function renderTmdbStatus(section, movie, status, error) {
+  const messages = {
+    disconnected: 'Conecte o TMDB para carregar a sinopse, a nota, o elenco e os trailers cadastrados.',
+    unmatched: 'O TMDB não encontrou uma correspondência para este título. Você pode vincular a ficha pelo endereço.',
+    error: error || 'O TMDB não conseguiu carregar esta ficha.'
+  };
+  const actions = node('div', 'actions');
+  if (status === 'unmatched') {
+    const search = node('a', 'detail-source', 'Buscar título no TMDB ↗');
+    search.href = 'https://www.themoviedb.org/search?language=pt-BR&query=' + encodeURIComponent(movie.title.replace(/\s*\(\d{4}\)\s*$/, ''));
+    search.target = '_blank';
+    search.rel = 'noopener noreferrer';
+    actions.append(search, command('Vincular ficha em Editar detalhes', 'secondary', 'details', movie.id));
+  } else {
+    actions.append(command('Conectar TMDB', 'secondary', 'tmdb-settings'));
+  }
+  section.replaceChildren(node('h3', '', 'The Movie Database'), node('p', '', messages[status]), actions);
 }
 
 function renderTmdb(section, introduction, synopsis, tmdb, usesSynopsis, movie) {

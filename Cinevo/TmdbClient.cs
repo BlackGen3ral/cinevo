@@ -85,6 +85,28 @@ internal sealed class TmdbClient : IDisposable
         var route = $"{kind}/{id}";
         var seasonRoute = season.Success && int.TryParse(season.Groups["number"].Value, out var number) && number > 0
             ? $"{route}/season/{number}" : null;
+        return await FetchDetailsAsync(route, seasonRoute, token);
+    }
+
+    internal static string? RouteFromUrl(string value)
+    {
+        if (value.Length > 512 || !Uri.TryCreate(value.Trim(), UriKind.Absolute, out var url)
+            || url.Scheme != "https" || !url.IsDefaultPort || url.UserInfo.Length != 0
+            || url.IdnHost is not ("www.themoviedb.org" or "themoviedb.org")) return null;
+        var match = Regex.Match(url.AbsolutePath, @"\A/(movie|tv)/([1-9][0-9]{0,9})(?:-[^/]+)?(?:/season/([0-9]{1,3}))?/?\z");
+        if (!match.Success || (match.Groups[1].Value == "movie" && match.Groups[3].Success)) return null;
+        var route = $"{match.Groups[1].Value}/{match.Groups[2].Value}";
+        return match.Groups[3].Success ? $"{route}/season/{int.Parse(match.Groups[3].Value)}" : route;
+    }
+
+    public Task<TmdbDetails> LookupLinkedAsync(string route, CancellationToken token)
+    {
+        var parts = route.Split('/');
+        return FetchDetailsAsync($"{parts[0]}/{parts[1]}", parts.Length == 4 ? route : null, token);
+    }
+
+    private async Task<TmdbDetails> FetchDetailsAsync(string route, string? seasonRoute, CancellationToken token)
+    {
         using var details = await GetAsync(route + "?language=pt-BR&append_to_response=credits,videos", token);
         using var seasonDetails = seasonRoute == null ? null :
             await GetAsync(seasonRoute + "?language=pt-BR&append_to_response=videos", token);
@@ -112,7 +134,7 @@ internal sealed class TmdbClient : IDisposable
         var overview = Text(selected, "overview");
         if (overview.Length == 0) overview = Text(root, "overview");
         return new TmdbDetails($"https://www.themoviedb.org/{seasonRoute ?? route}?language=pt-BR",
-            Text(root, kind == "movie" ? "original_title" : "original_name"), overview,
+            Text(root, route.StartsWith("movie/") ? "original_title" : "original_name"), overview,
             Property(selected, "vote_average") is { ValueKind: JsonValueKind.Number } score ? score.GetDouble() : 0,
             Number(selected, "vote_count"), duration, Items(root, "genres").Select(genre => Text(genre, "name")).ToArray(),
             Crew("Director"), Crew("Writer", "Screenplay", "Story"),

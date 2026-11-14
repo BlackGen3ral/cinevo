@@ -178,6 +178,8 @@ public partial class MainWindow
             id, movie.Title, movie.Year, movie.Genre, description = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description, movie.Favorite, movie.Watched,
             site = movie.IsOnline ? SourceSite(movie) : "",
             customTrailer = MovieTrailer.FromUrl(movie.TrailerUrl)?.VideoId,
+            tmdbLink = movie.TmdbUrl,
+            tmdbConfigured = File.Exists(TmdbClient.CredentialPath),
             tmdbRevision,
             movie.IsOnline, movie.ImportedOnly, movie.Progress, movie.Rating, movie.PlayLabel, movie.Available,
             hasCover = movie.Cover.Length > 0,
