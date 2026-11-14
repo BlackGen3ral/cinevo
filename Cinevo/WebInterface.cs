@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Windows;
 using Microsoft.Win32;
 
@@ -36,34 +37,64 @@ public partial class MainWindow
                 if (closed) { server.Stop(); return; }
                 web = server;
             }
-            var edge = new[] { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) }
-                .Select(root => Path.Combine(root, "Microsoft", "Edge", "Application", "msedge.exe"))
+            var roots = new[] { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) };
+            var browser = new[] { Path.Combine("Google", "Chrome", "Application", "chrome.exe"), Path.Combine("Microsoft", "Edge", "Application", "msedge.exe") }
+                .SelectMany(relative => roots.Select(root => Path.Combine(root, relative)))
                 .FirstOrDefault(File.Exists);
-            if (edge == null)
+            if (browser == null)
             {
                 Process.Start(new ProcessStartInfo(web.Address) { UseShellExecute = true });
                 return;
             }
-            var launch = new ProcessStartInfo(edge) { UseShellExecute = false };
+            using var http = new HttpClient(new SocketsHttpHandler { UseProxy = false });
+            using var response = await http.GetAsync(new Uri(web.Address), lifetime.Token);
+            response.EnsureSuccessStatusCode();
+            if (closed) return;
+
+            // Each launch owns its browser process. Sharing a profile lets Edge hand
+            // the window to an existing process and exit before Cinevo can track it.
+            var sessions = Path.GetFullPath(Path.Combine(Library.DataDirectory, "web-sessions"));
+            var profile = Path.Combine(sessions, Guid.NewGuid().ToString("N"));
+            web.PrepareWindow();
+            var launch = new ProcessStartInfo(browser) { UseShellExecute = false };
             launch.ArgumentList.Add("--app=" + web.Address);
-            launch.ArgumentList.Add("--user-data-dir=" + Path.Combine(Library.DataDirectory, "web-profile"));
+            launch.ArgumentList.Add("--user-data-dir=" + profile);
             launch.ArgumentList.Add("--no-first-run");
+            launch.ArgumentList.Add("--no-default-browser-check");
+            launch.ArgumentList.Add("--no-proxy-server");
             launch.ArgumentList.Add("--disable-background-mode");
-            launch.ArgumentList.Add("--disable-features=msEdgeStartupBoost");
+            launch.ArgumentList.Add("--disable-extensions");
+            launch.ArgumentList.Add("--disable-sync");
+            launch.ArgumentList.Add("--disable-features=msEdgeStartupBoost,msEdgeFirstRunExperience");
             var process = Process.Start(launch) ?? throw new IOException("A janela do Cinevo não abriu.");
             webWindow = process;
-            process.Exited += (_, _) => Dispatcher.InvokeAsync(() =>
+            var opened = false;
+            process.Exited += (_, _) =>
             {
-                webWindow = null;
-                process.Dispose();
-                if (!closed && !IsVisible) Close();
-            });
+                _ = RemoveWebProfileAsync(sessions, profile);
+                _ = Dispatcher.InvokeAsync(() =>
+                {
+                    if (webWindow == process) webWindow = null;
+                    process.Dispose();
+                    if (!closed && opened && !IsVisible) Close();
+                });
+            };
             process.EnableRaisingEvents = true;
-            if (!process.HasExited) Hide();
-            else
+            var timeout = Stopwatch.StartNew();
+            while (!closed && webWindow == process && !process.HasExited && timeout.Elapsed < TimeSpan.FromSeconds(12))
             {
-                webWindow = null;
-                Show();
+                if (web.IsConnected)
+                {
+                    opened = true;
+                    Hide();
+                    return;
+                }
+                await Task.Delay(150, lifetime.Token);
+            }
+            if (!closed)
+            {
+                Status.Text = "A interface web não confirmou a abertura. Você pode usar a interface clássica ou tentar abrir a web novamente.";
+                if (webWindow == process && !process.HasExited) process.CloseMainWindow();
             }
         }
         catch (Exception ex)
@@ -71,6 +102,18 @@ public partial class MainWindow
             if (!closed) Status.Text = "Interface web indisponível. " + ex.Message;
         }
         finally { openingWeb = false; }
+    }
+
+    private static async Task RemoveWebProfileAsync(string parent, string path)
+    {
+        if (!string.Equals(Path.GetDirectoryName(Path.GetFullPath(path)), parent, StringComparison.OrdinalIgnoreCase))
+            return;
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            try { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); return; }
+            catch (IOException) { await Task.Delay(350).ConfigureAwait(false); }
+            catch (UnauthorizedAccessException) { await Task.Delay(350).ConfigureAwait(false); }
+        }
     }
 
     private object WebCatalog(string section, string search, int page, int limit)

@@ -19,6 +19,9 @@ internal sealed class LocalWeb(Func<string, string, int, int, Task<object>> cata
     private readonly string key = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     private WebApplication? app;
     private string origin = "";
+    private volatile bool connected;
+    public bool IsConnected => connected;
+    public void PrepareWindow() => connected = false;
     public string Address => origin + "/#" + key;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -58,7 +61,12 @@ internal sealed class LocalWeb(Func<string, string, int, int, Task<object>> cata
         MapAsset("/", "index.html", "text/html; charset=utf-8");
         MapAsset("/cinevo.css", "cinevo.css", "text/css; charset=utf-8");
         MapAsset("/cinevo.js", "cinevo.js", "application/javascript; charset=utf-8");
-        app.MapGet("/api/status", async () => Results.Json(await status()));
+        app.MapGet("/api/status", async () =>
+        {
+            var data = await status();
+            connected = true;
+            return Results.Json(data);
+        });
         app.MapGet("/api/catalog", async (string? section, string? search, int? page, int? limit) =>
             Results.Json(await catalog(section ?? "library", search ?? "", Math.Clamp(page ?? 1, 1, 100000), Math.Clamp(limit ?? 30, 1, 60))));
         app.MapGet("/api/cover/{id}", async (string id) =>

@@ -388,8 +388,8 @@ $('#search').oninput = event => {
   searchTimer = setTimeout(() => refresh(), 150);
 };
 
-async function checkRevision() {
-  if (state.busy || document.hidden) return;
+async function checkRevision(initial = false) {
+  if (state.busy || (!initial && document.hidden)) return;
   try {
     const data = await (await request('/api/status')).json();
     if (state.busy) return;
@@ -403,7 +403,7 @@ async function checkRevision() {
   } catch { /* A janela pode estar fechando. */ }
 }
 if (/^[0-9A-F]{64}$/.test(key || '')) {
-  checkRevision();
+  checkRevision(true);
   setInterval(checkRevision, 1800);
 } else {
   $('#status').textContent = 'Abra a interface pelo aplicativo Cinevo.';
