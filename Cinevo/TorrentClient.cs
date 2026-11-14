@@ -70,6 +70,7 @@ internal sealed class TorrentClient : IDisposable
                 ["username"] = connection.Username, ["password"] = connection.Password
             });
             using var result = await http.PostAsync("api/v2/auth/login", body, token);
+            if (result.StatusCode == HttpStatusCode.NotFound) throw WrongPort();
             if (result.StatusCode != HttpStatusCode.NoContent &&
                 (!result.IsSuccessStatusCode || (await result.Content.ReadAsStringAsync(token)).Trim() != "Ok."))
             {
@@ -129,11 +130,15 @@ internal sealed class TorrentClient : IDisposable
 
         async Task<string> Read(HttpResponseMessage response)
         {
+            if (response.StatusCode == HttpStatusCode.NotFound) throw WrongPort();
             if (!response.IsSuccessStatusCode)
                 throw new InvalidDataException("O qBittorrent recusou a operação.");
             return await response.Content.ReadAsStringAsync(timeout.Token);
         }
     }
+
+    private InvalidDataException WrongPort() => new(
+        $"O qBittorrent não respondeu na porta {connection.Port}. Outro programa pode estar usando a porta. Em Interface Web do qBittorrent, escolha outra porta e informe a mesma no Cinevo.");
 
     public Task<string> VersionAsync(CancellationToken token) => SendAsync("app/version", token);
     public Task<TorrentTransfer[]> TransfersAsync(CancellationToken token, string? hash = null) =>

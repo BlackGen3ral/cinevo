@@ -86,7 +86,7 @@ public partial class MainWindow
             {
                 var version = await client.VersionAsync(token);
                 if (!version.TrimStart('v').StartsWith("5.") && !version.TrimStart('v').StartsWith("4."))
-                    throw new InvalidDataException("A porta não retornou uma versão compatível do qBittorrent.");
+                    throw new InvalidDataException($"A porta {number} não retornou uma versão compatível do qBittorrent. Confira a porta em Interface Web e use outra se ela estiver ocupada.");
                 token.ThrowIfCancellationRequested();
                 setup.Save();
                 torrents?.Dispose();
