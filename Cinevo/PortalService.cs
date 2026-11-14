@@ -18,8 +18,14 @@ public sealed class PortalItem
     public string DownloadUrl { get; set; } = "";
     public string CoverUrl { get; set; } = "";
 }
-public sealed class PortalFeed { public List<PortalItem> Items { get; set; } = []; }
+public sealed class PortalFeed
+{
+    public List<PortalItem> Items { get; set; } = [];
+    public int? NextOffset { get; set; }
+}
 public sealed record PortalSyncResult(int Added, int Total);
+public sealed record PortalDownload(string Url, string Label, string Kind);
+public sealed record PortalDownloads(List<PortalDownload> Options);
 public static class PortalService
 {
     public const string DefaultEndpoint = "https://cinevo-portal.arthurgabrielfera.workers.dev";
@@ -51,20 +57,42 @@ public static class PortalService
         ValidateConnection(c); var http = new HttpClient(handler??new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(45), BaseAddress = new Uri(c.Endpoint) };
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", c.Key); http.DefaultRequestHeaders.UserAgent.ParseAdd("Cinevo/" + Updater.CurrentVersion); return http;
     }
+    public static async Task<List<PortalDownload>> GetDownloadsAsync(string itemId, CancellationToken token)
+    {
+        if (itemId.Length != 64 || !itemId.All(Uri.IsHexDigit)) return [];
+        var connection = LoadConnection();
+        if (connection == null) throw new InvalidDataException("Conecte o portal para consultar os downloads.");
+        using var http = Client(connection);
+        using var response = await http.GetAsync($"/api/items/{itemId}/downloads", HttpCompletionOption.ResponseHeadersRead, token);
+        response.EnsureSuccessStatusCode();
+        var bytes = await RemoteFiles.ReadBoundedAsync(response, 128 * 1024, token);
+        return JsonSerializer.Deserialize<PortalDownloads>(bytes, JsonOptions)?.Options ?? [];
+    }
     public static async Task<PortalSyncResult> SyncAsync(Library library, PortalConnection connection, CancellationToken token,HttpMessageHandler? handler=null)
     {
-        using var http = Client(connection,handler); using var response = await http.GetAsync("/api/items", HttpCompletionOption.ResponseHeadersRead, token);
-        if (response.StatusCode == HttpStatusCode.Unauthorized) throw new InvalidDataException("A chave do portal não foi aceita. Importe novamente o arquivo de conexão."); response.EnsureSuccessStatusCode();
-        var bytes = await RemoteFiles.ReadBoundedAsync(response, 8 * 1024 * 1024, token);
-        var feed = JsonSerializer.Deserialize<PortalFeed>(bytes, JsonOptions) ?? throw new InvalidDataException("O portal retornou um catálogo inválido.");
+        using var http = Client(connection,handler);
+        var items = new Dictionary<string, PortalItem>(StringComparer.Ordinal);
+        int? offset = 0;
+        while (offset is int page)
+        {
+            using var response = await http.GetAsync($"/api/items?offset={page}", HttpCompletionOption.ResponseHeadersRead, token);
+            if (response.StatusCode == HttpStatusCode.Unauthorized) throw new InvalidDataException("A chave do portal não foi aceita. Importe novamente o arquivo de conexão.");
+            response.EnsureSuccessStatusCode();
+            var bytes = await RemoteFiles.ReadBoundedAsync(response, 8 * 1024 * 1024, token);
+            var feed = JsonSerializer.Deserialize<PortalFeed>(bytes, JsonOptions) ?? throw new InvalidDataException("O portal retornou um catálogo inválido.");
+            foreach (var item in feed.Items) items[item.Id] = item;
+            offset = feed.NextOffset;
+            if (offset <= page) throw new InvalidDataException("O portal retornou uma página inválida.");
+        }
         var imported = 0;
         var total = 0;
-        foreach (var item in feed.Items.Take(1000))
+        var existing = library.Movies.Where(movie => movie.IsOnline).ToLookup(movie => movie.PortalId, StringComparer.Ordinal);
+        foreach (var item in items.Values)
         {
             if (item.Id.Length != 64 || !item.Id.All(Uri.IsHexDigit) || string.IsNullOrWhiteSpace(item.Title)) continue;
             if (!RemoteFiles.IsPublicHttps(item.SourceUrl)) continue;
             total++;
-            var movie = library.Movies.FirstOrDefault(m => m.PortalId == item.Id);
+            var movie = existing[item.Id].FirstOrDefault();
             if (movie == null) { movie = new Movie { PortalId = item.Id, Title = item.Title, Year = item.Year }; library.Movies.Add(movie); imported++; }
             movie.SourceUrl = item.SourceUrl; movie.StreamUrl = RemoteFiles.IsPublicHttps(item.StreamUrl) ? item.StreamUrl : ""; movie.DownloadUrl = RemoteFiles.IsPublicHttps(item.DownloadUrl) ? item.DownloadUrl : ""; movie.Description = item.Description;
             if (item.CoverUrl.Length > 0 && (movie.Cover.Length == 0 || !File.Exists(movie.Cover)))

@@ -1,14 +1,36 @@
 import {test,after} from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import {createHash} from 'node:crypto';import {Miniflare} from 'miniflare';
 const key='b'.repeat(64);const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 const entry=(await readFile(new URL('../worker.mjs',import.meta.url),'utf8')).replace("import html from './index.html';",'const html='+JSON.stringify(html)+';');
-const harness=`import worker from './worker.mjs';import {parsePage,importAddress,publicUrl,publicIp,fetchPublic} from './importer.mjs';
+const harness=`import worker from './worker.mjs';import {parsePage,importAddress,publicUrl,publicIp,fetchPublic,importCatalog,downloadOptions} from './importer.mjs';
+const card=(n)=>'<a href="/filmes/'+n+'"><img src="/'+n+'.jpg" alt="Filme '+n+'"></a>';
+const catalog=async address=>{const page=Number(new URL(address).searchParams.get('page')||1);const html='<title>Catálogo</title>'+card(page)+(page<6?'<a rel="next" href="?page='+(page+1)+'">Próximo</a>':'');return new Response(html,{headers:{'content-type':'text/html'}});};
+const base='https://catalog.example.org/filmes';
+`;
+const handler=`
 export default{async fetch(request,env){const u=new URL(request.url);if(u.pathname==='/__parse'){const p=await request.json();return Response.json(await parsePage(p.html,p.url));}if(u.pathname==='/__direct'){return Response.json(await importAddress('https://media.w3.org/test.mp4',{validate:async()=>{},fetcher:async()=>new Response('video',{headers:{'Content-Type':'video/mp4'}})}));}if(u.pathname==='/__blocked'){try{await fetchPublic('https://example.org/start',{validate:async()=>{},fetcher:async()=>new Response(null,{status:302,headers:{location:'https://127.0.0.1/admin'}})});return new Response('FAIL');}catch{return new Response('BLOCKED');}}return worker.fetch(request,env);}};`;
-const mf=new Miniflare({compatibilityDate:'2026-07-30',modules:[{type:'ESModule',path:'harness.mjs',contents:harness},{type:'ESModule',path:'worker.mjs',contents:entry},{type:'ESModule',path:'importer.mjs',contents:await readFile(new URL('../importer.mjs',import.meta.url),'utf8')}],bindings:{AUTH_HASH:createHash('sha256').update(key).digest('hex')},d1Databases:{DB:'test-db'}});
+const checks=`
+if(u.pathname==='/__catalog')return Response.json(await importCatalog(u.searchParams.has('more')?base+'?page=5':base,{catalogPage:u.searchParams.has('more'),validate:async()=>{},fetcher:catalog}));
+if(u.pathname==='/__options')return Response.json(await downloadOptions('<a href="magnet:?xt=urn:btih:'+'a'.repeat(40)+'&amp;dn=Demo">1080p | 4.50 GB | Dual Áudio</a><a href="/demo.mp4" download>720p</a><a href="/filmes/other">Outro filme</a>',base));
+`;
+const mf=new Miniflare({compatibilityDate:'2026-07-30',modules:[{type:'ESModule',path:'harness.mjs',contents:harness+handler.replace('return worker.fetch(request,env);',checks+'return worker.fetch(request,env);')},{type:'ESModule',path:'worker.mjs',contents:entry},{type:'ESModule',path:'importer.mjs',contents:await readFile(new URL('../importer.mjs',import.meta.url),'utf8')}],bindings:{AUTH_HASH:createHash('sha256').update(key).digest('hex')},d1Databases:{DB:'test-db'}});
 after(()=>mf.dispose());const db=await mf.getD1Database('DB');await db.exec(await readFile(new URL('../schema.sql',import.meta.url),'utf8'));const headers={Authorization:'Bearer '+key,'Content-Type':'application/json'};
 async function parse(markup){const response=await mf.dispatchFetch('https://portal.test/__parse',{method:'POST',body:JSON.stringify({html:markup,url:'https://movies.public-domain.org/film/demo'})});assert.equal(response.status,200);return response.json();}
 test('OpenGraph, HTML video and explicitly offered download',async()=>{const [item]=await parse('<title>Demo film</title><meta property="og:image" content="/poster.jpg"><meta name="description" content="A description"><video><source src="https://media.w3.org/demo.mp4"></video><a download href="https://media.w3.org/demo.mp4">Download</a>');assert.equal(item.title,'Demo film');assert.equal(item.coverUrl,'https://movies.public-domain.org/poster.jpg');assert.equal(item.streamUrl,'https://media.w3.org/demo.mp4');assert.equal(item.downloadUrl,item.streamUrl);});
 test('JSON-LD Movie and nested video do not create duplicates',async()=>{const [item,...other]=await parse('<script type="application/ld+json">'+JSON.stringify({'@type':'Movie',name:'Example',datePublished:'2020-03-01',image:'/a.png',video:{'@type':'VideoObject',name:'Trailer',contentUrl:'https://media.w3.org/trailer.mp4'}})+'</script>');assert.equal(item.title,'Example');assert.equal(item.year,'2020');assert.equal(item.streamUrl,'https://media.w3.org/trailer.mp4');assert.equal(other.length,0);assert.equal(item.downloadUrl,'');});
 test('structured catalog list imports multiple movies',async()=>{const result=await parse('<script type="application/ld+json">'+JSON.stringify({'@type':'ItemList',itemListElement:[{item:{'@type':'Movie',name:'One',url:'/one'}},{item:{'@type':'Movie',name:'Two',url:'/two'}}]})+'</script>');assert.equal(result.length,2);});
+test('pagination continues in batches and includes a final page with one movie',async()=>{
+ const first=await(await mf.dispatchFetch('https://portal.test/__catalog')).json();
+ assert.deepEqual(first.items.map(item=>item.title),['Filme 1','Filme 2','Filme 3','Filme 4']);
+ assert.match(first.next,/page=5$/);
+ const last=await(await mf.dispatchFetch('https://portal.test/__catalog?more')).json();
+ assert.deepEqual(last.items.map(item=>item.title),['Filme 5','Filme 6']);
+ assert.equal(last.next,'');
+});
+test('download choices preserve the source label and distinguish magnet from direct video',async()=>{
+ const options=await(await mf.dispatchFetch('https://portal.test/__options')).json();
+ assert.deepEqual(options.map(({kind,label})=>[kind,label]),[['torrent','1080p | 4.50 GB | Dual Áudio'],['file','720p']]);
+ assert.match(options[0].url,/&dn=Demo$/);
+});
 test('HTML catalog imports each visible movie card and skips navigation',async()=>{
  const result=await parse(`<title>Catálogo</title>
  <a href="/categoria/comedia">Comédia</a><a href="/filmes/">Filmes</a>

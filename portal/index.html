@@ -6,10 +6,46 @@
 let items=[],covers=[];const $=id=>document.getElementById(id);
 async function api(path,options={}){const r=await fetch(path,{...options,headers:{'Content-Type':'application/json',...options.headers}});if(r.status===401)throw Error('Recarregue a página para iniciar sua coleção.');const data=await r.json();if(!r.ok)throw Error(data.error||'Não foi possível concluir.');return data}
 function status(s){$('status').textContent=s}
-async function load(){try{const data=await api('/api/items');items=data.items;render();if(data.limitReached)status('Mostrando os 1.000 títulos mais recentes.')}catch(e){status(e.message)}}
+async function load() {
+ try {
+  const catalog = new Map();
+  let offset = 0;
+  do {
+   const page = await api('/api/items?offset=' + offset);
+   for (const item of page.items) catalog.set(item.id, item);
+   offset = page.nextOffset;
+  } while (offset != null);
+  items = [...catalog.values()];
+  render();
+ } catch(error) { status(error.message); }
+}
 function render(){covers.forEach(URL.revokeObjectURL);covers=[];const grid=$('grid');grid.replaceChildren();const q=$('search').value.toLocaleLowerCase();const shown=items.filter(i=>(i.title+' '+i.year+' '+i.description).toLocaleLowerCase().includes(q));$('count').textContent=items.length+' títulos · Sincronize no Cinevo para ver no PC';if(!shown.length){const div=document.createElement('div');div.className='empty';const strong=document.createElement('strong');strong.textContent=items.length?'Nenhum título encontrado.':'Uma coleção começa com um endereço.';div.append(strong,document.createTextNode(items.length?'Tente outra busca.':'Cole o link de uma página ou vídeo para começar.'));grid.append(div);return}
 for(const item of shown){const card=document.createElement('article');card.className='card';const poster=document.createElement('div');poster.className='poster';poster.textContent=item.title.slice(0,1);if(item.coverUrl){const img=document.createElement('img');img.alt='Capa de '+item.title;img.loading='lazy';poster.append(img);fetch('/api/items/'+item.id+'/cover',{credentials:'same-origin'}).then(async r=>{if(!r.ok||!img.isConnected)return;const url=URL.createObjectURL(await r.blob());covers.push(url);if(img.isConnected)img.src=url;else URL.revokeObjectURL(url)}).catch(()=>{})}const tag=document.createElement('span');tag.className='tag';tag.textContent=item.downloadUrl?'DOWNLOAD NA ORIGEM':item.streamUrl?'VÍDEO DISPONÍVEL':'LINK SALVO';poster.append(tag);const info=document.createElement('div');info.className='info';const title=document.createElement('h3');title.textContent=item.title;title.title=item.title;const year=document.createElement('span');year.className='count';year.textContent=item.year||new URL(item.sourceUrl).hostname;const description=document.createElement('p');description.textContent=item.description||'Adicionado pelo endereço da origem.';const foot=document.createElement('div');foot.className='card-foot';const link=document.createElement('a');link.href=item.sourceUrl;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Abrir origem ↗';const remove=document.createElement('button');remove.className='delete';remove.textContent='Remover';remove.onclick=async()=>{if(!confirm('Remover '+item.title+' do portal?'))return;try{await api('/api/items/'+item.id,{method:'DELETE'});await load();status('Título removido do portal.')}catch(e){status(e.message)}};foot.append(link,remove);info.append(title,year,description,foot);card.append(poster,info);grid.append(card)}}
-$('import').onsubmit=async e=>{e.preventDefault();$('submit').disabled=true;status('Lendo o endereço e buscando as informações…');try{const result=await api('/api/import',{method:'POST',body:JSON.stringify({url:$('url').value.trim()})});$('url').value='';await load();status(result.message)}catch(e){status(e.message)}finally{$('submit').disabled=false}};
+const more = document.createElement('button');
+more.textContent = 'Importar próximas páginas';
+more.hidden = true;
+$('status').after(more);
+let nextPage = '';
+async function importPages(url, continuation = false) {
+ $('submit').disabled = more.disabled = true;
+ status('Buscando filmes nas páginas do catálogo…');
+ try {
+  const result = await api('/api/import', {method:'POST', body:JSON.stringify({url, continuation})});
+  nextPage = result.next || '';
+  more.hidden = !nextPage;
+  if (!continuation) $('url').value = '';
+  await load();
+  status(result.message + (nextPage ? ' O site tem mais páginas.' : ''));
+ } catch (error) { status(error.message); }
+ finally { $('submit').disabled = more.disabled = false; }
+}
+$('import').onsubmit = event => {
+ event.preventDefault();
+ nextPage = '';
+ more.hidden = true;
+ return importPages($('url').value.trim());
+};
+more.onclick = () => importPages(nextPage, true);
 $('search').oninput=render;$('connect').onclick=()=>{$('pair').showModal()};$('closePair').onclick=()=>$('pair').close();$('pairDownload').onclick=async()=>{try{const connection=await api('/api/connection');const blob=new Blob([JSON.stringify(connection)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='Cinevo-portal.cinevo.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){status(e.message)}};
 async function start(){const params=new URLSearchParams(location.hash.slice(1));const previous=params.get('connect')||params.get('key')||localStorage.getItem('cinevo-key');if(previous){history.replaceState(null,'',location.pathname);try{await api('/api/session',{method:'POST',body:JSON.stringify({connection:previous})});localStorage.removeItem('cinevo-key')}catch(e){status('Não foi possível recuperar a conexão anterior.')}}await load()}start();
 </script></body></html>

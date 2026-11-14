@@ -1,4 +1,4 @@
-import {importAddress,ImportError,boundedText,fetchPublic,mediaUrl} from './importer.mjs';
+import {importCatalog,ImportError,boundedText,fetchPublic,loadDownloads} from './importer.mjs';
 import html from './index.html';
 const security={'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cache-Control':'no-store','Permissions-Policy':'camera=(), microphone=(), geolocation=()'};
 function json(value,status=200){return Response.json(value,{status,headers:security});}
@@ -22,23 +22,41 @@ export default {async fetch(request,env){
   const key=sessionKey(request);if(!key)return json({error:'Abra o portal no navegador para iniciar sua coleção.'},401);const owner=await ownerHash(key);
   if(url.pathname==='/api/connection'&&request.method==='GET')return json({endpoint:url.origin,key});
   if(url.pathname==='/api/items'&&request.method==='GET'){
-   const {results}=await env.DB.prepare('SELECT id,data,created_at FROM catalog_items WHERE owner_hash=? ORDER BY created_at DESC LIMIT 1001').bind(owner).all();
-   return json({items:results.slice(0,1000).map(r=>({...JSON.parse(r.data),id:r.id,added:r.created_at})),limitReached:results.length>1000});
+   const paged = url.searchParams.has('offset');
+   const offset = Number(url.searchParams.get('offset') || 0);
+   if (!Number.isSafeInteger(offset) || offset < 0) throw new ImportError('Página inválida.');
+   const size = paged ? 200 : 1000;
+   const {results}=await env.DB.prepare('SELECT id,data,created_at FROM catalog_items WHERE owner_hash=? ORDER BY created_at DESC,id LIMIT ? OFFSET ?').bind(owner,size+1,offset).all();
+   const hasMore = results.length > size;
+   return json({items:results.slice(0,size).map(r=>({...JSON.parse(r.data),id:r.id,added:r.created_at})),limitReached:hasMore,nextOffset:hasMore?offset+size:null});
   }
   if(url.pathname==='/api/import'&&request.method==='POST'){
    const text=await boundedText(request,8192);let data;try{data=JSON.parse(text);}catch{throw new ImportError('Endereço inválido.');}
    if(typeof data.url!=='string'||data.url.length>4000)throw new ImportError('Cole o endereço da página.');
-   const imported=await importAddress(data.url);let count=0;
+   const {items:imported,next,partial}=await importCatalog(data.url,{catalogPage:data.continuation===true});
+   const statements=[];
    for(const item of imported){
     const key=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(owner+'|'+item.sourceUrl+'|'+item.title.toLowerCase()));const id=[...new Uint8Array(key)].map(b=>b.toString(16).padStart(2,'0')).join('');
-    const result=await env.DB.prepare('INSERT INTO catalog_items(id,owner_hash,source_url,title,data,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(owner_hash,source_url,title) DO UPDATE SET data=excluded.data').bind(id,owner,item.sourceUrl,item.title,JSON.stringify(item),new Date().toISOString()).run();if(result.success)count++;
+    statements.push(env.DB.prepare('INSERT INTO catalog_items(id,owner_hash,source_url,title,data,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(owner_hash,source_url,title) DO UPDATE SET data=excluded.data').bind(id,owner,item.sourceUrl,item.title,JSON.stringify(item),new Date().toISOString()));
    }
+   for(let start=0;start<statements.length;start+=40) await env.DB.batch(statements.slice(start,start+40));
+   const count = imported.length;
    const savedLink = count === 1 && imported[0].linkOnly;
-   return json({count,message:savedLink?'Salvamos o link da página. Nenhum filme foi identificado. Tente o endereço de um filme específico.':count===1?'Título adicionado à sua coleção.':`${count} títulos adicionados à sua coleção.`});
+   const message = savedLink?'Salvamos o link da página. Nenhum filme foi identificado. Tente o endereço de um filme específico.':`${count} ${count===1?'título processado':'títulos processados'}.`;
+   return json({count,next,message:partial?message+' A página seguinte não respondeu.':message});
   }
-  const match=url.pathname.match(/^\/api\/items\/([a-f0-9]{64})(\/cover)?$/);
+  const match=url.pathname.match(/^\/api\/items\/([a-f0-9]{64})(\/cover|\/downloads)?$/);
   if(match&&request.method==='DELETE'&&!match[2]){await env.DB.prepare('DELETE FROM catalog_items WHERE id=? AND owner_hash=?').bind(match[1],owner).run();return json({ok:true});}
-  if(match&&match[2]&&request.method==='GET'){
+  if(match&&match[2]==='/downloads'&&request.method==='GET'){
+   const row=await env.DB.prepare('SELECT data FROM catalog_items WHERE id=? AND owner_hash=?').bind(match[1],owner).first();
+   if(!row)return json({error:'Título não encontrado na coleção do portal.'},404);
+   const item=JSON.parse(row.data);
+   const options=await loadDownloads(item.sourceUrl);
+   if(item.downloadUrl&&!options.some(option=>option.url===item.downloadUrl))
+    options.unshift({url:item.downloadUrl,label:'Baixar arquivo',kind:'file'});
+   return json({options});
+  }
+  if(match&&match[2]==='/cover'&&request.method==='GET'){
    const row=await env.DB.prepare('SELECT data FROM catalog_items WHERE id=? AND owner_hash=?').bind(match[1],owner).first();if(!row)return json({error:'Capa não encontrada.'},404);
    const item=JSON.parse(row.data);if(!item.coverUrl)return new Response(null,{status:404,headers:security});
    const {response}=await fetchPublic(item.coverUrl);if(!response.ok||!/^image\/(jpeg|png|webp|gif)(;|$)/i.test(response.headers.get('content-type')||'')){await response.body?.cancel();return new Response(null,{status:404,headers:security});}

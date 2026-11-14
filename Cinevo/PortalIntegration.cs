@@ -39,13 +39,13 @@ public partial class MainWindow
         var connect=new Button{Content="Conectar portal · escolher arquivo",Margin=new Thickness(0,0,0,12)};connect.Click+=async(_,_)=>{var dialog=new OpenFileDialog{Title="Escolha o arquivo baixado em Conectar ao app no portal",Filter="Conexão Cinevo|*.cinevo.json;*.json"};if(dialog.ShowDialog(window)!=true)return;try{var c=PortalService.ReadPairing(dialog.FileName);PortalService.SaveConnection(c);await SyncPortalAsync(true);message.Text=Status.Text;}catch(Exception ex){message.Text="Não foi possível conectar: "+ex.Message;}};panel.Children.Add(connect);
         panel.Children.Add(new TextBlock{Text="A conexão é salva protegida pelo seu usuário do Windows.\nA sincronização acontece ao abrir o Cinevo ou pelo botão acima.\nSeus vídeos locais não são enviados ao portal.",Foreground=Brushes.Gray,FontSize=11,Margin=new Thickness(0,10,0,0)});panel.Children.Add(message);window.Content=panel;window.ShowDialog();
     }
-    private void DownloadMovie(Movie movie,Window owner)
+    private void DownloadMovie(Movie movie,Window owner,string downloadUrl)
     {
-        if(!RemoteFiles.IsPublicHttps(movie.DownloadUrl)){MessageBox.Show(owner,"A origem não oferece um link direto de download para este título.","Cinevo");return;}
-        var extension=System.IO.Path.GetExtension(new Uri(movie.DownloadUrl).AbsolutePath).ToLowerInvariant();if(!new[]{".mp4",".mkv",".webm",".mov",".m4v",".avi"}.Contains(extension)){MessageBox.Show(owner,"Este link não representa um arquivo de vídeo compatível para download.","Cinevo");return;}
+        if(!RemoteFiles.IsPublicHttps(downloadUrl)){MessageBox.Show(owner,"A origem não oferece um link direto de download para este título.","Cinevo");return;}
+        var extension=System.IO.Path.GetExtension(new Uri(downloadUrl).AbsolutePath).ToLowerInvariant();if(!new[]{".mp4",".mkv",".webm",".mov",".m4v",".avi"}.Contains(extension)){MessageBox.Show(owner,"Este link não representa um arquivo de vídeo compatível para download.","Cinevo");return;}
         var title=string.Concat(movie.Title.Select(ch=>System.IO.Path.GetInvalidFileNameChars().Contains(ch)?'_':ch));
         var dialog=new SaveFileDialog{Title="Salvar filme no PC",FileName=title+extension,Filter=$"Vídeo {extension}|*{extension}",DefaultExt=extension,AddExtension=true,OverwritePrompt=true};if(dialog.ShowDialog(owner)!=true)return;
-        var download=new DownloadWindow(movie.DownloadUrl,dialog.FileName){Owner=owner};download.ShowDialog();
+        var download=new DownloadWindow(downloadUrl,dialog.FileName){Owner=owner};download.ShowDialog();
         if(download.Completed){movie.Path=dialog.FileName;movie.Bytes=new FileInfo(dialog.FileName).Length;movie.Available=true;library.Save();Refresh();Status.Text="Download concluído. O filme pode ser assistido offline no Cinevo.";}
     }
 }

@@ -6,7 +6,7 @@ using Microsoft.Win32;
 namespace Cinevo;
 public sealed class MovieDialog : Window
 {
-    public MovieDialog(Movie movie, CoverService covers, Action<Movie,Window>? download = null)
+    public MovieDialog(Movie movie, CoverService covers, Action<Movie,Window,string>? download = null)
     {
         Title = "Detalhes do filme"; Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(16,18,24)); Foreground = System.Windows.Media.Brushes.White; Width = 620; Height = 820; MinHeight = 500; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var stack = new StackPanel { Margin = new Thickness(28) };
@@ -14,8 +14,7 @@ public sealed class MovieDialog : Window
         {
             if(movie.Description.Length>0)stack.Children.Add(new TextBlock{Text=movie.Description,TextWrapping=TextWrapping.Wrap,Foreground=System.Windows.Media.Brushes.LightGray,Margin=new Thickness(0,0,0,15)});
             if(RemoteFiles.IsPublicHttps(movie.SourceUrl)){var origin=new Button{Content="Abrir página original ↗",Margin=new Thickness(0,0,0,12)};origin.Click+=(_,_)=>Process.Start(new ProcessStartInfo(movie.SourceUrl){UseShellExecute=true});stack.Children.Add(origin);}
-            if(movie.DownloadUrl.Length>0 && download!=null){var get=new Button{Content=movie.HasLocalFile?"Baixar outra cópia no PC":"↓  Baixar no PC",Margin=new Thickness(0,0,0,12),Background=System.Windows.Media.Brushes.MediumPurple};get.Click+=(_,_)=>download(movie,this);stack.Children.Add(get);}
-            else stack.Children.Add(new TextBlock{Text="A origem não disponibilizou um arquivo para download.",Foreground=System.Windows.Media.Brushes.Gray,FontSize=11,Margin=new Thickness(0,0,0,14)});
+            AddDownloads(stack, movie, download);
         }
         TextBox Field(string label, string text) { stack.Children.Add(new TextBlock { Text = label, Margin = new Thickness(0, 10, 0, 6) }); var input = new TextBox { Text = text }; stack.Children.Add(input); return input; }
         var title = Field("Título", movie.Title); var year = Field("Ano", movie.Year); var genre = Field("Gênero", movie.Genre);
@@ -41,5 +40,59 @@ public sealed class MovieDialog : Window
         var reveal = new Button { Content = "Mostrar no Explorer" }; reveal.Click += (_, _) => { if (File.Exists(movie.Path)) Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + movie.Path + "\"") { UseShellExecute = true }); }; buttons.Children.Add(reveal);
         var cancel = new Button { Content = "Cancelar", IsCancel = true }; buttons.Children.Add(cancel); stack.Children.Add(buttons);
         Content = new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+    }
+
+    private void AddDownloads(StackPanel stack, Movie movie, Action<Movie, Window, string>? download)
+    {
+        var panel = new StackPanel { Margin = new Thickness(0, 10, 0, 18) };
+        panel.Children.Add(new TextBlock { Text = "Baixar este conteúdo", FontWeight = FontWeights.SemiBold, FontSize = 18, Margin = new Thickness(0, 0, 0, 8) });
+        var status = new TextBlock { Text = "Consultando opções da origem…", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) };
+        panel.Children.Add(status);
+        var buttons = new StackPanel();
+        panel.Children.Add(buttons);
+        stack.Children.Add(panel);
+
+        void ShowOption(PortalDownload option)
+        {
+            var torrent = option.Kind == "torrent" && option.Url.Length <= 4096 &&
+                System.Text.RegularExpressions.Regex.IsMatch(option.Url, @"\Amagnet:\?xt=urn:btih:(?:[a-f0-9]{40}|[a-z2-7]{32})(?:&|\z)", System.Text.RegularExpressions.RegexOptions.IgnoreCase) &&
+                !option.Url.Any(char.IsControl);
+            if (!torrent && !RemoteFiles.IsPublicHttps(option.Url)) return;
+            var suffix = torrent ? " · Abrir no cliente torrent" : option.Kind == "file" ? "" : " ↗";
+            var button = new Button { Content = option.Label + suffix, HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 0, 0, 8), Background = System.Windows.Media.Brushes.MediumPurple };
+            button.Click += (_, _) =>
+            {
+                try
+                {
+                    if (option.Kind == "file") download?.Invoke(movie, this, option.Url);
+                    else Process.Start(new ProcessStartInfo(option.Url) { UseShellExecute = true });
+                }
+                catch (System.ComponentModel.Win32Exception)
+                {
+                    status.Text = torrent ? "Configure um cliente torrent no Windows para abrir links magnet." : "O Windows não conseguiu abrir o link.";
+                }
+            };
+            buttons.Children.Add(button);
+        }
+
+        var lifetime = new CancellationTokenSource();
+        var token = lifetime.Token;
+        Closed += (_, _) => { lifetime.Cancel(); lifetime.Dispose(); };
+        Loaded += async (_, _) =>
+        {
+            var options = new List<PortalDownload>();
+            var unavailable = false;
+            try { options = await PortalService.GetDownloadsAsync(movie.PortalId, token); }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
+            catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or IOException or System.Text.Json.JsonException or OperationCanceledException)
+            { unavailable = true; }
+            if (token.IsCancellationRequested) return;
+            if (movie.DownloadUrl.Length > 0 && !options.Any(option => option.Url == movie.DownloadUrl))
+                options.Insert(0, new PortalDownload(movie.DownloadUrl, "Baixar no PC", "file"));
+            foreach (var option in options) ShowOption(option);
+            status.Text = buttons.Children.Count > 0 ? "" : unavailable
+                ? "Não foi possível consultar as opções. Confira a página original."
+                : "Nenhuma opção encontrada. Confira a página original.";
+        };
     }
 }

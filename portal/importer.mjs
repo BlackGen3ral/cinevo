@@ -36,6 +36,46 @@ function entities(value){return value.replace(/&amp;/gi,'&').replace(/&quot;/gi,
 function safe(value,base){if(typeof value!=='string'||!value.trim())return '';try{return publicUrl(entities(value),base).href;}catch{return '';}}
 function clean(value,max=800){return typeof value==='string'?entities(value.replace(/<[^>]*>/g,' ')).replace(/\s+/g,' ').trim().slice(0,max):'';}
 export function mediaUrl(value,base){const url=safe(value,base);return url&&/\.(mp4|mkv|webm|mov|m4v|avi|m3u8|mpd)$/i.test(new URL(url).pathname)?url:'';}
+export async function downloadOptions(html, url, Rewriter = HTMLRewriter) {
+ const options = new Map();
+ let current;
+ const parser = new Rewriter().on('a[href]', {
+  element(element) {
+   const href = entities(element.getAttribute('href') || '');
+   if (!href) return;
+   const magnet = /^magnet:\?xt=urn:btih:(?:[a-f0-9]{40}|[a-z2-7]{32})(?:&|$)/i.test(href);
+   const address = magnet ? href : safe(href, url);
+   if (!address || address.length > 4096) return;
+   const explicit = element.hasAttribute('download');
+   const label = element.getAttribute('aria-label') || element.getAttribute('title') || '';
+   const entry = { address, label, text: '' };
+   current = entry;
+   element.onEndTag(() => {
+    if (current === entry) current = undefined;
+    const name = clean(entry.text, 160) || clean(label, 160);
+    const offered = explicit || /\b(?:download|baixar|\d{3,4}p)\b/i.test(name);
+    if (!magnet && !offered) return;
+    const direct = !magnet && !!mediaUrl(address, url) && !/\.(?:m3u8|mpd)$/i.test(new URL(address).pathname);
+    if (options.size < 20) options.set(address, { url: address, label: name || (magnet ? 'Torrent' : 'Baixar arquivo'), kind: magnet ? 'torrent' : direct ? 'file' : 'link' });
+   });
+  },
+  text(part) { if (current && current.text.length < 300) current.text += part.text; }
+ });
+ await parser.transform(new Response(html)).text();
+ return [...options.values()];
+}
+
+async function nextCatalogPage(html, url, Rewriter = HTMLRewriter) {
+ let next = '';
+ const parser = new Rewriter().on('a[rel~="next"], link[rel~="next"], a.next.page-numbers, .pagination a.next, a[aria-label="Próxima página"]', {
+  element(element) {
+   const candidate = safe(element.getAttribute('href'), url);
+   if (candidate && candidate !== url && new URL(candidate).origin === new URL(url).origin) next ||= candidate;
+  }
+ });
+ await parser.transform(new Response(html)).text();
+ return next;
+}
 const filmPath = /\/(?:filme?s?|movies?|film|titulo|title|watch|tv|series|epis[oó]dios?|episodes?)\//i;
 const listingPath = /\/(?:category|categoria|tag|genre|genero|page|pagina|search|busca)\//i;
 
@@ -57,7 +97,7 @@ async function catalogCards(html, pageUrl, Rewriter) {
       (card.image || filmPath.test(target.pathname)) && (filmPath.test(target.pathname) || card.heading || card.alt)) {
       const year = name.match(/\b(19\d{2}|20\d{2})\s*\)?$/)?.[1] || '';
       const item = { title: name, description: '', year, coverUrl: card.image, sourceUrl, streamUrl: '', downloadUrl: '', importedFrom: pageUrl };
-      if ((!cards.has(sourceUrl) && cards.size < 40) || (cards.has(sourceUrl) && !cards.get(sourceUrl).coverUrl && item.coverUrl)) cards.set(sourceUrl, item);
+      if (!cards.has(sourceUrl) || !cards.get(sourceUrl).coverUrl && item.coverUrl) cards.set(sourceUrl, item);
      }
      card = undefined;
     });
@@ -78,7 +118,7 @@ async function catalogCards(html, pageUrl, Rewriter) {
  await parser.transform(new Response(html)).text();
  return [...cards.values()];
 }
-export async function parsePage(html,url,Rewriter=HTMLRewriter){
+export async function parsePage(html,url,Rewriter=HTMLRewriter, catalogPage=false){
  const meta={},scripts=[],downloads=[],videos=[];let title='',script=null;
  const parser=new Rewriter().on('meta',{element(el){const key=(el.getAttribute('property')||el.getAttribute('name')||'').toLowerCase();if(key&&!meta[key])meta[key]=el.getAttribute('content')||'';}})
  .on('title',{text(t){title+=t.text;}})
@@ -91,7 +131,7 @@ export async function parsePage(html,url,Rewriter=HTMLRewriter){
  const movies=nodes.filter(n=>[n['@type']].flat().some(t=>['Movie','TVSeries','TVEpisode'].includes(t)));
  const structured=movies.length?movies:nodes.filter(n=>[n['@type']].flat().includes('VideoObject'));
  const items=[];
- for(const n of structured.slice(0,40)){
+ for(const n of structured){
   const video=[n.video].flat().find(v=>v&&typeof v==='object')||{};
   const stream=mediaUrl(n.contentUrl||video.contentUrl,url);
   const source=safe(n.url,url)||url;
@@ -100,7 +140,7 @@ export async function parsePage(html,url,Rewriter=HTMLRewriter){
  }
  if (!items.length && !videos.length && !downloads.length && !/^video\./i.test(meta['og:type'] || '') && !meta['og:video'] && !meta['og:video:secure_url']) {
   const cards = await catalogCards(html, url, Rewriter);
-  if (cards.length >= 2) return cards;
+  if (cards.length >= 2 || catalogPage && cards.length) return cards;
  }
  if(!items.length||items.length===1){
   const i=items[0]||{sourceUrl:url,importedFrom:url};
@@ -115,16 +155,57 @@ export async function parsePage(html,url,Rewriter=HTMLRewriter){
  const unique=new Map();for(const item of items){if(!item.title)continue;const key=item.sourceUrl+'|'+item.title.toLocaleLowerCase();if(!unique.has(key))unique.set(key,item);}
  return [...unique.values()];
 }
-export async function importAddress(value,options={}){
+async function importPage(value,options={}){
  const initial=publicUrl(value);const {response,url}=await fetchPublic(initial.href,options);
  if(!response.ok){await response.body?.cancel();throw new ImportError(response.status===401||response.status===403?'O site exige acesso ou bloqueou a importação. Abra-o na origem.':'O site não respondeu com uma página disponível.',422);}
  const type=response.headers.get('content-type')||'';
  if(type.startsWith('video/')||mediaUrl(url.href,url)&&!type.includes('html')){
   await response.body?.cancel();const isFile=!/\.(m3u8|mpd)$/i.test(url.pathname);
-  return [{title:clean(decodeURIComponent(url.pathname.split('/').pop()||url.hostname).replace(/\.[^.]+$/,'').replace(/[._]/g,' '),240),description:'Vídeo disponibilizado diretamente pela origem.',year:'',coverUrl:'',sourceUrl:url.href,streamUrl:url.href,downloadUrl:isFile?url.href:'',importedFrom:initial.href}];
+  return {items:[{title:clean(decodeURIComponent(url.pathname.split('/').pop()||url.hostname).replace(/\.[^.]+$/,'').replace(/[._]/g,' '),240),description:'Vídeo disponibilizado diretamente pela origem.',year:'',coverUrl:'',sourceUrl:url.href,streamUrl:url.href,downloadUrl:isFile?url.href:'',importedFrom:initial.href}],next:''};
  }
  if(!/text\/html|application\/xhtml/.test(type)){await response.body?.cancel();throw new ImportError('Este endereço não contém uma página de filme ou vídeo direto.',422);}
- const html=await boundedText(response);const items=await parsePage(html,url.href,options.Rewriter);
+ const html=await boundedText(response);
+ const pagination = await nextCatalogPage(html, url.href, options.Rewriter);
+ const items=await parsePage(html,url.href,options.Rewriter, options.catalogPage || !!pagination);
  if(!items.length)throw new ImportError('Não encontramos informações públicas nessa página. Sites que dependem de login ou carregamento por scripts podem não ser compatíveis.',422);
- return items;
+ const next = items.some(item => item.linkOnly) || items.length > 1 || options.catalogPage || items[0]?.sourceUrl !== url.href && !items[0]?.streamUrl ? pagination : '';
+ return {items,next};
+}
+
+export async function importAddress(value, options = {}) {
+ return (await importPage(value,options)).items;
+}
+
+export async function importCatalog(value, options = {}) {
+ const items = new Map();
+ const visited = new Set();
+ let next = publicUrl(value).href;
+ let partial = false;
+ while (next && !visited.has(next) && visited.size < 4) {
+  const address = next;
+  visited.add(address);
+  let page;
+  try { page = await importPage(address, {...options,catalogPage: options.catalogPage || visited.size > 1}); }
+  catch (error) {
+   if (!items.size) throw error;
+   partial = true;
+   break;
+  }
+  for (const item of page.items) {
+   if (!item.linkOnly || visited.size === 1 && !page.next && !options.catalogPage) items.set(item.sourceUrl + '|' + item.title.toLowerCase(), item);
+  }
+  next = page.next;
+ }
+ if (!items.size) throw new ImportError('Nenhum filme foi identificado nas páginas disponíveis. Tente o link de um filme específico.',422);
+ return {items:[...items.values()],next:visited.has(next)&&!partial?'':next,partial};
+}
+
+export async function loadDownloads(value,options = {}) {
+ const {response,url} = await fetchPublic(value,options);
+ const type = response.headers.get('content-type') || '';
+ if (!response.ok || !/text\/html|application\/xhtml/.test(type)) {
+  await response.body?.cancel();
+  return [];
+ }
+ return downloadOptions(await boundedText(response),url.href,options.Rewriter);
 }
