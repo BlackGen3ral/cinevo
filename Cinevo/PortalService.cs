@@ -19,6 +19,7 @@ public sealed class PortalItem
     public string CoverUrl { get; set; } = "";
 }
 public sealed class PortalFeed { public List<PortalItem> Items { get; set; } = []; }
+public sealed record PortalSyncResult(int Added, int Total);
 public static class PortalService
 {
     public const string DefaultEndpoint = "https://cinevo-portal.arthurgabrielfera.workers.dev";
@@ -50,17 +51,19 @@ public static class PortalService
         ValidateConnection(c); var http = new HttpClient(handler??new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(45), BaseAddress = new Uri(c.Endpoint) };
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", c.Key); http.DefaultRequestHeaders.UserAgent.ParseAdd("Cinevo/" + Updater.CurrentVersion); return http;
     }
-    public static async Task<int> SyncAsync(Library library, PortalConnection connection, CancellationToken token,HttpMessageHandler? handler=null)
+    public static async Task<PortalSyncResult> SyncAsync(Library library, PortalConnection connection, CancellationToken token,HttpMessageHandler? handler=null)
     {
         using var http = Client(connection,handler); using var response = await http.GetAsync("/api/items", HttpCompletionOption.ResponseHeadersRead, token);
         if (response.StatusCode == HttpStatusCode.Unauthorized) throw new InvalidDataException("A chave do portal não foi aceita. Importe novamente o arquivo de conexão."); response.EnsureSuccessStatusCode();
         var bytes = await RemoteFiles.ReadBoundedAsync(response, 8 * 1024 * 1024, token);
         var feed = JsonSerializer.Deserialize<PortalFeed>(bytes, JsonOptions) ?? throw new InvalidDataException("O portal retornou um catálogo inválido.");
         var imported = 0;
+        var total = 0;
         foreach (var item in feed.Items.Take(1000))
         {
             if (item.Id.Length != 64 || !item.Id.All(Uri.IsHexDigit) || string.IsNullOrWhiteSpace(item.Title)) continue;
             if (!RemoteFiles.IsPublicHttps(item.SourceUrl)) continue;
+            total++;
             var movie = library.Movies.FirstOrDefault(m => m.PortalId == item.Id);
             if (movie == null) { movie = new Movie { PortalId = item.Id, Title = item.Title, Year = item.Year }; library.Movies.Add(movie); imported++; }
             movie.SourceUrl = item.SourceUrl; movie.StreamUrl = RemoteFiles.IsPublicHttps(item.StreamUrl) ? item.StreamUrl : ""; movie.DownloadUrl = RemoteFiles.IsPublicHttps(item.DownloadUrl) ? item.DownloadUrl : ""; movie.Description = item.Description;
@@ -77,7 +80,7 @@ public static class PortalService
                 catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException && !token.IsCancellationRequested) { }
             }
         }
-        return imported;
+        return new PortalSyncResult(imported, total);
     }
     public static string AccessLink(PortalConnection connection) => connection.Endpoint.TrimEnd('/') + "/#connect=" + Uri.EscapeDataString(connection.Key);
 }

@@ -60,7 +60,11 @@ public partial class MainWindow : Window
         foreach (var folder in dialog.FolderNames) if (!library.Folders.Contains(folder, StringComparer.OrdinalIgnoreCase)) library.Folders.Add(folder);
         library.Save(); await ScanAsync();
     }
-    private async void Scan_Click(object sender, RoutedEventArgs e) => await ScanAsync();
+    private async void Scan_Click(object sender, RoutedEventArgs e)
+    {
+        await ScanAsync();
+        await SyncPortalAsync(false, showResult: true);
+    }
     private void Cancel_Click(object sender, RoutedEventArgs e) => scan?.Cancel();
     private async Task ScanAsync()
     {

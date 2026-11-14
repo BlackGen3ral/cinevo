@@ -8,7 +8,7 @@ namespace Cinevo;
 public partial class MainWindow
 {
     private bool syncingPortal;
-    private async Task SyncPortalAsync(bool manual)
+    private async Task SyncPortalAsync(bool manual, bool showResult = false)
     {
         if(syncingPortal||closed)return;syncingPortal=true;
         try
@@ -16,10 +16,16 @@ public partial class MainWindow
             var connection=PortalService.LoadConnection();
             if(connection==null){if(manual)Status.Text="Abra Portal online e importe o arquivo de conexão uma vez.";return;}
             if(manual)Status.Text="Sincronizando sua coleção online…";
-            var added=await PortalService.SyncAsync(library,connection,lifetime.Token);
-            if(closed)return;library.Save();Refresh();if(manual||added>0)Status.Text=$"Portal sincronizado · {added} novos títulos. Seus favoritos e notas foram preservados.";
+            var result = await PortalService.SyncAsync(library, connection, lifetime.Token);
+            if (closed) return;
+            library.Save();
+            Refresh();
+            if (manual || showResult || result.Added > 0)
+                Status.Text = result.Total == 0
+                    ? "A coleção conectada está vazia. Use Abrir meu portal no Cinevo e importe os filmes nessa coleção."
+                    : $"Portal sincronizado · {result.Total} na coleção online · {result.Added} novos.";
         }
-        catch(Exception ex){if(manual&&!closed)Status.Text="Não foi possível sincronizar: "+ex.Message;}
+        catch(Exception ex){if((manual||showResult)&&!closed)Status.Text="Não foi possível sincronizar: "+ex.Message;}
         finally{syncingPortal=false;}
     }
     private void Portal_Click(object sender,RoutedEventArgs e)

@@ -9,6 +9,15 @@ async function parse(markup){const response=await mf.dispatchFetch('https://port
 test('OpenGraph, HTML video and explicitly offered download',async()=>{const [item]=await parse('<title>Demo film</title><meta property="og:image" content="/poster.jpg"><meta name="description" content="A description"><video><source src="https://media.w3.org/demo.mp4"></video><a download href="https://media.w3.org/demo.mp4">Download</a>');assert.equal(item.title,'Demo film');assert.equal(item.coverUrl,'https://movies.public-domain.org/poster.jpg');assert.equal(item.streamUrl,'https://media.w3.org/demo.mp4');assert.equal(item.downloadUrl,item.streamUrl);});
 test('JSON-LD Movie and nested video do not create duplicates',async()=>{const [item,...other]=await parse('<script type="application/ld+json">'+JSON.stringify({'@type':'Movie',name:'Example',datePublished:'2020-03-01',image:'/a.png',video:{'@type':'VideoObject',name:'Trailer',contentUrl:'https://media.w3.org/trailer.mp4'}})+'</script>');assert.equal(item.title,'Example');assert.equal(item.year,'2020');assert.equal(item.streamUrl,'https://media.w3.org/trailer.mp4');assert.equal(other.length,0);assert.equal(item.downloadUrl,'');});
 test('structured catalog list imports multiple movies',async()=>{const result=await parse('<script type="application/ld+json">'+JSON.stringify({'@type':'ItemList',itemListElement:[{item:{'@type':'Movie',name:'One',url:'/one'}},{item:{'@type':'Movie',name:'Two',url:'/two'}}]})+'</script>');assert.equal(result.length,2);});
+test('HTML catalog imports each visible movie card and skips navigation',async()=>{
+ const result=await parse(`<title>Catálogo</title>
+ <a href="/categoria/comedia">Comédia</a><a href="/filmes/">Filmes</a>
+ <a href="/filmes/um"><img src="/placeholder.png" data-src="/um.jpg" alt="Um (2024)"></a>
+ <a href="/filmes/um"><h2>Um (2024)</h2></a>
+ <a href="/filmes/dois"><img srcset="/dois.jpg 320w, /dois-xl.jpg 640w"><h2>Dois</h2></a>`);
+ assert.deepEqual(result.map(x=>[x.title,x.year,new URL(x.coverUrl).pathname]),[['Um (2024)','2024','/um.jpg'],['Dois','','/dois.jpg']]);
+ assert.ok(result.every(x=>!x.streamUrl&&!x.downloadUrl));
+});
 test('embeds are links, not extracted stream URLs',async()=>{const [item]=await parse('<title>Film</title><meta property="og:video" content="https://www.youtube.com/embed/123"><iframe src="https://private.local/player"></iframe>');assert.equal(item.streamUrl,'');assert.equal(item.downloadUrl,'');});
 test('direct file import and unsafe redirect rejection',async()=>{const result=await(await mf.dispatchFetch('https://portal.test/__direct')).json();assert.equal(result[0].downloadUrl,'https://media.w3.org/test.mp4');assert.equal(await(await mf.dispatchFetch('https://portal.test/__blocked')).text(),'BLOCKED');});
 test('catalog API requires credential and enforces origin',async()=>{assert.equal((await mf.dispatchFetch('https://portal.test/api/items')).status,401);assert.equal((await mf.dispatchFetch('https://portal.test/api/items',{headers:{...headers,Origin:'https://evil.org'}})).status,403);assert.equal((await mf.dispatchFetch('https://portal.test/api/items',{headers})).status,200);});

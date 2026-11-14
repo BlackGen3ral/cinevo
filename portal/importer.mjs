@@ -36,6 +36,48 @@ function entities(value){return value.replace(/&amp;/gi,'&').replace(/&quot;/gi,
 function safe(value,base){if(typeof value!=='string'||!value.trim())return '';try{return publicUrl(entities(value),base).href;}catch{return '';}}
 function clean(value,max=800){return typeof value==='string'?entities(value.replace(/<[^>]*>/g,' ')).replace(/\s+/g,' ').trim().slice(0,max):'';}
 export function mediaUrl(value,base){const url=safe(value,base);return url&&/\.(mp4|mkv|webm|mov|m4v|avi|m3u8|mpd)$/i.test(new URL(url).pathname)?url:'';}
+const filmPath = /\/(?:filme?s?|movies?|film|titulo|title|watch|tv|series|epis[oó]dios?|episodes?)\//i;
+const listingPath = /\/(?:category|categoria|tag|genre|genero|page|pagina|search|busca)\//i;
+
+async function catalogCards(html, pageUrl, Rewriter) {
+ const cards = new Map();
+ let card, heading;
+ const parser = new Rewriter()
+  .on('a[href]', {
+   element(element) {
+    const sourceUrl = safe(element.getAttribute('href'), pageUrl);
+    if (!sourceUrl) return;
+    const target = new URL(sourceUrl);
+    if (target.origin !== new URL(pageUrl).origin || sourceUrl === pageUrl || listingPath.test(target.pathname) || mediaUrl(sourceUrl, pageUrl)) return;
+    card = { sourceUrl, title: '', image: '', alt: '', label: '', heading: '' };
+    card.label = clean(element.getAttribute('title') || element.getAttribute('aria-label'), 240);
+    element.onEndTag(() => {
+     const name = clean(card.heading || card.label || card.alt || card.title, 240);
+     if (name && !/^(?:assistir|ver filme|saiba mais|ver mais|poster|capa|play|home|início|filmes|séries|download)$/i.test(name) &&
+      (card.image || filmPath.test(target.pathname)) && (filmPath.test(target.pathname) || card.heading || card.alt)) {
+      const year = name.match(/\b(19\d{2}|20\d{2})\s*\)?$/)?.[1] || '';
+      const item = { title: name, description: '', year, coverUrl: card.image, sourceUrl, streamUrl: '', downloadUrl: '', importedFrom: pageUrl };
+      if ((!cards.has(sourceUrl) && cards.size < 40) || (cards.has(sourceUrl) && !cards.get(sourceUrl).coverUrl && item.coverUrl)) cards.set(sourceUrl, item);
+     }
+     card = undefined;
+    });
+   },
+   text(part) { if (card && card.title.length < 300) card.title += part.text; }
+  })
+  .on('a[href] img', { element(element) {
+   if (!card) return;
+   card.alt = clean(element.getAttribute('alt'), 240);
+   const srcset = element.getAttribute('data-srcset') || element.getAttribute('srcset') || '';
+   card.image = safe(element.getAttribute('data-src') || element.getAttribute('data-lazy-src') ||
+    element.getAttribute('data-original') || srcset.trim().split(/\s+/)[0] || element.getAttribute('src'), pageUrl);
+  } })
+  .on('a[href] h2, a[href] h3, a[href] h4', {
+   element(element) { heading = card; element.onEndTag(() => { heading = undefined; }); },
+   text(part) { if (heading && heading.heading.length < 300) heading.heading += part.text; }
+  });
+ await parser.transform(new Response(html)).text();
+ return [...cards.values()];
+}
 export async function parsePage(html,url,Rewriter=HTMLRewriter){
  const meta={},scripts=[],downloads=[],videos=[];let title='',script=null;
  const parser=new Rewriter().on('meta',{element(el){const key=(el.getAttribute('property')||el.getAttribute('name')||'').toLowerCase();if(key&&!meta[key])meta[key]=el.getAttribute('content')||'';}})
@@ -56,6 +98,10 @@ export async function parsePage(html,url,Rewriter=HTMLRewriter){
   const poster=[n.image||n.thumbnailUrl||video.thumbnailUrl].flat()[0];
   items.push({title:clean(n.name,240),description:clean(n.description),year:String(n.datePublished||'').match(/\b(19\d{2}|20\d{2})\b/)?.[0]||'',coverUrl:safe(typeof poster==='object'?poster?.url:poster,url),sourceUrl:source,streamUrl:stream,downloadUrl:downloads.find(d=>d===stream)||'',importedFrom:url});
  }
+ if (!items.length && !videos.length && !downloads.length && !/^video\./i.test(meta['og:type'] || '') && !meta['og:video'] && !meta['og:video:secure_url']) {
+  const cards = await catalogCards(html, url, Rewriter);
+  if (cards.length >= 2) return cards;
+ }
  if(!items.length||items.length===1){
   const i=items[0]||{sourceUrl:url,importedFrom:url};
   i.title=i.title||clean(meta['og:title']||meta['twitter:title']||title,240);
@@ -63,6 +109,7 @@ export async function parsePage(html,url,Rewriter=HTMLRewriter){
   i.coverUrl=i.coverUrl||safe(meta['og:image']||meta['twitter:image'],url);
   i.streamUrl=i.streamUrl||mediaUrl(meta['og:video:secure_url']||meta['og:video']||videos[0]||downloads[0],url);
   i.downloadUrl=i.downloadUrl||downloads[0]||'';i.year=i.year||'';
+  i.linkOnly = !items.length && !i.streamUrl && !/^video\./i.test(meta['og:type'] || '');
   if(i.title)items.splice(0,items.length,i);
  }
  const unique=new Map();for(const item of items){if(!item.title)continue;const key=item.sourceUrl+'|'+item.title.toLocaleLowerCase();if(!unique.has(key))unique.set(key,item);}

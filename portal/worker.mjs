@@ -33,7 +33,8 @@ export default {async fetch(request,env){
     const key=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(owner+'|'+item.sourceUrl+'|'+item.title.toLowerCase()));const id=[...new Uint8Array(key)].map(b=>b.toString(16).padStart(2,'0')).join('');
     const result=await env.DB.prepare('INSERT INTO catalog_items(id,owner_hash,source_url,title,data,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(owner_hash,source_url,title) DO UPDATE SET data=excluded.data').bind(id,owner,item.sourceUrl,item.title,JSON.stringify(item),new Date().toISOString()).run();if(result.success)count++;
    }
-   return json({count,message:count===1?'Adicionado à sua coleção.':`${count} títulos adicionados à sua coleção.`});
+   const savedLink = count === 1 && imported[0].linkOnly;
+   return json({count,message:savedLink?'Salvamos o link da página. Nenhum filme foi identificado. Tente o endereço de um filme específico.':count===1?'Título adicionado à sua coleção.':`${count} títulos adicionados à sua coleção.`});
   }
   const match=url.pathname.match(/^\/api\/items\/([a-f0-9]{64})(\/cover)?$/);
   if(match&&request.method==='DELETE'&&!match[2]){await env.DB.prepare('DELETE FROM catalog_items WHERE id=? AND owner_hash=?').bind(match[1],owner).run();return json({ok:true});}
