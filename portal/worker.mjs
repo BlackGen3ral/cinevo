@@ -10,7 +10,7 @@ export default {async fetch(request,env){
  try{
   const url=new URL(request.url);
   if(url.pathname==='/health'&&request.method==='GET')return json({ok:true,app:'Cinevo Portal'});
-  if(url.pathname==='/'&&['GET','HEAD'].includes(request.method))return new Response(request.method==='HEAD'?null:html,{headers:{...security,'Set-Cookie':sessionCookie(sessionKey(request)||newKey()),'Content-Type':'text/html; charset=utf-8','Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}});
+  if(url.pathname==='/'&&['GET','HEAD'].includes(request.method))return new Response(request.method==='HEAD'?null:html,{headers:{...security,'Set-Cookie':sessionCookie(sessionKey(request)||newKey()),'Content-Type':'text/html; charset=utf-8','Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}});
   if(url.pathname==='/robots.txt')return new Response('User-agent: *\nDisallow: /',{headers:{'Content-Type':'text/plain'}});
   if(!url.pathname.startsWith('/api/'))return json({error:'Página não encontrada.'},404);
   const origin=request.headers.get('Origin');if(origin&&origin!==url.origin)return json({error:'Origem inválida.'},403);

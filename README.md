@@ -42,6 +42,8 @@ No player: **Espaço** pausa/continua; **← / →** recuam/avançam 10 segundos
 
 ### Portal online e downloads
 
+Para usar só pelo navegador, abra **Ver detalhes** no portal. Ali você pode reproduzir vídeos compatíveis com o navegador e abrir as opções de download publicadas pela origem. A conexão com o app é opcional.
+
 Abra o [portal Cinevo](https://cinevo-portal.arthurgabrielfera.workers.dev), cole um endereço HTTPS e clique em **Importar**. O portal tenta ler título, descrição, capa, vídeos HTML e dados estruturados (OpenGraph/JSON-LD). O portal segue links explícitos para a próxima página do catálogo. Use **Importar próximas páginas** para continuar. Páginas que exigem login, bloqueiam o acesso ou dependem de scripts podem ser incompatíveis. Não contorna essas restrições. Um embed de outro player fica como link da origem.
 
 O site abre sem chave ou senha. A coleção é separada automaticamente por uma sessão do navegador. Em **Conectar ao app**, baixe o arquivo de conexão. No Cinevo, abra **Portal online → Conectar portal** e escolha esse arquivo. Depois, use **Sincronizar coleção agora** ou reabra o app. O botão **Abrir meu portal** volta à mesma coleção no navegador. Guarde o arquivo de conexão: apagar os dados do navegador ou trocar de dispositivo cria uma coleção vazia até restaurar essa conexão.
