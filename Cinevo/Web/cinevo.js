@@ -151,10 +151,9 @@ function movieCard(movie) {
   return card;
 }
 
-function shelf(title, movies, rail = false) {
+function shelf(title, rail = false) {
   const section = node('section', 'shelf');
   const cards = node('div', rail ? 'rail' : 'grid');
-  cards.append(...movies.map(movieCard));
   if (rail) {
     const controls = node('div', 'shelf-controls');
     for (const [direction, label] of [[-1, 'Voltar na fileira'], [1, 'Avançar na fileira']]) {
@@ -172,14 +171,63 @@ function shelf(title, movies, rail = false) {
   return section;
 }
 
+// Reuse the nodes already on screen, including decoded images and scroll positions.
+const shelves = new Map();
+let heroKey, headingKey, detailKey;
+function renderShelf(id, title, movies, rail, index) {
+  let section = shelves.get(id);
+  if (!section) {
+    section = shelf(title, rail);
+    shelves.set(id, section);
+  }
+  const rows = $('#rows');
+  if (rows.children[index] !== section) rows.insertBefore(section, rows.children[index] || null);
+  const cards = section.lastElementChild;
+  const previous = new Map(Array.from(cards.children, card => [card.dataset.movie, card]));
+  movies.forEach((movie, position) => {
+    const key = JSON.stringify(movie);
+    const old = previous.get(movie.id);
+    let card = old;
+    if (old?.dataset.signature !== key) {
+      card = movieCard(movie);
+      card.dataset.signature = key;
+      const oldImage = old?.querySelector('img');
+      const newImage = card.querySelector('img');
+      if (oldImage?.src && oldImage.dataset.cover === newImage?.dataset.cover) {
+        imageObserver.unobserve(newImage);
+        newImage.replaceWith(oldImage);
+      }
+      old?.replaceWith(card);
+    }
+    if (cards.children[position] !== card) cards.insertBefore(card, cards.children[position] || null);
+    previous.delete(movie.id);
+  });
+  for (const old of previous.values()) {
+    const image = old.querySelector('img');
+    if (image) imageObserver.unobserve(image);
+    old.remove();
+  }
+}
+
 function render(data) {
-  imageObserver.disconnect();
   const home = state.section === 'library' && !state.search;
-  renderHero(data.spotlight, home);
+  const nextHero = JSON.stringify([home, data.spotlight]);
+  if (nextHero !== heroKey) {
+    const oldImage = $('#hero .hero-art');
+    if (oldImage) imageObserver.unobserve(oldImage);
+    renderHero(data.spotlight, home);
+    const newImage = $('#hero .hero-art');
+    if (home && oldImage?.src && oldImage.dataset.cover === newImage?.dataset.cover) {
+      imageObserver.unobserve(newImage);
+      newImage.replaceWith(oldImage);
+    }
+    heroKey = nextHero;
+  }
   const heading = $('#page-head');
   heading.hidden = home;
-  heading.replaceChildren();
-  if (!home) {
+  if (!home && headingKey !== state.section) {
+    headingKey = state.section;
+    heading.replaceChildren();
     const info = node('div');
     const title = state.section === 'imports' ? 'Filmes importados' : state.section === 'favorites' ? 'Favoritos' : 'Minha biblioteca';
     info.append(node('h1', '', title));
@@ -193,24 +241,43 @@ function render(data) {
     }
   }
   const rows = $('#rows');
-  rows.replaceChildren();
-  if (home && data.returning?.length) rows.append(shelf('Continue assistindo', data.returning, true));
-  if (home && data.favorites?.length) rows.append(shelf('Seus favoritos', data.favorites, true));
-  if (home && state.movies.length > 1) rows.append(shelf('Adicionados recentemente', state.movies.slice(0, 12), true));
+  const visibleShelves = new Set();
+  function showShelf(id, title, movies, rail = false) {
+    renderShelf(id, title, movies, rail, visibleShelves.size);
+    visibleShelves.add(id);
+  }
+  if (home && data.returning?.length) showShelf('returning', 'Continue assistindo', data.returning, true);
+  if (home && data.favorites?.length) showShelf('favorites', 'Seus favoritos', data.favorites, true);
+  if (home && state.movies.length > 1) showShelf('recent', 'Adicionados recentemente', state.movies.slice(0, 12), true);
   if (state.movies.length) {
-    rows.append(shelf(home ? 'Minha biblioteca' : '', state.movies));
+    showShelf(state.section + (home ? '-home' : '-grid'), home ? 'Minha biblioteca' : '', state.movies);
+    rows.querySelector('.empty')?.remove();
   } else if (!home || state.search) {
     const text = state.search ? 'Nenhum título corresponde à sua busca.' :
       state.section === 'imports' ? 'Cole o endereço de um filme ou catálogo para começar.' : 'Você ainda não marcou nenhum filme como favorito.';
-    rows.append(node('p', 'empty', text));
+    let empty = rows.querySelector('.empty');
+    if (!empty) { empty = node('p', 'empty'); rows.append(empty); }
+    empty.textContent = text;
+  } else {
+    rows.querySelector('.empty')?.remove();
+  }
+  for (const [id, section] of shelves) {
+    if (visibleShelves.has(id)) continue;
+    for (const image of section.querySelectorAll('img')) imageObserver.unobserve(image);
+    section.remove();
+    shelves.delete(id);
   }
   $('#more').hidden = !data.more;
   $('#imports-count').hidden = !data.imported;
   $('#imports-count').textContent = data.imported;
   $('#version').textContent = 'Cinevo ' + data.version + ' · Beta';
+  $('#clear-library').disabled = !data.total && !data.folderCount;
 }
 
 function showDetails(movie) {
+  const signature = JSON.stringify(movie);
+  if ($('#details').open && detailKey === signature) return;
+  detailKey = signature;
   detailId = movie.id;
   const panel = $('#detail-content');
   const title = node('h2', '', movie.title);
@@ -253,12 +320,13 @@ async function refresh(append = false, keepPages = false) {
     state.movies = append ? state.movies.concat(movies) : movies;
     if (!append) firstPage = data;
     render(append ? { ...firstPage, ...data, spotlight: firstPage.spotlight, returning: firstPage.returning, favorites: firstPage.favorites } : data);
-    if (focused) $('[data-movie="' + focused + '"] button')?.focus({ preventScroll: true });
+    if (focused && document.activeElement === document.body) $('[data-movie="' + focused + '"] button')?.focus({ preventScroll: true });
     if ($('#details').open && detailId) {
       const updated = state.movies.find(movie => movie.id === detailId);
       if (updated) showDetails(updated);
     }
     $('#main').setAttribute('aria-busy', 'false');
+    return true;
   } catch (error) {
     if (!current.signal.aborted) $('#status').textContent = error.message;
   } finally {
@@ -380,6 +448,28 @@ document.addEventListener('click', event => {
 });
 $('.dialog-close').onclick = () => $('#details').close();
 $('#details').addEventListener('close', () => { detailId = null; });
+$('#clear-library').onclick = () => {
+  $('details.menu').open = false;
+  $('#clear-status').textContent = '';
+  $('#clear-dialog').showModal();
+};
+$('#cancel-clear').onclick = () => $('#clear-dialog').close();
+$('#confirm-clear').onclick = async () => {
+  $('#confirm-clear').disabled = $('#cancel-clear').disabled = true;
+  try {
+    await request('/api/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'clear-library' })
+    });
+    $('#clear-dialog').close();
+    changeSection('library');
+  } catch (error) { $('#clear-status').textContent = error.message; }
+  finally { $('#confirm-clear').disabled = $('#cancel-clear').disabled = false; }
+};
+$('#clear-dialog').addEventListener('cancel', event => {
+  if ($('#confirm-clear').disabled) event.preventDefault();
+});
 $('#more').onclick = () => { if (!state.busy) refresh(true); };
 let searchTimer;
 $('#search').oninput = event => {
@@ -398,13 +488,15 @@ async function checkRevision(initial = false) {
     $('#scan').textContent = data.scanning ? 'Cancelar busca de arquivos' : 'Atualizar arquivos';
     $('#scan').dataset.command = data.scanning ? 'cancel-scan' : 'scan';
     if (state.revision === data.revision) return;
-    state.revision = data.revision;
-    await refresh(false, true);
+    if (await refresh(false, true)) state.revision = data.revision;
   } catch { /* A janela pode estar fechando. */ }
 }
+async function poll(initial = false) {
+  await checkRevision(initial);
+  setTimeout(poll, 1800);
+}
 if (/^[0-9A-F]{64}$/.test(key || '')) {
-  checkRevision(true);
-  setInterval(checkRevision, 1800);
+  poll(true);
 } else {
   $('#status').textContent = 'Abra a interface pelo aplicativo Cinevo.';
 }

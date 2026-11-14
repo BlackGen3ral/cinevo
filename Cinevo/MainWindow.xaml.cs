@@ -27,18 +27,23 @@ public partial class MainWindow : Window
         ready = true;
         VersionLabel.Text = $"Cinevo {Updater.CurrentVersion} · Beta";
         Refresh();
-        Loaded += Start;
-        async void Start(object sender, RoutedEventArgs e)
-        {
-            Loaded -= Start;
-            _ = OpenWebAsync();
-            var update = library.AutoUpdate && Updater.IsInstalled ? CheckUpdate(false) : Task.CompletedTask;
-            await SyncPortalAsync(false);
-            if (library.Folders.Count > 0) await ScanAsync();
-            else if (library.AutoCovers) await FetchCoversAsync();
-            await update;
-        }
         Closing += OnClosing;
+    }
+
+    internal bool IsReady => ready;
+
+    internal async void Start()
+    {
+        var webStartup = OpenWebAsync();
+        var update = library.AutoUpdate && Updater.IsInstalled ? CheckUpdate(false) : Task.CompletedTask;
+        await webStartup;
+        if (!closed && !webShown) { Show(); Activate(); }
+        if (closed) return;
+        await SyncPortalAsync(false);
+        if (closed) return;
+        if (library.Folders.Count > 0) await ScanAsync();
+        else if (library.AutoCovers) await FetchCoversAsync();
+        await update;
     }
     private void Refresh()
     {
@@ -84,7 +89,9 @@ public partial class MainWindow : Window
         scan = new CancellationTokenSource(); ScanButton.IsEnabled = false; CancelButton.Visibility = Visibility.Visible; Status.Text = "Buscando filmes nas suas pastas…";
         try
         {
-            var result = await Task.Run(() => Scanner.Scan(library.Folders.ToArray(), scan.Token));
+            var folders = library.Folders.ToArray();
+            var result = await Task.Run(() => Scanner.Scan(folders, scan.Token));
+            scan.Token.ThrowIfCancellationRequested();
             var existing = library.Movies.Where(m=>m.Path.Length>0).GroupBy(m=>m.Path,StringComparer.OrdinalIgnoreCase).ToDictionary(g=>g.Key,g=>g.First(),StringComparer.OrdinalIgnoreCase);
             foreach (var movie in result.Movies)
                 if (existing.TryGetValue(movie.Path, out var saved)) { saved.Bytes = movie.Bytes; saved.Available = true; } else { library.Movies.Add(movie); existing[movie.Path] = movie; }
@@ -145,7 +152,7 @@ public partial class MainWindow : Window
     private static bool IsInside(string path, string root) => path.StartsWith(root.TrimEnd(System.IO.Path.DirectorySeparatorChar) + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
-        var window = new Window { Title = "Configurações do Cinevo", Width = 600, Height = 510, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var window = new Window { Title = "Configurações do Cinevo", Width = 600, Height = 565, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         var panel = new StackPanel { Margin = new Thickness(26) };
         panel.Children.Add(new TextBlock { Text = $"Cinevo {Updater.CurrentVersion} · Beta", FontSize = 24, Margin = new Thickness(0, 0, 0, 20) });
         var auto = new CheckBox { Content = "Baixar atualizações e instalar ao fechar", IsChecked = library.AutoUpdate, Foreground = System.Windows.Media.Brushes.White, Margin = new Thickness(0, 0, 0, 20) };
@@ -156,6 +163,14 @@ public partial class MainWindow : Window
         var check = new Button { Content = "Verificar atualização agora", Margin = new Thickness(0, 0, 0, 12) }; check.Click += async (_, _) => { window.Close(); await CheckUpdate(true); }; panel.Children.Add(check);
         var backup = new Button { Content = "Exportar cópia da biblioteca", Margin = new Thickness(0, 0, 0, 12) }; backup.Click += (_, _) => { var dialog = new SaveFileDialog { FileName = "Cinevo-biblioteca.json", Filter = "Biblioteca JSON|*.json" }; if (dialog.ShowDialog() == true) { library.Save(); File.Copy(Library.DataPath, dialog.FileName, true); } }; panel.Children.Add(backup);
         var data = new Button { Content = "Abrir pasta de dados" }; data.Click += (_, _) => { Directory.CreateDirectory(Library.DataDirectory); Process.Start(new ProcessStartInfo(Library.DataDirectory) { UseShellExecute = true }); }; panel.Children.Add(data);
+        var clear = new Button { Content = "Limpar biblioteca", Margin = new Thickness(0, 12, 0, 0) };
+        clear.Click += (_, _) =>
+        {
+            if (MessageBox.Show(window, "Remover todos os filmes e desvincular as pastas da biblioteca? Os arquivos do PC serão preservados e os títulos online voltarão a Filmes importados.", "Limpar biblioteca", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+            try { ClearLibrary(); }
+            catch (InvalidDataException ex) { MessageBox.Show(window, ex.Message, "Cinevo"); }
+        };
+        panel.Children.Add(clear);
         panel.Children.Add(new TextBlock { Text = "Player integrado com LibVLC / VideoLAN. Licenças e código-fonte\ndisponíveis na pasta vlc e na publicação do GitHub.", Foreground = Brush("#9691A5"), FontSize = 11, Margin = new Thickness(0,18,0,0) });
         window.Content = panel; window.ShowDialog();
     }
@@ -198,9 +213,20 @@ public partial class MainWindow : Window
     private bool checkingUpdate;
     private async Task CheckUpdate(bool manual)
     {
+        if (!Updater.IsInstalled) { if (manual) Status.Text = "Instale o Cinevo para receber atualizações."; return; }
         if (checkingUpdate) return; checkingUpdate = true;
-        try { if (manual) Status.Text = "Verificando atualizações…"; updateInstaller = await Updater.DownloadAsync(); if (updateInstaller != null) { UpdateButton.Visibility = Visibility.Visible; Status.Text = "Atualização pronta. Será instalada ao fechar o Cinevo."; } else if (manual) Status.Text = "Você está usando a versão mais recente."; }
-        catch (Exception ex) { if (manual) Status.Text = "Não foi possível verificar a atualização: " + ex.Message; }
+        try
+        {
+            if (manual) Status.Text = "Verificando atualizações…";
+            var installer = await Updater.DownloadAsync(lifetime.Token);
+            if (closed) return;
+            updateInstaller = installer;
+            UpdateButton.Visibility = installer == null ? Visibility.Collapsed : Visibility.Visible;
+            if (installer != null)
+                Status.Text = library.AutoUpdate ? "Atualização pronta. Será instalada ao fechar o Cinevo." : "Atualização pronta. Clique em Instalar atualização.";
+            else if (manual) Status.Text = "Você está usando a versão mais recente.";
+        }
+        catch (Exception ex) { if (manual && !closed) Status.Text = "Não foi possível verificar a atualização: " + ex.Message; }
         finally { checkingUpdate = false; }
     }
     private void Update_Click(object sender, RoutedEventArgs e) { if (updateInstaller != null) { installRequested = true; Close(); } }

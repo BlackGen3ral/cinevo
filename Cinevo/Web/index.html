@@ -25,6 +25,7 @@
           <button data-command="covers">Buscar ou pausar capas</button>
           <button data-command="portal">Portal online</button>
           <button data-command="settings">Configurações</button>
+          <button id="clear-library">Limpar biblioteca</button>
           <button data-command="classic">Interface clássica</button>
           <button data-command="quit">Sair do Cinevo</button>
         </div>
@@ -47,6 +48,15 @@
   <dialog id="details" aria-labelledby="detail-title">
     <button class="dialog-close" aria-label="Fechar detalhes">×</button>
     <div id="detail-content"></div>
+  </dialog>
+  <dialog id="clear-dialog" aria-labelledby="clear-title">
+    <h2 id="clear-title">Limpar biblioteca?</h2>
+    <p>Todos os filmes saem da biblioteca e as pastas são desvinculadas. Os arquivos continuam no PC. Os títulos online voltam para <strong>Filmes importados</strong>.</p>
+    <div class="actions">
+      <button id="cancel-clear" class="button secondary" autofocus>Cancelar</button>
+      <button id="confirm-clear" class="button accent">Limpar biblioteca</button>
+    </div>
+    <p id="clear-status" role="status"></p>
   </dialog>
   <dialog id="import-dialog" aria-labelledby="import-title">
     <button id="close-import" class="dialog-close" aria-label="Fechar importação">×</button>

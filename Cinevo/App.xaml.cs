@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Windows;
+using System.Windows.Interop;
 namespace Cinevo;
 public partial class App : Application
 {
@@ -12,6 +13,11 @@ public partial class App : Application
         if (!first) { MessageBox.Show("O Cinevo já está aberto.", "Cinevo"); Shutdown(); return; }
         DispatcherUnhandledException += (_, args) => { MessageBox.Show("Não foi possível concluir a operação.\n" + args.Exception.Message, "Cinevo"); args.Handled = true; };
         base.OnStartup(e);
+        var window = new MainWindow();
+        if (!window.IsReady) return;
+        MainWindow = window;
+        new WindowInteropHelper(window).EnsureHandle();
+        window.Start();
     }
     protected override void OnExit(ExitEventArgs e) { instance?.Dispose(); base.OnExit(e); }
 }

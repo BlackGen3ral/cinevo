@@ -11,6 +11,7 @@ public partial class MainWindow
     private LocalWeb? web;
     private Process? webWindow;
     private bool openingWeb;
+    private bool webShown;
     private int webRevision;
     private readonly Dictionary<Movie, string> webIds = new();
     private readonly Dictionary<string, Movie> webMovies = new(StringComparer.Ordinal);
@@ -18,7 +19,7 @@ public partial class MainWindow
     private async Task OpenWebAsync()
     {
         if (closed || openingWeb) return;
-        if (webWindow is { HasExited: false }) { Hide(); return; }
+        if (webShown && webWindow is { HasExited: false }) { if (IsVisible) Hide(); return; }
         openingWeb = true;
         try
         {
@@ -75,6 +76,7 @@ public partial class MainWindow
                 _ = Dispatcher.InvokeAsync(() =>
                 {
                     if (webWindow == process) webWindow = null;
+                    if (opened) webShown = false;
                     process.Dispose();
                     if (!closed && opened && !IsVisible) Close();
                 });
@@ -86,7 +88,8 @@ public partial class MainWindow
                 if (web.IsConnected)
                 {
                     opened = true;
-                    Hide();
+                    webShown = true;
+                    if (IsVisible) Hide();
                     return;
                 }
                 await Task.Delay(150, lifetime.Token);
@@ -143,6 +146,7 @@ public partial class MainWindow
             returning = spotlight == null ? null : returning.Select(WebMovie).ToArray(),
             favorites = spotlight == null ? null : favorites.Select(WebMovie).ToArray(),
             total = saved.Count,
+            folderCount = library.Folders.Count,
             imported = imports.Count(movie => movie.ImportedOnly),
             version = Updater.CurrentVersion
         };
@@ -243,6 +247,7 @@ public partial class MainWindow
             case "sync": await SyncPortalAsync(true); return;
             case "covers": Covers_Click(this, args); return;
             case "update": Update_Click(this, args); return;
+            case "clear-library": ClearLibrary(); return;
         }
         if (command.Id == null || !webMovies.TryGetValue(command.Id, out var movie) || !library.Movies.Contains(movie))
             throw new InvalidDataException("O título não está mais disponível.");
@@ -281,6 +286,28 @@ public partial class MainWindow
         movie.ImportedOnly = false;
         library.Save();
         Status.Text = $"Adicionado à biblioteca · {movie.Title}";
+        Refresh();
+    }
+
+    private void ClearLibrary()
+    {
+        var originalMovies = library.Movies;
+        var originalFolders = library.Folders;
+        var promoted = originalMovies.Where(movie => movie.IsOnline && !movie.ImportedOnly).ToArray();
+        library.Movies = originalMovies.Where(movie => movie.IsOnline).ToList();
+        library.Folders = [];
+        foreach (var movie in promoted) movie.ImportedOnly = true;
+        try { library.Save(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            library.Movies = originalMovies;
+            library.Folders = originalFolders;
+            foreach (var movie in promoted) movie.ImportedOnly = false;
+            throw new InvalidDataException("Não foi possível gravar a biblioteca. Os registros foram preservados.", ex);
+        }
+        scan?.Cancel();
+        coverSearch?.Cancel();
+        Status.Text = "Biblioteca limpa. Seus arquivos continuam no PC.";
         Refresh();
     }
 }
