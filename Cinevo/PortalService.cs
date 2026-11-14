@@ -17,6 +17,7 @@ public sealed class PortalItem
     public string StreamUrl { get; set; } = "";
     public string DownloadUrl { get; set; } = "";
     public string CoverUrl { get; set; } = "";
+    public string ImportedFrom { get; set; } = "";
 }
 public sealed class PortalFeed
 {
@@ -139,6 +140,7 @@ public static class PortalService
                 imported++;
             }
             movie.SourceUrl = item.SourceUrl; movie.StreamUrl = RemoteFiles.IsPublicHttps(item.StreamUrl) ? item.StreamUrl : ""; movie.DownloadUrl = RemoteFiles.IsPublicHttps(item.DownloadUrl) ? item.DownloadUrl : ""; movie.Description = item.Description;
+            if (RemoteFiles.IsPublicHttps(item.ImportedFrom)) movie.ImportedFrom = item.ImportedFrom;
             if (item.CoverUrl.Length > 0 && (movie.Cover.Length == 0 || !File.Exists(movie.Cover)))
                 missingCovers.Add((movie, item));
         }

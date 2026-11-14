@@ -31,7 +31,8 @@ public partial class MainWindow
                     ReadWebCoverAsync,
                     () => Dispatcher.InvokeAsync<object>(() => new
                     {
-                        revision = webRevision, status = Status.Text, scanning = scan != null, updating = updateInstaller != null
+                        revision = webRevision, status = Status.Text, scanning = scan != null,
+                        canUpdate = Updater.IsInstalled, update = updateProgress, updateRequested = installRequested
                     }).Task);
                 try { await server.StartAsync(lifetime.Token); }
                 catch { server.Stop(); throw; }
@@ -125,7 +126,7 @@ public partial class MainWindow
         var imports = library.Movies.Where(movie => movie.IsOnline).ToList();
         var collection = section switch
         {
-            "imports" => imports.OrderBy(movie => !movie.ImportedOnly).ThenByDescending(movie => movie.Added),
+            "imports" => imports.OrderBy(SourceSite, StringComparer.OrdinalIgnoreCase).ThenBy(movie => !movie.ImportedOnly).ThenByDescending(movie => movie.Added),
             "favorites" => saved.Where(movie => movie.Favorite).OrderBy(movie => movie.Title, StringComparer.CurrentCultureIgnoreCase),
             "continue" => saved.Where(movie => !movie.Watched && movie.ResumeMilliseconds > 30000).OrderByDescending(movie => movie.Added),
             _ => saved.OrderByDescending(movie => movie.Added)
@@ -152,6 +153,9 @@ public partial class MainWindow
         };
     }
 
+    private static string SourceSite(Movie movie) => Uri.TryCreate(movie.ImportedFrom.Length > 0 ? movie.ImportedFrom : movie.SourceUrl, UriKind.Absolute, out var uri)
+        ? uri.IdnHost.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? uri.IdnHost[4..] : uri.IdnHost : "Origem desconhecida";
+
     private object WebMovie(Movie movie)
     {
         if (!webIds.TryGetValue(movie, out var id))
@@ -172,6 +176,7 @@ public partial class MainWindow
         return new
         {
             id, movie.Title, movie.Year, movie.Genre, movie.Description, movie.Favorite, movie.Watched,
+            site = movie.IsOnline ? SourceSite(movie) : "",
             movie.IsOnline, movie.ImportedOnly, movie.Progress, movie.Rating, movie.PlayLabel, movie.Available,
             hasCover = movie.Cover.Length > 0,
             coverVersion = movie.Cover.GetHashCode(StringComparison.Ordinal)
@@ -198,6 +203,14 @@ public partial class MainWindow
     private async Task<object?> DispatchWebActionAsync(WebAction command)
     {
         if (command.Name.StartsWith("torrent-", StringComparison.Ordinal)) return await TorrentActionAsync(command);
+        if (command.Name == "hero-slide")
+        {
+            if (!int.TryParse(command.Address, out var offset) || offset < 0) throw new InvalidDataException("Destaque inválido.");
+            var movie = library.Movies.Where(movie => !movie.ImportedOnly)
+                .OrderByDescending(movie => !movie.Watched && movie.ResumeMilliseconds > 30000)
+                .ThenByDescending(movie => movie.Added).Skip(offset).FirstOrDefault();
+            return movie == null ? null : WebMovie(movie);
+        }
         if (command.Name is "download-options" or "download-source")
         {
             if (command.Id == null || !webMovies.TryGetValue(command.Id, out var movie) || !library.Movies.Contains(movie) || !movie.IsOnline)
@@ -269,7 +282,7 @@ public partial class MainWindow
             case "cancel-scan": scan?.Cancel(); return;
             case "sync": await SyncPortalAsync(true); return;
             case "covers": Covers_Click(this, args); return;
-            case "update": Update_Click(this, args); return;
+            case "update": _ = CheckUpdate(true); return;
             case "clear-library": ClearLibrary(); return;
         }
         if (command.Id == null || !webMovies.TryGetValue(command.Id, out var movie) || !library.Movies.Contains(movie))
@@ -279,6 +292,7 @@ public partial class MainWindow
             case "play": await RunWebDialogAsync(() => Play(movie)); return;
             case "details": RunWebDialog(() => ShowMovieDetails(movie)); return;
             case "add-to-library": AddImportedMovie(movie); return;
+            case "remove-movie": RemoveFromLibrary(movie); return;
             case "favorite": movie.Favorite = !movie.Favorite; break;
             case "watched": movie.Watched = !movie.Watched; break;
             default: throw new InvalidDataException("Ação desconhecida.");
@@ -309,6 +323,25 @@ public partial class MainWindow
         movie.ImportedOnly = false;
         library.Save();
         Status.Text = $"Adicionado à biblioteca · {movie.Title}";
+        Refresh();
+    }
+
+    private void RemoveFromLibrary(Movie movie)
+    {
+        if (movie.ImportedOnly) return;
+        var index = library.Movies.IndexOf(movie);
+        var ignored = movie.Path.Length > 0 && library.RemovedPaths.Add(movie.Path);
+        if (movie.IsOnline) movie.ImportedOnly = true;
+        else library.Movies.RemoveAt(index);
+        try { library.Save(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            if (ignored) library.RemovedPaths.Remove(movie.Path);
+            if (movie.IsOnline) movie.ImportedOnly = false;
+            else library.Movies.Insert(index, movie);
+            throw new InvalidDataException("Não foi possível salvar a remoção.", ex);
+        }
+        Status.Text = $"Removido da biblioteca · {movie.Title}";
         Refresh();
     }
 

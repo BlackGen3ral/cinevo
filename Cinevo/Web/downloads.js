@@ -62,7 +62,14 @@ function createTransferCard(hash) {
   let mode;
   const control = button('', 'secondary', event => actOnTransfer(
     control.dataset.action, hash, event.currentTarget));
-  foot.append(rates, control);
+  const controls = node('div', 'transfer-actions');
+  const remove = button('Remover', 'secondary', () => confirmRemoval('Remover transferência?',
+    title.textContent + ' sai da fila do qBittorrent. Os arquivos ficam no PC.', async () => {
+      await transferAction('torrent-remove', hash);
+      refreshTransfers(true);
+    }));
+  controls.append(control, remove);
+  foot.append(rates, controls);
   card.append(header, metrics, track, foot);
   return { card, update(item) {
     const [label, color] = transferState(item);
@@ -78,6 +85,7 @@ function createTransferCard(hash) {
     setText(rates, color === 'done' ? 'Disponível no PC' :
       (item.speed > 0 ? storageSize(item.speed) + '/s · ' + timeLeft(item.eta) : ''));
     const nextMode = color === 'done' ? 'torrent-files' : color === 'paused' ? 'torrent-resume' : 'torrent-pause';
+    card.dataset.status = color;
     if (mode !== nextMode) {
       mode = nextMode;
       control.dataset.action = mode;
@@ -96,7 +104,21 @@ function renderTransfers(data) {
   $('#torrent-empty').hidden = !data.configured || list.length > 0;
   $('#torrent-summary').hidden = !data.configured || !list.length;
   const speed = list.reduce((total, item) => total + Math.max(0, item.speed || 0), 0);
-  setText($('#torrent-summary'), list.length + (list.length === 1 ? ' transferência' : ' transferências') + '  ·  ' + storageSize(speed) + '/s');
+  const counters = [
+    [list.length, list.length === 1 ? 'transferência' : 'transferências'],
+    [list.filter(item => item.progress >= 1).length, 'concluídos'],
+    [storageSize(speed) + '/s', 'velocidade total']
+  ];
+  for (const [index, [value, label]] of counters.entries()) {
+    const summary = $('#torrent-summary');
+    if (!summary.children[index]) {
+      const metric = node('div', 'transfer-summary-card');
+      metric.append(node('strong'), node('span'));
+      summary.append(metric);
+    }
+    setText(summary.children[index].firstChild, String(value));
+    setText(summary.children[index].lastChild, label);
+  }
   const rows = $('#torrent-rows');
   const current = new Set();
   for (const item of list) {

@@ -12,8 +12,12 @@ public static class UpdateTests
         string Json(string version, string origin = "https://github.com/BlackGen3ral/cinevo/releases/download/v1.0.1/") => JsonSerializer.Serialize(new[] { new { tag_name = version, draft = false, assets = new[] { new { name = "Cinevo-Setup.exe", browser_download_url = origin + "Cinevo-Setup.exe" }, new { name = "SHA256SUMS.txt", browser_download_url = origin + "SHA256SUMS.txt" } } } });
         using var handler = new FakeHandler(Json("v1.0.1"), hash, bytes);
         using var http = new HttpClient(handler);
-        var target = await Updater.DownloadAsync(http, new Version(1, 0, 0), Path.Combine(root, "update-valid"));
+        var progress = new ProgressLog();
+        var target = await Updater.DownloadAsync(http, new Version(1, 0, 0), Path.Combine(root, "update-valid"), progress: progress);
         if (target == null || !File.ReadAllBytes(target).SequenceEqual(bytes)) throw new Exception("Atualização válida não foi preparada");
+        if (progress.Values.Count < 2 || progress.Values[0] != new Updater.UpdateProgress("download", 0, bytes.Length) ||
+            progress.Values[^1] != new Updater.UpdateProgress("verify", bytes.Length, bytes.Length))
+            throw new Exception("O progresso deve informar os bytes reais antes da verificação.");
         handler.ReleaseJson = Json("v0.1.1-beta.2");
         if (await Updater.DownloadAsync(http, new Version(0, 1, 0), Path.Combine(root, "update-beta")) == null) throw new Exception("Atualização beta não foi preparada");
         handler.ReleaseJson = Json("v1.0.0");
@@ -25,6 +29,11 @@ public static class UpdateTests
         try { await Updater.DownloadAsync(http, new Version(1, 0, 0), badPath); throw new Exception("Download corrompido aceito"); } catch (InvalidDataException) { }
         if (Directory.GetFiles(badPath, "*", SearchOption.AllDirectories).Length > 0) throw new Exception("Download inválido não foi removido");
         Console.WriteLine("PASS: atualização válida, versão igual ignorada, origem externa rejeitada e download corrompido rejeitado/removido.");
+    }
+    private sealed class ProgressLog : IProgress<Updater.UpdateProgress>
+    {
+        public List<Updater.UpdateProgress> Values { get; } = [];
+        public void Report(Updater.UpdateProgress value) => Values.Add(value);
     }
     private sealed class FakeHandler(string releaseJson, string hash, byte[] bytes) : HttpMessageHandler
     {

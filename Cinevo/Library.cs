@@ -15,6 +15,7 @@ public sealed class Movie : INotifyPropertyChanged
     public string Notes { get; set; } = "";
     public string PortalId { get; set; } = "";
     public string SourceUrl { get; set; } = "";
+    public string ImportedFrom { get; set; } = "";
     public string StreamUrl { get; set; } = "";
     public string DownloadUrl { get; set; } = "";
     public string Description { get; set; } = "";
@@ -44,6 +45,7 @@ public sealed class Library
 {
     public List<string> Folders { get; set; } = [];
     public List<Movie> Movies { get; set; } = [];
+    public HashSet<string> RemovedPaths { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public bool AutoUpdate { get; set; } = true;
     public bool AutoCovers { get; set; } = true;
     public static string DataDirectory => Environment.GetEnvironmentVariable("CINEVO_TEST_DATA") is { Length: > 0 } testDirectory ? System.IO.Path.GetFullPath(testDirectory) : System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Cinevo");
@@ -51,7 +53,12 @@ public sealed class Library
     public static Library Load()
     {
         if (!File.Exists(DataPath)) return new();
-        try { return JsonSerializer.Deserialize<Library>(File.ReadAllText(DataPath)) ?? throw new InvalidDataException("Biblioteca vazia."); }
+        try
+        {
+            var library = JsonSerializer.Deserialize<Library>(File.ReadAllText(DataPath)) ?? throw new InvalidDataException("Biblioteca vazia.");
+            library.RemovedPaths = new(library.RemovedPaths, StringComparer.OrdinalIgnoreCase);
+            return library;
+        }
         catch (JsonException ex) { throw new InvalidDataException("A biblioteca não pôde ser lida. O arquivo original foi preservado em " + DataPath, ex); }
     }
     public void Save()

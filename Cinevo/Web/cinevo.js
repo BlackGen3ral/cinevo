@@ -105,7 +105,17 @@ function renderHero(movie, home) {
   target.replaceChildren(shade, content);
   if (movie) {
     const art = poster(movie, 'hero-art');
-    if (art) { target.prepend(art); imageObserver.observe(art); }
+    if (art) {
+      target.prepend(art);
+      loadImage(art);
+      art.addEventListener('load', () => {
+        if (art.naturalWidth < art.naturalHeight || art.naturalWidth < 1000) {
+          art.classList.add('hero-poster');
+          art.style.maxWidth = art.naturalWidth + 'px';
+          art.style.maxHeight = art.naturalHeight + 'px';
+        }
+      }, { once: true });
+    }
     content.append(node('p', 'eyebrow', movie.progress > 0 && !movie.watched ? 'Continue assistindo' : 'Em destaque'),
       node('h1', '', movie.title));
     const metadata = [movie.year, movie.genre, movie.isOnline ? 'Coleção online' : 'Sua biblioteca'].filter(Boolean).join(' · ');
@@ -114,6 +124,19 @@ function renderHero(movie, home) {
     const actions = playActions(movie);
     actions.append(button('Mais informações', 'secondary', () => showDetails(movie)));
     content.append(actions);
+    if (heroTotal > 1) {
+      const controls = node('div', 'hero-controls');
+      const previous = button('‹', 'secondary', () => stepHero(-1));
+      const next = button('›', 'secondary', () => stepHero(1));
+      previous.setAttribute('aria-label', 'Destaque anterior');
+      next.setAttribute('aria-label', 'Próximo destaque');
+      const pause = button(heroPaused ? 'Retomar' : 'Pausar', 'secondary', () => {
+        heroPaused = !heroPaused;
+        pause.textContent = heroPaused ? 'Retomar' : 'Pausar';
+      });
+      controls.append(previous, node('span', '', (heroIndex + 1) + ' / ' + heroTotal), next, pause);
+      content.append(controls);
+    }
   } else {
     content.append(node('h1', '', 'Seu cinema, em casa.'),
       node('p', 'description', 'Adicione uma pasta do seu PC ou importe títulos de um catálogo online.'));
@@ -174,6 +197,37 @@ function shelf(title, rail = false) {
 // Reuse the nodes already on screen, including decoded images and scroll positions.
 const shelves = new Map();
 let heroKey, headingKey, detailKey;
+let heroIndex = 0, heroTotal = 0, heroSlide, heroLoading = false;
+let heroPaused = matchMedia('(prefers-reduced-motion: reduce)').matches;
+async function stepHero(direction) {
+  if (heroLoading || heroTotal < 2 || $('#hero').hidden) return;
+  heroLoading = true;
+  const index = (heroIndex + direction + heroTotal) % heroTotal;
+  try {
+    const movie = await transferAction('hero-slide', null, String(index));
+    if (movie && !$('#hero').hidden) {
+      heroSlide = movie;
+      heroIndex = index;
+      // Keep the current picture visible while loading the next one.
+      if (movie.hasCover) {
+        const cover = movie.id + '?v=' + movie.coverVersion;
+        if (!images.has(cover)) images.set(cover, request('/api/cover/' + cover).then(r => r.blob()));
+        await images.get(cover).catch(() => images.delete(cover));
+        if (images.size > 90) images.delete(images.keys().next().value);
+      }
+      if (!$('#hero').hidden) {
+        renderHero(movie, true);
+        heroKey = JSON.stringify([true, movie, heroTotal]);
+      }
+    }
+  } catch { /* Preserve the current highlight if the local service is busy. */ }
+  finally { heroLoading = false; }
+}
+setInterval(() => {
+  const hero = $('#hero');
+  if (!heroPaused && !document.hidden && !document.querySelector('dialog[open]') &&
+      !hero.matches(':hover, :focus-within') && hero.getBoundingClientRect().bottom > 120) stepHero(1);
+}, 7200);
 function renderShelf(id, title, movies, rail, index) {
   let section = shelves.get(id);
   if (!section) {
@@ -211,11 +265,15 @@ function renderShelf(id, title, movies, rail, index) {
 
 function render(data) {
   const home = state.section === 'library' && !state.search;
-  const nextHero = JSON.stringify([home, data.spotlight]);
+  if (heroTotal !== data.total || !home) { heroIndex = 0; heroSlide = null; }
+  heroTotal = data.total;
+  if (heroIndex === 0) heroSlide = null;
+  const spotlight = heroSlide ? state.movies.find(movie => movie.id === heroSlide.id) || heroSlide : data.spotlight;
+  const nextHero = JSON.stringify([home, spotlight, heroTotal]);
   if (nextHero !== heroKey) {
     const oldImage = $('#hero .hero-art');
     if (oldImage) imageObserver.unobserve(oldImage);
-    renderHero(data.spotlight, home);
+    renderHero(spotlight, home);
     const newImage = $('#hero .hero-art');
     if (home && oldImage?.src && oldImage.dataset.cover === newImage?.dataset.cover) {
       imageObserver.unobserve(newImage);
@@ -250,7 +308,12 @@ function render(data) {
   if (home && data.favorites?.length) showShelf('favorites', 'Seus favoritos', data.favorites, true);
   if (home && state.movies.length > 1) showShelf('recent', 'Adicionados recentemente', state.movies.slice(0, 12), true);
   if (state.movies.length) {
-    showShelf(state.section + (home ? '-home' : '-grid'), home ? 'Minha biblioteca' : '', state.movies);
+    if (state.section === 'imports') {
+      const bySite = Map.groupBy(state.movies, movie => movie.site || 'Origem desconhecida');
+      for (const [site, movies] of bySite) showShelf('site-' + site, site, movies);
+    } else {
+      showShelf(state.section + (home ? '-home' : '-grid'), home ? 'Minha biblioteca' : '', state.movies);
+    }
     rows.querySelector('.empty')?.remove();
   } else if (!home || state.search) {
     const text = state.search ? 'Nenhum título corresponde à sua busca.' :
@@ -292,6 +355,15 @@ function showDetails(movie) {
     command(movie.watched ? 'Marcar como não assistido' : 'Marcar como assistido', 'secondary', 'watched', movie.id),
     command('Editar detalhes', 'secondary', 'details', movie.id));
   if (movie.isOnline) actions.append(button('Opções de download', 'secondary', event => showSourceDownloads(movie, event.currentTarget)));
+  if (!movie.importedOnly) actions.append(button('Remover da biblioteca', 'secondary', () => {
+    $('#details').close();
+    confirmRemoval('Remover da biblioteca?', movie.title + (movie.isOnline
+      ? ' volta para Filmes importados. Os arquivos do PC são preservados.'
+      : ' sai da biblioteca, e o arquivo continua no PC.'), async () => {
+      await transferAction('remove-movie', movie.id);
+      await refresh(false, true);
+    });
+  }));
   panel.append(actions);
   if (!$('#details').open) $('#details').showModal();
 }
@@ -358,6 +430,45 @@ function changeSection(section) {
   } else {
     refresh();
   }
+}
+
+let removeAction;
+function confirmRemoval(title, description, action) {
+  $('#remove-title').textContent = title;
+  $('#remove-description').textContent = description;
+  $('#remove-status').textContent = '';
+  removeAction = action;
+  $('#remove-dialog').showModal();
+}
+$('#cancel-remove').onclick = () => $('#remove-dialog').close();
+$('#confirm-remove').onclick = async () => {
+  const confirm = $('#confirm-remove');
+  confirm.disabled = $('#cancel-remove').disabled = true;
+  try {
+    await removeAction();
+    $('#remove-dialog').close();
+  } catch (error) {
+    $('#remove-status').textContent = error.message;
+  } finally { confirm.disabled = $('#cancel-remove').disabled = false; }
+};
+$('#remove-dialog').addEventListener('cancel', event => {
+  if ($('#confirm-remove').disabled) event.preventDefault();
+});
+
+function renderUpdate(data) {
+  const info = data.update || { stage: 'idle' };
+  const active = ['check', 'download', 'verify'].includes(info.stage);
+  const button = $('#update');
+  button.hidden = !data.canUpdate || (active && data.updateRequested);
+  button.textContent = info.stage === 'ready' ? 'Instalar e reiniciar' : 'Atualizar Cinevo';
+  $('#update-transfer').hidden = !active;
+  const known = info.stage === 'download' && info.total > 0;
+  if (known) $('#update-progress').value = Math.min(100, info.received * 100 / info.total);
+  else $('#update-progress').removeAttribute('value');
+  $('#update-label').textContent = info.stage === 'check' ? 'Verificando atualização…' :
+    info.stage === 'verify' ? 'Verificando integridade…' :
+    info.stage === 'download' ? 'Baixando atualização · ' + storageSize(info.received) +
+      (known ? ' de ' + storageSize(info.total) + ' (' + Math.floor($('#update-progress').value) + '%)' : '') : '';
 }
 
 const importing = { next: '', continuation: false, running: false, paused: false, seen: new Set() };
@@ -498,7 +609,7 @@ async function checkRevision(initial = false) {
     const data = await (await request('/api/status')).json();
     if (state.busy) return;
     $('#status').textContent = data.status;
-    $('#update').hidden = !data.updating;
+    renderUpdate(data);
     $('#scan').textContent = data.scanning ? 'Cancelar busca de arquivos' : 'Atualizar arquivos';
     $('#scan').dataset.command = data.scanning ? 'cancel-scan' : 'scan';
     if (state.revision === data.revision) return;
@@ -507,7 +618,7 @@ async function checkRevision(initial = false) {
 }
 async function poll(initial = false) {
   await checkRevision(initial);
-  setTimeout(poll, 1800);
+  setTimeout(poll, $('#update-transfer').hidden ? 1800 : 550);
 }
 if (/^[0-9A-F]{64}$/.test(key || '')) {
   poll(true);

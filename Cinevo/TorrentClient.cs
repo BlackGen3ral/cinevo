@@ -149,6 +149,12 @@ internal sealed class TorrentClient : IDisposable
         SendAsync(start ? "torrents/start" : "torrents/stop", token,
             () => new FormUrlEncodedContent(new Dictionary<string,string> { ["hashes"] = hash }), start ? "torrents/resume" : "torrents/pause");
 
+    public Task RemoveAsync(string hash, CancellationToken token) =>
+        SendAsync("torrents/delete", token, () => new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["hashes"] = hash, ["deleteFiles"] = "false"
+        }));
+
     public async Task AddAsync(string address, CancellationToken token)
     {
         if (!IsMagnet(address)) throw new InvalidDataException("Cole um link magnet válido.");

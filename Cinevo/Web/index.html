@@ -63,7 +63,10 @@
   <footer>
     <span id="version">Cinevo Beta</span>
     <span id="status" role="status"></span>
-    <button id="update" class="button secondary" data-command="update" hidden>Instalar atualização</button>
+    <div id="update-controls">
+      <button id="update" class="button secondary" data-command="update" hidden>Atualizar Cinevo</button>
+      <div id="update-transfer" hidden><span id="update-label" role="status"></span><progress id="update-progress" aria-label="Progresso da atualização" max="100"></progress></div>
+    </div>
   </footer>
   <dialog id="details" aria-labelledby="detail-title">
     <button class="dialog-close" aria-label="Fechar detalhes">×</button>
@@ -77,6 +80,15 @@
       <button id="confirm-clear" class="button accent">Limpar biblioteca</button>
     </div>
     <p id="clear-status" role="status"></p>
+  </dialog>
+  <dialog id="remove-dialog" aria-labelledby="remove-title">
+    <h2 id="remove-title">Remover filme?</h2>
+    <p id="remove-description"></p>
+    <div class="actions">
+      <button id="cancel-remove" type="button" class="button secondary" autofocus>Cancelar</button>
+      <button id="confirm-remove" type="button" class="button accent">Remover</button>
+    </div>
+    <p id="remove-status" role="status"></p>
   </dialog>
   <dialog id="torrent-files" aria-labelledby="torrent-files-title">
     <h2 id="torrent-files-title">Escolher vídeo</h2>

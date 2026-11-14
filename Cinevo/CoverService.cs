@@ -47,7 +47,7 @@ public sealed class CoverService : IDisposable
         foreach (var (language, searchTitle) in searches)
         {
             var term = Uri.EscapeDataString(searchTitle);
-            var uri = $"https://{language}.wikipedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=0&gsrlimit=5&gsrsearch={term}&prop=pageimages%7Cinfo%7Cextracts&piprop=thumbnail&pithumbsize=500&pilicense=any&inprop=url&exintro=1&explaintext=1&exchars=800&exlimit=5";
+            var uri = $"https://{language}.wikipedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=0&gsrlimit=5&gsrsearch={term}&prop=pageimages%7Cinfo%7Cextracts&piprop=thumbnail&pithumbsize=960&pilicense=any&inprop=url&exintro=1&explaintext=1&exchars=800&exlimit=5";
             using var response = await http.GetAsync(uri, token); response.EnsureSuccessStatusCode();
             using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token));
             if (!json.RootElement.TryGetProperty("query", out var query) || !query.TryGetProperty("pages", out var pages)) continue;

@@ -1,8 +1,8 @@
-# Cinevo 0.1.12 · Beta
+# Cinevo 0.1.13 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.12-beta.13/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.13-beta.14/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -39,6 +39,10 @@ O Cinevo não move, apaga ou envia seus vídeos. A busca de capas envia somente 
 No player: **Espaço** pausa/continua; **← / →** recuam/avançam 10 segundos; **F** alterna tela cheia; **Esc** sai da tela cheia ou volta à biblioteca; **M** ativa/desativa o som. O progresso é salvo a cada dez segundos e ao fechar o player. A continuação começa após 30 segundos de progresso salvo. No final, o filme é marcado como assistido automaticamente; você pode alterar isso nos detalhes.
 
 ## Atualizações
+
+Em **Atualizar Cinevo**, um clique inicia a verificação, mostra o download do instalador e reabre o Cinevo após instalar. O instalador oficial é verificado por SHA-256. Se o player estiver aberto ao terminar, feche-o para instalar.
+
+Em **Mais informações → Remover da biblioteca**, arquivos locais continuam no disco e títulos online voltam para **Filmes importados**. Os importados são agrupados pelo site de origem. Em **Downloads**, **Remover** retira a transferência da fila do qBittorrent e preserva os arquivos.
 
 ### Portal online e downloads
 
@@ -78,7 +82,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.12-beta.13
+./scripts/build.ps1 -Version 0.1.13-beta.14
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.

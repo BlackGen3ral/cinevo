@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.1.12"
+  #define AppVersion "0.1.13"
 #endif
 [Setup]
 AppId={{AEAD2361-3C54-45F4-BCE9-6D8D821D281C}
@@ -35,4 +35,11 @@ Source: "..\dist\app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs c
 Name: "{group}\Cinevo"; Filename: "{app}\Cinevo.exe"
 Name: "{autodesktop}\Cinevo"; Filename: "{app}\Cinevo.exe"; Tasks: desktopicon
 [Run]
+Filename: "{app}\Cinevo.exe"; Flags: nowait runasoriginaluser; Check: CinevoUpdate
 Filename: "{app}\Cinevo.exe"; Description: "Abrir o Cinevo"; Flags: nowait postinstall skipifsilent
+
+[Code]
+function CinevoUpdate: Boolean;
+begin
+  Result := ExpandConstant('{param:CinevoUpdate|0}') = '1';
+end;

@@ -9,13 +9,15 @@ public static class Updater
     public const string Repository = "BlackGen3ral/cinevo";
     public static bool IsInstalled => AppContext.BaseDirectory.TrimEnd(System.IO.Path.DirectorySeparatorChar).Equals(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Cinevo"), StringComparison.OrdinalIgnoreCase);
     public static string CurrentVersion => Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
-    public static async Task<string?> DownloadAsync(CancellationToken token = default)
+    public static async Task<string?> DownloadAsync(CancellationToken token = default, IProgress<UpdateProgress>? progress = null)
     {
         using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
         http.DefaultRequestHeaders.UserAgent.ParseAdd("Cinevo/" + CurrentVersion);
-        return await DownloadAsync(http, Version.Parse(CurrentVersion), System.IO.Path.Combine(Library.DataDirectory, "updates"), token).ConfigureAwait(false);
+        return await DownloadAsync(http, Version.Parse(CurrentVersion), System.IO.Path.Combine(Library.DataDirectory, "updates"), token, progress).ConfigureAwait(false);
     }
-    public static async Task<string?> DownloadAsync(HttpClient http, Version current, string stagingDirectory, CancellationToken token = default)
+    public sealed record UpdateProgress(string Stage, long Received = 0, long? Total = null);
+
+    public static async Task<string?> DownloadAsync(HttpClient http, Version current, string stagingDirectory, CancellationToken token = default, IProgress<UpdateProgress>? progress = null)
     {
         using var response = await http.GetAsync($"https://api.github.com/repos/{Repository}/releases?per_page=10", token).ConfigureAwait(false);
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
@@ -34,13 +36,36 @@ public static class Updater
         if (hash == null || hash.Length != 64 || !hash.All(Uri.IsHexDigit)) throw new InvalidDataException("Verificação de integridade ausente.");
         var directory = System.IO.Path.Combine(stagingDirectory, latest.ToString()); Directory.CreateDirectory(directory);
         var target = System.IO.Path.Combine(directory, "Cinevo-Setup.exe");
-        if (File.Exists(target) && (await HashAsync(target, token).ConfigureAwait(false)).Equals(hash, StringComparison.OrdinalIgnoreCase)) return target;
+        if (File.Exists(target))
+        {
+            progress?.Report(new("verify"));
+            if ((await HashAsync(target, token).ConfigureAwait(false)).Equals(hash, StringComparison.OrdinalIgnoreCase)) return target;
+        }
         using var download = await http.GetAsync(Url(installer), HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false); download.EnsureSuccessStatusCode();
         var temp = target + ".download";
         try
         {
+            var total = download.Content.Headers.ContentLength;
+            long received = 0;
+            var lastReport = Environment.TickCount64;
+            progress?.Report(new("download", received, total));
             await using (var output = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 65536, useAsync: true))
-                await download.Content.CopyToAsync(output, token).ConfigureAwait(false);
+            await using (var source = await download.Content.ReadAsStreamAsync(token).ConfigureAwait(false))
+            {
+                var buffer = new byte[65536];
+                int count;
+                while ((count = await source.ReadAsync(buffer, token).ConfigureAwait(false)) > 0)
+                {
+                    await output.WriteAsync(buffer.AsMemory(0, count), token).ConfigureAwait(false);
+                    received += count;
+                    if (Environment.TickCount64 - lastReport >= 200)
+                    {
+                        progress?.Report(new("download", received, total));
+                        lastReport = Environment.TickCount64;
+                    }
+                }
+            }
+            progress?.Report(new("verify", received, total));
             var actual = await HashAsync(temp, token).ConfigureAwait(false);
             if (!actual.Equals(hash, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("O instalador baixado falhou na verificação de integridade.");
         }

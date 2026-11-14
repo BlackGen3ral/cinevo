@@ -189,6 +189,9 @@ public partial class MainWindow
         var hash = command.Id!.ToLowerInvariant();
         switch (command.Name)
         {
+            case "torrent-remove":
+                await GetTorrentClient().RemoveAsync(hash, lifetime.Token);
+                return null;
             case "torrent-pause":
             case "torrent-resume":
                 await GetTorrentClient().SetRunningAsync(hash, command.Name == "torrent-resume", lifetime.Token);
