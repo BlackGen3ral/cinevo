@@ -24,6 +24,7 @@ try {
  Assert(restored.Movies[0].Favorite && restored.Movies[0].Watched && restored.Movies[0].Rating == 5 && restored.Movies[0].Notes == "Ótimo", "Metadados persistem");
  await UpdateTests.Run(root);
  await CoverTests.Run(root);
+ await TmdbTests.Run();
  await PortalTests.Run(root);
  Environment.SetEnvironmentVariable("CINEVO_TEST_DATA", Path.Combine(root, "profile"));
  var persisted = new Library { Movies = [new Movie { Title = "Persistência", ResumeMilliseconds = 45000, DurationMilliseconds = 90000, CoverSource = "https://pt.wikipedia.org/wiki/Teste" }] };

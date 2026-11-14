@@ -178,6 +178,7 @@ public partial class MainWindow
             id, movie.Title, movie.Year, movie.Genre, description = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description, movie.Favorite, movie.Watched,
             site = movie.IsOnline ? SourceSite(movie) : "",
             customTrailer = MovieTrailer.FromUrl(movie.TrailerUrl)?.VideoId,
+            tmdbRevision,
             movie.IsOnline, movie.ImportedOnly, movie.Progress, movie.Rating, movie.PlayLabel, movie.Available,
             hasCover = movie.Cover.Length > 0,
             coverVersion = movie.Cover.GetHashCode(StringComparison.Ordinal)
@@ -283,6 +284,7 @@ public partial class MainWindow
             case "portal": RunWebDialog(() => Portal_Click(this, args)); return;
             case "folders": RunWebDialog(() => Folders_Click(this, args)); return;
             case "settings": RunWebDialog(() => Settings_Click(this, args)); return;
+            case "tmdb-settings": RunWebDialog(ConfigureTmdb); return;
             case "classic": Show(); Activate(); return;
             case "quit": Close(); return;
             case "scan": await ScanAsync(); return;

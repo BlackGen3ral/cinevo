@@ -193,6 +193,19 @@ dialog h2 { margin: 15px 28px 6px 0; font-size: clamp(25px, 4vw, 40px); line-hei
 .detail-trailer:empty { display: none }
 .detail-trailer iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 9px; margin-bottom: 8px; background: #0d0d11 }
 .detail-tools { padding-top: 19px; border-top: 1px solid #ffffff1c }
+.tmdb-score { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 0 0; color: #c9c0cd; font-size: 13px }
+.tmdb-score strong { color: #f5ce83; font-size: 16px }
+.tmdb-credits { margin-top: 25px; padding-top: 20px; border-top: 1px solid #ffffff1c }
+.tmdb-credits:empty { display: none }
+.tmdb-facts { display: grid; grid-template-columns: minmax(82px, max-content) minmax(0, 1fr); column-gap: 18px; row-gap: 9px; margin: 0 0 20px }
+.tmdb-facts dt, .tmdb-cast span { color: #c1b5c2 }
+.tmdb-facts dd { margin: 0; overflow-wrap: anywhere }
+.tmdb-cast { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(145px, 100%), 1fr)); gap: 8px; margin: 0 0 14px }
+.tmdb-cast li { display: grid; gap: 4px; padding: 11px; background: #ffffff09; border-radius: 7px }
+.tmdb-cast span { font-size: 13px }
+.tmdb-attribution { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 15px }
+.tmdb-attribution img { width: 62px; display: block }
+.tmdb-attribution .detail-source { margin-top: 0 }
 @media (max-width: 590px) {
   #details { width: calc(100vw - 20px); max-height: calc(100dvh - 20px) }
   .detail-header { padding-top: 54px; grid-template-columns: minmax(0, 100px) minmax(0, 1fr); align-items: start }

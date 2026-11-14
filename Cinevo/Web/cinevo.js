@@ -384,8 +384,9 @@ function showDetails(movie) {
     });
   }));
   const trailer = isSameMovie && panel.querySelector('.detail-trailer') || node('section', 'detail-trailer');
+  const credits = node('section', 'tmdb-credits');
   const downloads = isSameMovie && panel.querySelector('.source-downloads');
-  information.append(synopsis, trailer, tools);
+  information.append(synopsis, trailer, credits, tools);
   if (downloads) information.append(downloads);
   panel.replaceChildren(header, information);
   if (!dialog.open) {
@@ -394,7 +395,7 @@ function showDetails(movie) {
   }
   if (image) loadImage(image);
 
-  const key = JSON.stringify([movie.id, movie.title, movie.year, movie.description, movie.customTrailer]);
+  const key = JSON.stringify([movie.id, movie.title, movie.year, movie.description, movie.customTrailer, movie.tmdbRevision]);
   if (!movieDetails.has(key)) {
     movieDetails.set(key, transferAction('movie-details', movie.id).catch(() => ({ retry: true })).then(details => {
       if (details?.retry) movieDetails.delete(key);
@@ -412,8 +413,62 @@ function showDetails(movie) {
       citation.rel = 'noopener noreferrer';
       synopsis.append(citation);
     }
+    if (details?.tmdb) renderTmdb(credits, introduction, synopsis, details.tmdb, details.tmdbSynopsis, movie);
+    if (details?.tmdbError) credits.append(node('p', '', details.tmdbError));
     renderMovieTrailer(trailer, mainActions, movie, details?.trailerId);
   });
+}
+
+function renderTmdb(section, introduction, synopsis, tmdb, usesSynopsis, movie) {
+  const link = node('a', 'detail-source', 'Ver ficha no TMDB ↗');
+  link.href = tmdb.url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  const attribution = node('div', 'tmdb-attribution');
+  const logo = node('img');
+  logo.src = '/tmdb.svg';
+  logo.alt = 'The Movie Database';
+  const home = node('a');
+  home.href = 'https://www.themoviedb.org/?language=pt-BR';
+  home.target = '_blank';
+  home.rel = 'noopener noreferrer';
+  home.append(logo);
+  attribution.append(home, link);
+  if (tmdb.votes > 0) {
+    const score = node('p', 'tmdb-score');
+    score.append(node('strong', '', '★ ' + tmdb.score.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' / 10'),
+      node('span', '', 'TMDB · ' + tmdb.votes.toLocaleString('pt-BR') + ' avaliações'));
+    introduction.querySelector('.actions').before(score);
+  }
+  if (usesSynopsis) {
+    const source = link.cloneNode(true);
+    source.textContent = 'Fonte da sinopse · TMDB ↗';
+    synopsis.append(source);
+  }
+  section.append(node('h3', '', 'Ficha técnica'));
+  const facts = node('dl', 'tmdb-facts');
+  function fact(label, value) {
+    if (value) facts.append(node('dt', '', label), node('dd', '', value));
+  }
+  if (tmdb.originalTitle !== movie.title) fact('Título original', tmdb.originalTitle);
+  fact('Gêneros', tmdb.genres.join(' · '));
+  fact('Duração', tmdb.minutes > 0 ? tmdb.minutes + ' min' : '');
+  fact('Direção', tmdb.directors.join(', '));
+  fact('Roteiro', tmdb.writers.join(', '));
+  fact('Criação', tmdb.creators.join(', '));
+  section.append(facts);
+  if (tmdb.cast.length) {
+    section.append(node('h3', '', 'Elenco'));
+    const cast = node('ul', 'tmdb-cast');
+    for (const person of tmdb.cast) {
+      const item = node('li');
+      item.append(node('strong', '', person.name));
+      if (person.role) item.append(node('span', '', person.role));
+      cast.append(item);
+    }
+    section.append(cast);
+  }
+  section.append(attribution);
 }
 
 function renderMovieTrailer(section, actions, movie, id) {
