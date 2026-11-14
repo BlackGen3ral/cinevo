@@ -421,7 +421,7 @@ function showDetails(movie) {
   tools.append(command(movie.favorite ? 'Remover favorito' : 'Favoritar', 'secondary', 'favorite', movie.id),
     command(movie.watched ? 'Marcar como não assistido' : 'Marcar como assistido', 'secondary', 'watched', movie.id),
     command('Editar detalhes', 'secondary', 'details', movie.id));
-  if (movie.isOnline) tools.append(button('Opções de download', 'secondary', event => showSourceDownloads(movie, event.currentTarget)));
+  if (movie.hasDownloadOptions) tools.append(button('Opções de download', 'secondary', event => showSourceDownloads(movie, event.currentTarget)));
   if (!movie.importedOnly) tools.append(button('Remover da biblioteca', 'secondary', () => {
     $('#details').close();
     confirmRemoval('Remover da biblioteca?', movie.title + (movie.isOnline
@@ -684,6 +684,7 @@ async function runImport() {
   $('#resume-import').hidden = true;
   const progress = $('#import-status');
   let count = 0;
+  let syncNeeded = false;
   let message = '';
   try {
     while (importing.next && !importing.paused) {
@@ -695,6 +696,7 @@ async function runImport() {
         body: JSON.stringify({ name: 'import-batch', address, continuation: importing.continuation })
       })).json();
       count += result.count;
+      syncNeeded ||= !result.local && result.count > 0;
       importing.next = result.next || '';
       importing.continuation = true;
       if (result.partial) { message = result.partial; break; }
@@ -715,7 +717,7 @@ async function runImport() {
     if (count) {
       progress.textContent = 'Atualizando Filmes importados…';
       try {
-        await request('/api/action', {
+        if (syncNeeded) await request('/api/action', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: 'sync-imports' })

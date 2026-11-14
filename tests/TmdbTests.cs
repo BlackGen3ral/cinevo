@@ -16,12 +16,16 @@ internal static class TmdbTests
             throw new Exception("O TMDB associou um filme com ano incorreto.");
         var linked = TmdbClient.RouteFromUrl("https://www.themoviedb.org/movie/41-filme-teste?language=pt-BR");
         if (linked != "movie/41" || TmdbClient.RouteFromUrl("https://example.org/movie/41") != null ||
-            (await client.LookupLinkedAsync(linked, CancellationToken.None)).Votes != 31 ||
+            !TmdbClient.IsSiteUrl("https://www.themoviedb.org/?language=pt-BR") ||
+            TmdbClient.RouteFromUrl("https://www.themoviedb.org/?language=pt-BR") != null ||
+            await client.LookupLinkedAsync(linked, CancellationToken.None) is not
+                { Votes: 31, Title: "Filme de Teste", Year: "2024", Poster: "/filme.jpg" } ||
             TmdbClient.RouteFromUrl("https://themoviedb.org/tv/42-serie/season/2") != "tv/42/season/2")
             throw new Exception("O vínculo direto do TMDB precisa aceitar a ficha certa e rejeitar outros domínios.");
         handler.Series = true;
         var season = await client.LookupAsync("Série de Teste 2ª Temporada", "2025", CancellationToken.None);
-        if (season is not { Overview: "Sinopse da temporada.", TrailerId: "ENabcdefgh0" } ||
+        if (season is not { Title: "Série de Teste Temporada 2", Year: "2025",
+                Overview: "Sinopse da temporada.", TrailerId: "ENabcdefgh0" } ||
             season.Creators.Single() != "Pessoa Criadora" || !season.Url.Contains("/tv/42/season/2?"))
             throw new Exception("Temporada, criação ou trailer alternativo TMDB incorretos.");
         Console.WriteLine("PASS: TMDB pt-BR, nota, créditos, ano, temporada e trailers do YouTube.");
@@ -41,15 +45,16 @@ internal static class TmdbTests
                 "/3/search/multi" when Series => """{"results":[{"id":42,"media_type":"tv","name":"Série de Teste","first_air_date":"2022-02-01"}]}""",
                 "/3/search/multi" => """{"results":[{"id":41,"media_type":"movie","title":"Filme de Teste","release_date":"2024-02-01"},{"id":90,"media_type":"movie","title":"Filme de Teste","release_date":"2012-02-01","vote_count":900}]}""",
                 "/3/movie/41" => """
-                    {"overview":"Sinopse em português.","vote_average":8.2,"vote_count":31,"runtime":106,
+                    {"title":"Filme de Teste","release_date":"2024-02-01","poster_path":"/filme.jpg",
+                     "overview":"Sinopse em português.","vote_average":8.2,"vote_count":31,"runtime":106,
                      "credits":{"cast":[{"name":"Pessoa Atriz","character":"Protagonista"}],
                         "crew":[{"name":"Pessoa Diretora","job":"Director"},{"name":"Pessoa Roteirista","job":"Screenplay"}]},
                      "videos":{"results":[{"site":"Vimeo","type":"Trailer","key":"VIabcdefgh0"},
                         {"site":"YouTube","type":"Trailer","key":"ENabcdefgh0","official":true,"iso_639_1":"en"},
                         {"site":"YouTube","type":"Trailer","key":"BRabcdefgh0","official":true,"iso_639_1":"pt","iso_3166_1":"BR"}]}}
                     """,
-                "/3/tv/42" => """{"created_by":[{"name":"Pessoa Criadora"}],"overview":"Sinopse da série."}""",
-                "/3/tv/42/season/2" => """{"overview":"Sinopse da temporada.","videos":{"results":[]}}""",
+                "/3/tv/42" => """{"name":"Série de Teste","created_by":[{"name":"Pessoa Criadora"}],"overview":"Sinopse da série."}""",
+                "/3/tv/42/season/2" => """{"air_date":"2025-04-03","overview":"Sinopse da temporada.","videos":{"results":[]}}""",
                 "/3/tv/42/season/2/videos" when uri.Query.Contains("language=en-US") =>
                     """{"results":[{"site":"YouTube","type":"Trailer","key":"ENabcdefgh0"}]}""",
                 _ => throw new Exception("Consulta TMDB inesperada: " + uri.AbsolutePath)

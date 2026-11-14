@@ -9,7 +9,8 @@ namespace Cinevo;
 
 internal sealed record TmdbCredit(string Name, string Role);
 internal sealed record TmdbDetails(string Url, string OriginalTitle, string Overview, double Score, int Votes,
-    int Minutes, string[] Genres, string[] Directors, string[] Writers, string[] Creators, TmdbCredit[] Cast, string? TrailerId);
+    int Minutes, string[] Genres, string[] Directors, string[] Writers, string[] Creators, TmdbCredit[] Cast, string? TrailerId,
+    string Title, string Year, string Poster);
 
 internal sealed class TmdbClient : IDisposable
 {
@@ -90,13 +91,25 @@ internal sealed class TmdbClient : IDisposable
 
     internal static string? RouteFromUrl(string value)
     {
-        if (value.Length > 512 || !Uri.TryCreate(value.Trim(), UriKind.Absolute, out var url)
-            || url.Scheme != "https" || !url.IsDefaultPort || url.UserInfo.Length != 0
-            || url.IdnHost is not ("www.themoviedb.org" or "themoviedb.org")) return null;
+        if (value.Length > 512 || !TrySiteUrl(value, out var url)) return null;
         var match = Regex.Match(url.AbsolutePath, @"\A/(movie|tv)/([1-9][0-9]{0,9})(?:-[^/]+)?(?:/season/([0-9]{1,3}))?/?\z");
         if (!match.Success || (match.Groups[1].Value == "movie" && match.Groups[3].Success)) return null;
         var route = $"{match.Groups[1].Value}/{match.Groups[2].Value}";
         return match.Groups[3].Success ? $"{route}/season/{int.Parse(match.Groups[3].Value)}" : route;
+    }
+
+    internal static bool IsSiteUrl(string value) => TrySiteUrl(value, out _);
+
+    private static bool TrySiteUrl(string value, out Uri url)
+    {
+        if (Uri.TryCreate(value.Trim(), UriKind.Absolute, out var parsed) && parsed.Scheme == "https" &&
+            parsed.IsDefaultPort && parsed.UserInfo.Length == 0 && parsed.IdnHost is "www.themoviedb.org" or "themoviedb.org")
+        {
+            url = parsed;
+            return true;
+        }
+        url = null!;
+        return false;
     }
 
     public Task<TmdbDetails> LookupLinkedAsync(string route, CancellationToken token)
@@ -133,12 +146,46 @@ internal sealed class TmdbClient : IDisposable
             duration = runtime.GetInt32();
         var overview = Text(selected, "overview");
         if (overview.Length == 0) overview = Text(root, "overview");
+        var movie = route.StartsWith("movie/", StringComparison.Ordinal);
+        var title = Text(root, movie ? "title" : "name");
+        if (title.Length == 0) title = Text(root, movie ? "original_title" : "original_name");
+        if (seasonRoute != null) title += " Temporada " + seasonRoute.Split('/')[^1];
+        var date = Text(selected, movie ? "release_date" : seasonRoute == null ? "first_air_date" : "air_date");
+        var poster = Text(selected, "poster_path");
+        if (poster.Length == 0) poster = Text(root, "poster_path");
         return new TmdbDetails($"https://www.themoviedb.org/{seasonRoute ?? route}?language=pt-BR",
             Text(root, route.StartsWith("movie/") ? "original_title" : "original_name"), overview,
             Property(selected, "vote_average") is { ValueKind: JsonValueKind.Number } score ? score.GetDouble() : 0,
             Number(selected, "vote_count"), duration, Items(root, "genres").Select(genre => Text(genre, "name")).ToArray(),
             Crew("Director"), Crew("Writer", "Screenplay", "Story"),
-            Items(root, "created_by").Select(person => Text(person, "name")).Take(8).ToArray(), cast, trailer);
+            Items(root, "created_by").Select(person => Text(person, "name")).Take(8).ToArray(), cast, trailer,
+            title, date.Length >= 4 ? date[..4] : "", poster);
+    }
+
+    public async Task<string> DownloadPosterAsync(string poster, string route, CancellationToken token)
+    {
+        if (!Regex.IsMatch(poster, @"\A/[A-Za-z0-9_-]+\.(?:jpg|png)\z")) return "";
+        var directory = Path.Combine(Library.DataDirectory, "covers");
+        var path = Path.Combine(directory, "tmdb-" + route.Replace('/', '-') + "-" + poster[1..]);
+        if (File.Exists(path)) return path;
+        // Use a separate client so the TMDB API credential never goes to the image host.
+        using var images = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(8));
+        using var response = await images.GetAsync("https://image.tmdb.org/t/p/w780" + poster,
+            HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+        if (!response.IsSuccessStatusCode) return "";
+        var bytes = await RemoteFiles.ReadBoundedAsync(response, 5 * 1024 * 1024, timeout.Token);
+        if (!RemoteFiles.IsImage(bytes)) return "";
+        Directory.CreateDirectory(directory);
+        var temp = path + "." + Guid.NewGuid().ToString("N");
+        try
+        {
+            await File.WriteAllBytesAsync(temp, bytes, token);
+            File.Move(temp, path, true);
+            return path;
+        }
+        finally { File.Delete(temp); }
     }
 
     private static int MatchScore(JsonElement item, string kind, string title, string year, bool season)

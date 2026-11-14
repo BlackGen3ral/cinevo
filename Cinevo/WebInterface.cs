@@ -195,6 +195,7 @@ public partial class MainWindow
             tmdbConfigured = File.Exists(TmdbClient.CredentialPath),
             tmdbRevision,
             movie.IsOnline, movie.ImportedOnly, movie.Progress, movie.Rating, movie.PlayLabel, movie.Available,
+            hasDownloadOptions = movie.PortalId.Length > 0,
             hasCover = movie.Cover.Length > 0,
             coverVersion = movie.Cover.GetHashCode(StringComparison.Ordinal)
         };
@@ -265,6 +266,7 @@ public partial class MainWindow
             webImporting = true;
             try
             {
+                if (TmdbClient.IsSiteUrl(address)) return await ImportTmdbAsync(address);
                 var connection = await PortalService.GetOrCreateConnectionAsync(lifetime.Token);
                 return await PortalService.ImportBatchAsync(connection, address, command.Continuation, lifetime.Token);
             }

@@ -82,6 +82,13 @@ public partial class MainWindow
             try
             {
                 message.Text = "Buscando filmes no endereço…";
+                if (TmdbClient.IsSiteUrl(next))
+                {
+                    await ImportTmdbAsync(next);
+                    outcome = "Ficha do TMDB disponível em Filmes importados.";
+                    next = null;
+                    return;
+                }
                 var connection = await PortalService.GetOrCreateConnectionAsync(lifetime.Token);
                 while (!paused && !string.IsNullOrEmpty(next))
                 {

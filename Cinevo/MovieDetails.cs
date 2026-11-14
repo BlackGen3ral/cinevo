@@ -14,9 +14,20 @@ public partial class MainWindow
 
     private async Task<object> MovieDetailsAsync(Movie movie)
     {
-        var title = Regex.Replace(movie.Title, @"\s*\((?:19|20)\d{2}\)\s*$", "").Trim();
+        var title = movie.IsOnline && !movie.IsTmdbImport
+            ? Regex.Split(movie.Title, @"\s+(?:\d{3,4}p|WEB[ .-]?DL|Blu[ .-]?Ray|Dual [ÁA]udio|Dublado(?: e Legendado)?|Legendado|Torrent)\b",
+                RegexOptions.IgnoreCase)[0].TrimEnd(' ', '.', '-', '–', '|')
+            : movie.Title.Trim();
+        var yearTag = Regex.Match(title, movie.IsOnline ? @"\s+\(?((?:19|20)\d{2})\)?\s*$" : @"\s*\(((?:19|20)\d{2})\)\s*$");
+        if (yearTag.Success && yearTag.Index > 0) title = title[..yearTag.Index].TrimEnd(' ', '-', '–', '|');
         var year = movie.Year.Length == 4 ? movie.Year :
-            Regex.Match(movie.Title, @"\(((?:19|20)\d{2})\)\s*$").Groups[1].Value;
+            yearTag.Groups[1].Value;
+        var kind = movie.IsOnline ? ImportedTitle.Describe(movie) : null;
+        if (kind is { Type: "series", Series.Length: > 0 })
+        {
+            title = kind.Series;
+            if (kind.Season is int season) title += $" Temporada {season}";
+        }
         var synopsis = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description;
         var trailer = MovieTrailer.FromUrl(movie.TrailerUrl)?.VideoId;
         var tmdbState = "disconnected";
@@ -26,7 +37,7 @@ public partial class MainWindow
             if (credential.Length > 0)
             {
                 tmdbState = "unmatched";
-                var key = (title, year, TmdbClient.RouteFromUrl(movie.TmdbUrl));
+                var key = (title, year, TmdbClient.RouteFromUrl(movie.TmdbUrl) ?? TmdbClient.RouteFromUrl(movie.SourceUrl));
                 if (!tmdbCache.TryGetValue(key, out var lookup))
                 {
                     if (tmdbCache.Count >= 150) tmdbCache.Clear();

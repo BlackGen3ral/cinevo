@@ -27,7 +27,8 @@ public sealed class Movie : INotifyPropertyChanged
     public string TmdbUrl { get; set; } = "";
     public string CustomSynopsis { get; set; } = "";
     public bool ImportedOnly { get; set; }
-    [System.Text.Json.Serialization.JsonIgnore] public bool IsOnline => PortalId.Length > 0;
+    [System.Text.Json.Serialization.JsonIgnore] public bool IsOnline => PortalId.Length > 0 || IsTmdbImport;
+    public bool IsTmdbImport { get; set; }
     [System.Text.Json.Serialization.JsonIgnore] public bool HasLocalFile => Path.Length > 0 && File.Exists(Path);
     private string cover = "";
     public string Cover { get => cover; set { cover = value; Changed(); } }
