@@ -290,7 +290,8 @@ function showDetails(movie) {
   if (movie.importedOnly) actions.append(command('+ Adicionar à biblioteca', 'accent', 'add-to-library', movie.id));
   actions.append(command(movie.favorite ? 'Remover favorito' : 'Favoritar', 'secondary', 'favorite', movie.id),
     command(movie.watched ? 'Marcar como não assistido' : 'Marcar como assistido', 'secondary', 'watched', movie.id),
-    command(movie.isOnline ? 'Editar e ver downloads' : 'Editar detalhes', 'secondary', 'details', movie.id));
+    command('Editar detalhes', 'secondary', 'details', movie.id));
+  if (movie.isOnline) actions.append(button('Opções de download', 'secondary', event => showSourceDownloads(movie, event.currentTarget)));
   panel.append(actions);
   if (!$('#details').open) $('#details').showModal();
 }
@@ -303,6 +304,7 @@ async function catalog(page, limit, signal) {
 let fetchCatalog;
 let firstPage;
 async function refresh(append = false, keepPages = false) {
+  if (state.section === 'downloads') return true;
   fetchCatalog?.abort();
   const current = fetchCatalog = new AbortController();
   const requestedPage = append ? state.page + 1 : 1;
@@ -335,6 +337,7 @@ async function refresh(append = false, keepPages = false) {
 }
 
 function changeSection(section) {
+  fetchCatalog?.abort();
   state.section = section;
   state.search = '';
   $('#search').value = '';
@@ -343,7 +346,18 @@ function changeSection(section) {
     else tab.removeAttribute('aria-current');
   }
   window.scrollTo(0, 0);
-  refresh();
+  const downloads = section === 'downloads';
+  $('#downloads').hidden = downloads === false;
+  $('#collection').hidden = downloads;
+  $('.search').hidden = downloads;
+  if (downloads) {
+    $('#hero').hidden = true;
+    heroKey = undefined;
+    $('#main').setAttribute('aria-busy', 'false');
+    refreshTransfers(true);
+  } else {
+    refresh();
+  }
 }
 
 const importing = { next: '', continuation: false, running: false, paused: false, seen: new Set() };

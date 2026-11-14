@@ -197,6 +197,29 @@ public partial class MainWindow
     private bool webImporting;
     private async Task<object?> DispatchWebActionAsync(WebAction command)
     {
+        if (command.Name.StartsWith("torrent-", StringComparison.Ordinal)) return await TorrentActionAsync(command);
+        if (command.Name is "download-options" or "download-source")
+        {
+            if (command.Id == null || !webMovies.TryGetValue(command.Id, out var movie) || !library.Movies.Contains(movie) || !movie.IsOnline)
+                throw new InvalidDataException("Título indisponível.");
+            List<PortalDownload> options;
+            try { options = await PortalService.GetDownloadsAsync(movie.PortalId, lifetime.Token); }
+            catch (Exception ex) when (ex is IOException or System.Net.Http.HttpRequestException or System.Text.Json.JsonException)
+            {
+                if (!RemoteFiles.IsPublicHttps(movie.DownloadUrl)) throw new InvalidDataException("Não foi possível consultar as opções da origem.");
+                options = [];
+            }
+            if (RemoteFiles.IsPublicHttps(movie.DownloadUrl) && !options.Any(option => option.Url == movie.DownloadUrl))
+                options.Insert(0, new PortalDownload(movie.DownloadUrl, "Baixar no PC", "file"));
+            options = options.Where(option => option.Kind == "torrent" ? TorrentClient.IsMagnet(option.Url) :
+                option.Kind is "file" or "link" && RemoteFiles.IsPublicHttps(option.Url)).ToList();
+            if (command.Name == "download-options") return options;
+            var selected = options.Find(option => option.Url == command.Address && option.Kind != "torrent")
+                ?? throw new InvalidDataException("A opção escolhida não está mais disponível.");
+            if (selected.Kind == "file") RunWebDialog(() => DownloadMovie(movie, this, selected.Url));
+            else using (Process.Start(new ProcessStartInfo(selected.Url) { UseShellExecute = true })) { }
+            return null;
+        }
         if (command.Name == "import-batch")
         {
             var address = command.Address ?? "";

@@ -97,3 +97,38 @@ dialog h2 { margin: 15px 28px 6px 0; font-size: clamp(25px, 4vw, 40px); line-hei
   .hero-shade { background: linear-gradient(90deg,#101013e8 9%,#10101355), linear-gradient(0deg,#101013, transparent 60%) }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important } }
+
+#downloads { max-width: 1360px; margin: 0 auto; padding: 48px var(--gutter) 60px }
+.transfer-header { display: flex; align-items: end; justify-content: space-between; gap: 22px; flex-wrap: wrap }
+.transfer-header h1 { font-size: clamp(40px, 6vw, 72px) }
+.transfer-header p { color: var(--muted); margin-bottom: 0 }
+.transfer-status { background: #2a2028; border: 1px solid #593440; padding: 14px 17px; border-radius: 8px; line-height: 1.5 }
+#torrent-form { padding: 17px 21px; margin-top: 24px; background: #19181e; border: 1px solid #ffffff18; border-radius: 11px }
+#torrent-form label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 9px }
+#torrent-form > div { display: flex; gap: 9px }
+#torrent-magnet { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 6px; border: 1px solid #ffffff30; background: #121115; color: var(--white) }
+#torrent-message { color: var(--muted); font-size: 14px }
+.transfer-summary { margin: 25px 0 12px; color: var(--muted); font-size: 14px }
+#torrent-rows { display: grid; gap: 12px }
+.transfer-card { background: #1a191e; border: 1px solid #ffffff18; border-radius: 11px; padding: 17px 21px }
+.transfer-card-header, .transfer-metrics, .transfer-card-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px }
+.transfer-card h2 { font-size: 16px; margin: 0; overflow-wrap: anywhere }
+.transfer-badge { flex-shrink: 0; padding: 5px 8px; border-radius: 5px; color: #f4d6e2; background: #472735; font-size: 11px }
+.transfer-badge[data-status="done"] { color: #bff0d1; background: #1e3b2a }
+.transfer-badge[data-status="error"] { color: #ffb8bc; background: #58272a }
+.transfer-badge[data-status="wait"], .transfer-badge[data-status="paused"] { color: #ecd9a7; background: #403522 }
+.transfer-metrics { margin-top: 16px }
+.transfer-metrics span, .transfer-card-foot span { color: var(--muted); font-size: 13px }
+.transfer-track { height: 7px; margin: 8px 0 11px; border-radius: 8px; overflow: hidden; background: #ffffff16 }
+.transfer-track span { height: 100%; display: block; background: linear-gradient(90deg, #c82d4a, #fa6681); transition: width .35s ease }
+.stale-transfers { opacity: .6 }
+.transfer-files, .source-downloads { display: grid; gap: 8px; margin: 16px 0 }
+.source-downloads { border-top: 1px solid #ffffff24; padding-top: 14px }
+.source-downloads h3, .source-downloads p { margin: 0; overflow-wrap: anywhere }
+.source-downloads p:empty { display: none }
+.transfer-files .button, .source-downloads .button { text-align: left; justify-content: flex-start; overflow-wrap: anywhere; max-width: 100% }
+@media (max-width: 540px) {
+  nav { overflow-x: auto }
+  .transfer-card, #torrent-form { padding: 14px }
+  .transfer-card-header { align-items: start; flex-direction: column }
+}

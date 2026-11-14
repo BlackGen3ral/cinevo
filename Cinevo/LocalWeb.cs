@@ -61,6 +61,7 @@ internal sealed class LocalWeb(Func<string, string, int, int, Task<object>> cata
         MapAsset("/", "index.html", "text/html; charset=utf-8");
         MapAsset("/cinevo.css", "cinevo.css", "text/css; charset=utf-8");
         MapAsset("/cinevo.js", "cinevo.js", "application/javascript; charset=utf-8");
+        MapAsset("/downloads.js", "downloads.js", "application/javascript; charset=utf-8");
         app.MapGet("/api/status", async () =>
         {
             var data = await status();

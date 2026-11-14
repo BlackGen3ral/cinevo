@@ -6,6 +6,7 @@
   <title>Cinevo Beta</title>
   <link rel="stylesheet" href="/cinevo.css">
   <script src="/cinevo.js" defer></script>
+  <script src="/downloads.js" defer></script>
 </head>
 <body>
   <header>
@@ -14,6 +15,7 @@
       <button data-section="library" aria-current="page">Minha biblioteca</button>
       <button data-section="imports">Filmes importados <span id="imports-count" hidden></span></button>
       <button data-section="favorites">Favoritos</button>
+      <button data-section="downloads">Downloads</button>
     </nav>
     <div class="tools">
       <label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Buscar na coleção" aria-label="Buscar na coleção"></label>
@@ -33,6 +35,24 @@
     </div>
   </header>
   <main id="main" aria-busy="true">
+    <section id="downloads" hidden aria-labelledby="downloads-title">
+      <div class="transfer-header">
+        <div><h1 id="downloads-title">Downloads</h1><p>Transferências do qBittorrent neste PC.</p></div>
+        <div class="actions">
+          <button id="torrent-open" class="button secondary">Abrir qBittorrent</button>
+          <button id="torrent-configure" class="button primary">Conectar qBittorrent</button>
+        </div>
+      </div>
+      <p id="torrent-connection" class="transfer-status" role="status"></p>
+      <form id="torrent-form" hidden>
+        <label for="torrent-magnet">Adicionar link magnet</label>
+        <div><input id="torrent-magnet" type="text" maxlength="4096" placeholder="magnet:?…" required><button class="button accent" type="submit">Baixar</button></div>
+      </form>
+      <p id="torrent-message" role="status"></p>
+      <div id="torrent-summary" class="transfer-summary" hidden></div>
+      <div id="torrent-rows"></div>
+      <p id="torrent-empty" class="empty" hidden>Nenhuma transferência no qBittorrent.</p>
+    </section>
     <section id="hero" class="hero" hidden></section>
     <div id="collection">
       <div id="page-head" hidden></div>
@@ -57,6 +77,11 @@
       <button id="confirm-clear" class="button accent">Limpar biblioteca</button>
     </div>
     <p id="clear-status" role="status"></p>
+  </dialog>
+  <dialog id="torrent-files" aria-labelledby="torrent-files-title">
+    <h2 id="torrent-files-title">Escolher vídeo</h2>
+    <div id="torrent-file-list" class="transfer-files"></div>
+    <button id="close-torrent-files" type="button" class="button secondary">Fechar</button>
   </dialog>
   <dialog id="import-dialog" aria-labelledby="import-title">
     <button id="close-import" class="dialog-close" aria-label="Fechar importação">×</button>

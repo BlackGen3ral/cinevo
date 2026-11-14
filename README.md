@@ -1,8 +1,8 @@
-# Cinevo 0.1.9 · Beta
+# Cinevo 0.1.10 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.9-beta.10/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.10-beta.11/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -52,6 +52,12 @@ Títulos novos entram primeiro na aba **Filmes importados**. Use **Adicionar à 
 
 O Cinevo abre a interface web que vem no instalador em uma janela própria, usando o Chrome ou o Microsoft Edge disponível no PC. Ela funciona sem internet para acessar a biblioteca, ver capas em cache e reproduzir arquivos locais pelo LibVLC. Se a janela web falhar na abertura, a interface clássica continua disponível. O portal online continua disponível no navegador para a coleção conectada.
 
+### Downloads com qBittorrent
+
+No qBittorrent instalado no PC, abra **Ferramentas → Opções → Interface Web**. Ative a Interface Web e defina o endereço IP como `127.0.0.1`. No Cinevo, vá a **Downloads → Conectar qBittorrent** e informe a porta, usuário e senha da Interface Web. O Cinevo guarda a conexão protegida no Windows.
+
+Na aba **Downloads**, cole um link magnet ou escolha uma opção de torrent nos detalhes de um filme importado. A aba mostra as transferências do qBittorrent, incluindo as adicionadas por ele, com progresso, velocidade e estimativa de tempo quando disponível. Você pode pausar, retomar e escolher um vídeo concluído para assistir no player do Cinevo. As transferências continuam no qBittorrent se você fechar o Cinevo.
+
 Quando existe um vídeo direto, **Assistir** reproduz a origem no player integrado. Sem vídeo direto, o botão **Abrir origem** abre a página no navegador. Em **Detalhes → Baixar este conteúdo**, o app consulta a página de cada filme e mostra as opções com os rótulos da origem. Arquivos diretos baixam no Cinevo. Links magnet abrem no cliente torrent configurado no Windows e outros links abrem no navegador. O download vai diretamente da origem ao PC, com seleção de pasta, progresso e cancelamento; arquivos parciais são removidos. Após concluir, o vídeo pode ser assistido offline. Playlists de streaming, DRM, login e arquivos indisponíveis não são convertidos em downloads. Ter um link acessível não transfere direitos de uso do conteúdo.
 
 O arquivo de conexão é pessoal e contém o identificador privado da coleção. No PC, ele é armazenado separadamente em `portal.dat`, protegido pelo usuário do Windows via DPAPI; não integra os backups JSON do catálogo. Nunca publique esse arquivo ou o arquivo de conexão no GitHub.
@@ -72,7 +78,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.9-beta.10
+./scripts/build.ps1 -Version 0.1.10-beta.11
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.
