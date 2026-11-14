@@ -1,8 +1,8 @@
-# Cinevo 0.1.10 · Beta
+# Cinevo 0.1.11 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.10-beta.11/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.11-beta.12/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -54,7 +54,7 @@ O Cinevo abre a interface web que vem no instalador em uma janela própria, usan
 
 ### Downloads com qBittorrent
 
-No qBittorrent instalado no PC, abra **Ferramentas → Opções → Interface Web**. Ative a Interface Web e defina o endereço IP como `127.0.0.1`. No Cinevo, vá a **Downloads → Conectar qBittorrent** e informe a porta, usuário e senha da Interface Web. O Cinevo guarda a conexão protegida no Windows.
+No qBittorrent instalado no PC, abra **Ferramentas → Opções → Interface Web**. Ative a Interface Web, defina o endereço IP como `127.0.0.1` e deixe o redirecionamento UPnP/NAT-PMP desmarcado. Para usar sem senha, marque **Bypass authentication for clients on localhost** e aplique. No Cinevo, vá a **Downloads → Conectar qBittorrent**, informe a mesma porta e marque **Conectar sem senha neste PC**. Se preferir usar autenticação, desmarque essa opção no Cinevo e informe seu usuário e senha. O Cinevo protege a conexão salva no Windows.
 
 Na aba **Downloads**, cole um link magnet ou escolha uma opção de torrent nos detalhes de um filme importado. A aba mostra as transferências do qBittorrent, incluindo as adicionadas por ele, com progresso, velocidade e estimativa de tempo quando disponível. Você pode pausar, retomar e escolher um vídeo concluído para assistir no player do Cinevo. As transferências continuam no qBittorrent se você fechar o Cinevo.
 
@@ -78,7 +78,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.10-beta.11
+./scripts/build.ps1 -Version 0.1.11-beta.12
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.

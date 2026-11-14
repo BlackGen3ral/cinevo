@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 
 namespace Cinevo;
 
-internal sealed record TorrentConnection(int Port, string Username, string Password)
+internal sealed record TorrentConnection(int Port, string Username, string Password, bool LocalWithoutPassword = false)
 {
     private static string FilePath => Path.Combine(Library.DataDirectory, "torrent.dat");
     public static TorrentConnection? Load() => File.Exists(FilePath)
@@ -40,7 +40,10 @@ internal sealed class TorrentClient : IDisposable
     {
         this.connection = connection;
         var origin = new Uri($"http://127.0.0.1:{connection.Port}/");
-        http = new HttpClient(new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false })
+        http = new HttpClient(new HttpClientHandler
+        {
+            UseProxy = false, AllowAutoRedirect = false, UseCookies = !connection.LocalWithoutPassword
+        })
         {
             BaseAddress = origin, Timeout = TimeSpan.FromSeconds(6), MaxResponseContentBufferSize = 8 * 1024 * 1024
         };
@@ -86,7 +89,7 @@ internal sealed class TorrentClient : IDisposable
         timeout.CancelAfter(TimeSpan.FromSeconds(10));
         try
         {
-            await AuthenticateAsync(false, timeout.Token);
+            if (!connection.LocalWithoutPassword) await AuthenticateAsync(false, timeout.Token);
             using var first = await Send(route);
             if (first.StatusCode == HttpStatusCode.NotFound && legacyRoute != null)
             {
@@ -95,6 +98,8 @@ internal sealed class TorrentClient : IDisposable
             }
             if (first.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
             {
+                if (connection.LocalWithoutPassword)
+                    throw new InvalidDataException("O qBittorrent recusou a conexão sem senha. Em Interface Web, marque “Bypass authentication for clients on localhost” e aplique.");
                 await AuthenticateAsync(true, timeout.Token);
                 using var retry = await Send(route);
                 if (retry.StatusCode == HttpStatusCode.NotFound && legacyRoute != null)

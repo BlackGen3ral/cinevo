@@ -28,21 +28,31 @@ public partial class MainWindow
         };
         panel.Children.Add(new TextBlock
         {
-            Text = "No qBittorrent, abra Ferramentas → Opções → Interface Web. Ative a Interface Web, use 127.0.0.1 como endereço IP e aplique. Informe abaixo a porta, o usuário e a senha que aparecem nessa tela.",
+            Text = "No qBittorrent, ative a Interface Web em 127.0.0.1. Para conectar sem senha, marque “Bypass authentication for clients on localhost” e aplique.",
             TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14)
         });
-        TextBox Field(string label, string value)
+        TextBox Field(Panel target, string label, string value)
         {
-            panel.Children.Add(new TextBlock { Text = label, Margin = new Thickness(0, 8, 0, 4) });
+            target.Children.Add(new TextBlock { Text = label, Margin = new Thickness(0, 8, 0, 4) });
             var box = new TextBox { Text = value, MaxLength = 256 };
-            panel.Children.Add(box);
+            System.Windows.Automation.AutomationProperties.SetName(box, label);
+            target.Children.Add(box);
             return box;
         }
-        var port = Field("Porta", (current?.Port ?? 8080).ToString());
-        var username = Field("Usuário", current?.Username ?? "admin");
-        panel.Children.Add(new TextBlock { Text = "Senha da Interface Web", Margin = new Thickness(0, 8, 0, 4) });
+        var port = Field(panel, "Porta", (current?.Port ?? 8080).ToString());
+        var local = new CheckBox
+        {
+            Content = "Conectar sem senha neste PC", IsChecked = current?.LocalWithoutPassword ?? true,
+            Margin = new Thickness(0, 14, 0, 6), Foreground = window.Foreground
+        };
+        panel.Children.Add(local);
+        var credentials = new StackPanel { Visibility = local.IsChecked == true ? Visibility.Collapsed : Visibility.Visible };
+        panel.Children.Add(credentials);
+        var username = Field(credentials, "Usuário", current?.Username is { Length: > 0 } user ? user : "admin");
+        credentials.Children.Add(new TextBlock { Text = "Senha da Interface Web", Margin = new Thickness(0, 8, 0, 4) });
         var password = new PasswordBox { Password = current?.Password ?? "", MaxLength = 256 };
-        panel.Children.Add(password);
+        credentials.Children.Add(password);
+        local.Click += (_, _) => credentials.Visibility = local.IsChecked == true ? Visibility.Collapsed : Visibility.Visible;
         var notice = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 14) };
         panel.Children.Add(notice);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal };
@@ -55,14 +65,21 @@ public partial class MainWindow
         window.Closed += (_, _) => dialogLifetime.Cancel();
         connect.Click += async (_, _) =>
         {
-            if (!int.TryParse(port.Text, out var number) || number is < 1 or > 65535 || string.IsNullOrWhiteSpace(username.Text))
+            var noPassword = local.IsChecked == true;
+            if (!int.TryParse(port.Text, out var number) || number is < 1 or > 65535)
             {
-                notice.Text = "Informe uma porta válida e o usuário do qBittorrent.";
+                notice.Text = "Informe a porta da Interface Web do qBittorrent.";
+                return;
+            }
+            if (!noPassword && (string.IsNullOrWhiteSpace(username.Text) || password.Password.Length == 0))
+            {
+                notice.Text = "Informe o usuário e a senha do qBittorrent.";
                 return;
             }
             connect.IsEnabled = false;
             notice.Text = "Testando a conexão local…";
-            var setup = new TorrentConnection(number, username.Text.Trim(), password.Password);
+            var setup = new TorrentConnection(number, noPassword ? "" : username.Text.Trim(),
+                noPassword ? "" : password.Password, noPassword);
             using var client = new TorrentClient(setup);
             var token = dialogLifetime.Token;
             try
