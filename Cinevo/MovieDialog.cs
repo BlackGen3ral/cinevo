@@ -6,10 +6,16 @@ using Microsoft.Win32;
 namespace Cinevo;
 public sealed class MovieDialog : Window
 {
-    public MovieDialog(Movie movie, CoverService covers, Action<Movie,Window,string>? download = null)
+    public MovieDialog(Movie movie, CoverService covers, Action<Movie,Window,string>? download = null, Action<Movie>? addImported = null)
     {
         Title = "Detalhes do filme"; Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(16,18,24)); Foreground = System.Windows.Media.Brushes.White; Width = 620; Height = 820; MinHeight = 500; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var stack = new StackPanel { Margin = new Thickness(28) };
+        if (movie.ImportedOnly && addImported != null)
+        {
+            var add = new Button { Content = "Adicionar à biblioteca", Margin = new Thickness(0, 0, 0, 12) };
+            add.Click += (_, _) => { addImported(movie); add.Content = "Na biblioteca"; add.IsEnabled = false; };
+            stack.Children.Add(add);
+        }
         if(movie.IsOnline)
         {
             if(movie.Description.Length>0)stack.Children.Add(new TextBlock{Text=movie.Description,TextWrapping=TextWrapping.Wrap,Foreground=System.Windows.Media.Brushes.LightGray,Margin=new Thickness(0,0,0,15)});

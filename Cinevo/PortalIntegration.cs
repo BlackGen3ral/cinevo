@@ -121,10 +121,10 @@ public partial class MainWindow
                 pause.Visibility = Visibility.Collapsed;
                 if (!closed && count > 0)
                 {
-                    message.Text = "Atualizando sua biblioteca…";
+                    message.Text = "Atualizando Filmes importados…";
                     var titlesReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                     _ = SyncPortalAsync(true, titlesReady: titlesReady);
-                    if (!await titlesReady.Task) outcome += " Confira a sincronização na biblioteca.";
+                    if (!await titlesReady.Task) outcome += " Confira a sincronização em Filmes importados.";
                 }
                 message.Text = count > 1 && outcome.EndsWith("processados.", StringComparison.Ordinal)
                     ? $"{count} títulos processados."

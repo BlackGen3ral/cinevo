@@ -132,7 +132,12 @@ public static class PortalService
             if (!RemoteFiles.IsPublicHttps(item.SourceUrl)) continue;
             total++;
             var movie = existing[item.Id].FirstOrDefault();
-            if (movie == null) { movie = new Movie { PortalId = item.Id, Title = item.Title, Year = item.Year }; library.Movies.Add(movie); imported++; }
+            if (movie == null)
+            {
+                movie = new Movie { PortalId = item.Id, Title = item.Title, Year = item.Year, ImportedOnly = true };
+                library.Movies.Add(movie);
+                imported++;
+            }
             movie.SourceUrl = item.SourceUrl; movie.StreamUrl = RemoteFiles.IsPublicHttps(item.StreamUrl) ? item.StreamUrl : ""; movie.DownloadUrl = RemoteFiles.IsPublicHttps(item.DownloadUrl) ? item.DownloadUrl : ""; movie.Description = item.Description;
             if (item.CoverUrl.Length > 0 && (movie.Cover.Length == 0 || !File.Exists(movie.Cover)))
                 missingCovers.Add((movie, item));

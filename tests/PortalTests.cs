@@ -15,10 +15,12 @@ public static class PortalTests
         var id=new string('a',64);var item=new PortalItem{Id=id,Title="Online demo",SourceUrl="https://media.w3.org/demo",StreamUrl="https://media.w3.org/demo.mp4",DownloadUrl="https://media.w3.org/demo.mp4",Year="2020"};
         var library=new Library();
         await PortalService.SyncAsync(library,connection,CancellationToken.None,new FeedHandler(item));
-        Check(library.Movies.Count==1&&library.Movies[0].Path==""&&library.Movies[0].IsOnline,"Título remoto não importado");
-        var movie=library.Movies[0];movie.Favorite=true;movie.Notes="Minha anotação";movie.Watched=true;
+        Check(library.Movies.Count==1&&library.Movies[0].Path==""&&library.Movies[0].IsOnline&&library.Movies[0].ImportedOnly,"Título remoto deve chegar à aba de importados");
+        var movie=library.Movies[0];movie.Favorite=true;movie.Notes="Minha anotação";movie.Watched=true;movie.ImportedOnly=false;
         await PortalService.SyncAsync(library,connection,CancellationToken.None,new FeedHandler(item));
-        Check(library.Movies.Count==1&&movie.Favorite&&movie.Watched&&movie.Notes=="Minha anotação","Sincronização duplicou ou perdeu preferências");
+        Check(library.Movies.Count==1&&movie.Favorite&&movie.Watched&&movie.Notes=="Minha anotação"&&!movie.ImportedOnly,"Sincronização duplicou ou perdeu preferências");
+        var legacy = JsonSerializer.Deserialize<Movie>("""{"Title":"Filme de versão anterior","PortalId":"legado"}""");
+        Check(legacy is { ImportedOnly: false }, "A biblioteca existente deve continuar visível após atualizar");
         var target=Path.Combine(root,"download.mp4");var payload=new byte[350000];Random.Shared.NextBytes(payload);
         var progress=new ImmediateProgress();
         await RemoteFiles.DownloadAsync(item.DownloadUrl,target,progress,CancellationToken.None,new DownloadHandler(payload),(_,_)=>Task.CompletedTask);

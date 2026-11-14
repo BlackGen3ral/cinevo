@@ -2,9 +2,13 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
-    <Version>0.1.6-beta.7</Version><ApplicationIcon>Assets\cinevo.ico</ApplicationIcon>
+    <Version>0.1.7-beta.8</Version><ApplicationIcon>Assets\cinevo.ico</ApplicationIcon>
     <AssemblyName>Cinevo</AssemblyName><Product>Cinevo</Product>
     <PublishSingleFile>true</PublishSingleFile><IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <DebugType>none</DebugType>
   </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <EmbeddedResource Include="Web\*" />
+  </ItemGroup>
 </Project>

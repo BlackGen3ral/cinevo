@@ -27,14 +27,26 @@ public partial class MainWindow : Window
         ready = true;
         VersionLabel.Text = $"Cinevo {Updater.CurrentVersion} · Beta";
         Refresh();
-        Loaded += async (_, _) => { var update = library.AutoUpdate && Updater.IsInstalled ? CheckUpdate(false) : Task.CompletedTask; await SyncPortalAsync(false); if (library.Folders.Count > 0) await ScanAsync(); else if (library.AutoCovers) await FetchCoversAsync(); await update; };
+        Loaded += Start;
+        async void Start(object sender, RoutedEventArgs e)
+        {
+            Loaded -= Start;
+            _ = OpenWebAsync();
+            var update = library.AutoUpdate && Updater.IsInstalled ? CheckUpdate(false) : Task.CompletedTask;
+            await SyncPortalAsync(false);
+            if (library.Folders.Count > 0) await ScanAsync();
+            else if (library.AutoCovers) await FetchCoversAsync();
+            await update;
+        }
         Closing += OnClosing;
     }
     private void Refresh()
     {
         if (!ready) return;
+        webRevision++;
         var query = Search.Text.Trim();
-        IEnumerable<Movie> result = library.Movies.Where(m => (filter switch { "favorites" => m.Favorite, "watched" => m.Watched, "unwatched" => !m.Watched, _ => true }) &&
+        IEnumerable<Movie> result = library.Movies.Where(m => (filter == "imports" ? m.IsOnline : !m.ImportedOnly) &&
+            (filter switch { "favorites" => m.Favorite, "watched" => m.Watched, "unwatched" => !m.Watched, _ => true }) &&
             (query.Length == 0 || $"{m.Title} {m.Year} {m.Genre} {m.Path}".Contains(query, StringComparison.CurrentCultureIgnoreCase)));
         result = Sort.SelectedIndex switch { 1 => result.OrderByDescending(m => m.Added), 2 => result.OrderByDescending(m => m.Year), 3 => result.OrderByDescending(m => m.Rating), _ => result.OrderBy(m => m.Title, StringComparer.CurrentCultureIgnoreCase) };
         var list = result.ToList(); MovieList.ItemsSource = list.Chunk(columns).Select(chunk => new MovieRow(columns, chunk.ToList())).ToList();
@@ -45,7 +57,7 @@ public partial class MainWindow : Window
         HeroPlayButton.Content = featured?.PlayLabel ?? "▶  Assistir";
         HeroPlayButton.Visibility = HeroDetailsButton.Visibility = featured == null ? Visibility.Collapsed : Visibility.Visible;
         HeroAddButton.Visibility = featured == null ? Visibility.Visible : Visibility.Collapsed;
-        foreach (var nav in new[] { NavAll, NavUnwatched, NavWatched, NavFavorites }) { var selected = (string)nav.Tag == filter; nav.Background = selected ? Brush("#30253F") : System.Windows.Media.Brushes.Transparent; nav.Foreground = Brush(selected ? "#D7C5FF" : "#9A9DB0"); }
+        foreach (var nav in new[] { NavAll, NavUnwatched, NavWatched, NavFavorites, NavImports }) { var selected = (string)nav.Tag == filter; nav.Background = selected ? Brush("#30253F") : System.Windows.Media.Brushes.Transparent; nav.Foreground = Brush(selected ? "#D7C5FF" : "#9A9DB0"); }
         EmptyState.Visibility = list.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         EmptyText.Text = library.Movies.Count == 0 ? "Adicione uma pasta. Os pôsteres chegam depois, e os filmes continuam exatamente onde estão." : "Nenhum filme corresponde a esta busca ou filtro.";
         Stats.Text = $"{library.Movies.Count} filmes  ·  {library.Movies.Count(m => !m.Watched)} para assistir  ·  {library.Movies.Count(m => m.Favorite)} favoritos  ·  {library.Movies.Sum(m => m.Bytes) / 1073741824d:0.0} GB";
@@ -86,10 +98,10 @@ public partial class MainWindow : Window
         finally { scan.Dispose(); scan = null; ScanButton.IsEnabled = true; CancelButton.Visibility = Visibility.Collapsed; }
         if (library.AutoCovers && !closed) await FetchCoversAsync();
     }
-    private void Filter_Click(object sender, RoutedEventArgs e) { filter = (string)((Button)sender).Tag; PageTitle.Text = filter switch { "favorites" => "Seus favoritos", "watched" => "Já vistos, bem lembrados", "unwatched" => "Sua próxima sessão", _ => "Minha biblioteca" }; Refresh(); }
+    private void Filter_Click(object sender, RoutedEventArgs e) { filter = (string)((Button)sender).Tag; PageTitle.Text = filter switch { "favorites" => "Seus favoritos", "watched" => "Já vistos, bem lembrados", "unwatched" => "Sua próxima sessão", "imports" => "Filmes importados", _ => "Minha biblioteca" }; Refresh(); }
     private void Search_Changed(object sender, TextChangedEventArgs e) => Refresh();
     private void Sort_Changed(object sender, SelectionChangedEventArgs e) => Refresh();
-    private async void Play(Movie movie)
+    private async Task Play(Movie movie)
     {
         if (movie.IsOnline && !movie.HasLocalFile)
         {
@@ -103,16 +115,20 @@ public partial class MainWindow : Window
         var player = new PlayerWindow(movie, () => library.Save()) { Owner = this };
         player.ShowDialog(); Refresh();
     }
-    private void Play_Click(object sender, RoutedEventArgs e) { if (((FrameworkElement)sender).DataContext is Movie m) Play(m); }
-    private void Movie_DoubleClick(object sender, MouseButtonEventArgs e) { if (e.OriginalSource is DependencyObject d && FindButton(d)) return; if (e.OriginalSource is FrameworkElement { DataContext: Movie m }) Play(m); }
+    private async void Play_Click(object sender, RoutedEventArgs e) { if (((FrameworkElement)sender).DataContext is Movie m) await Play(m); }
+    private async void Movie_DoubleClick(object sender, MouseButtonEventArgs e) { if (e.OriginalSource is DependencyObject d && FindButton(d)) return; if (e.OriginalSource is FrameworkElement { DataContext: Movie m }) await Play(m); }
     private static bool FindButton(DependencyObject d) { while (d != null) { if (d is Button) return true; d = System.Windows.Media.VisualTreeHelper.GetParent(d); } return false; }
-    private void Movie_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter && e.OriginalSource is FrameworkElement { DataContext: Movie m } && e.OriginalSource is not Button) { Play(m); e.Handled = true; } }
+    private async void Movie_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter && e.OriginalSource is FrameworkElement { DataContext: Movie m } && e.OriginalSource is not Button) { e.Handled = true; await Play(m); } }
     private void Details_Click(object sender, RoutedEventArgs e)
     {
-        if (((FrameworkElement)sender).DataContext is not Movie movie) return;
-        var dialog = new MovieDialog(movie, covers, DownloadMovie) { Owner = this };
+        if (((FrameworkElement)sender).DataContext is Movie movie) ShowMovieDetails(movie);
+    }
+    private void ShowMovieDetails(Movie movie)
+    {
+        var dialog = new MovieDialog(movie, covers, DownloadMovie, AddImportedMovie) { Owner = this };
         if (dialog.ShowDialog() == true) { library.Save(); Refresh(); }
     }
+    private async void OpenWeb_Click(object sender, RoutedEventArgs e) => await OpenWebAsync();
     private void Folders_Click(object sender, RoutedEventArgs e)
     {
         var window = new Window { Title = "Pastas da biblioteca", Width = 650, Height = 380, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
@@ -165,7 +181,7 @@ public partial class MainWindow : Window
                     if (best != null)
                     {
                         var path = await covers.DownloadAsync(best, System.IO.Path.Combine(Library.DataDirectory, "covers"), coverSearch.Token);
-                        if (movie.Cover.Length == 0 || !File.Exists(movie.Cover)) { movie.Cover = path; movie.CoverSource = best.PageUrl; found++; }
+                        if (movie.Cover.Length == 0 || !File.Exists(movie.Cover)) { movie.Cover = path; movie.CoverSource = best.PageUrl; found++; webRevision++; }
                     }
                     movie.CoverLastAttempt = DateTime.UtcNow; library.Save();
                 }
@@ -192,6 +208,8 @@ public partial class MainWindow : Window
     {
         scan?.Cancel();
         closed = true; lifetime.Cancel();
+        web?.Stop();
+        if (webWindow is { HasExited: false }) webWindow.CloseMainWindow();
         if (updateInstaller != null && (library.AutoUpdate || installRequested))
         {
             try { Process.Start(new ProcessStartInfo(updateInstaller, "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS") { UseShellExecute = true }); }

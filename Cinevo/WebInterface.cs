@@ -1,0 +1,243 @@
+using System.Diagnostics;
+using System.IO;
+using System.Windows;
+using Microsoft.Win32;
+
+namespace Cinevo;
+
+public partial class MainWindow
+{
+    private LocalWeb? web;
+    private Process? webWindow;
+    private bool openingWeb;
+    private int webRevision;
+    private readonly Dictionary<Movie, string> webIds = new();
+    private readonly Dictionary<string, Movie> webMovies = new(StringComparer.Ordinal);
+
+    private async Task OpenWebAsync()
+    {
+        if (closed || openingWeb) return;
+        if (webWindow is { HasExited: false }) { Hide(); return; }
+        openingWeb = true;
+        try
+        {
+            if (web == null)
+            {
+                var server = new LocalWeb(
+                    (section, search, page, limit) => Dispatcher.InvokeAsync(() => WebCatalog(section, search, page, limit)).Task,
+                    command => Dispatcher.InvokeAsync(() => DispatchWebActionAsync(command)).Task.Unwrap(),
+                    ReadWebCoverAsync,
+                    () => Dispatcher.InvokeAsync<object>(() => new
+                    {
+                        revision = webRevision, status = Status.Text, scanning = scan != null, updating = updateInstaller != null
+                    }).Task);
+                try { await server.StartAsync(lifetime.Token); }
+                catch { server.Stop(); throw; }
+                if (closed) { server.Stop(); return; }
+                web = server;
+            }
+            var edge = new[] { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) }
+                .Select(root => Path.Combine(root, "Microsoft", "Edge", "Application", "msedge.exe"))
+                .FirstOrDefault(File.Exists);
+            if (edge == null)
+            {
+                Process.Start(new ProcessStartInfo(web.Address) { UseShellExecute = true });
+                return;
+            }
+            var launch = new ProcessStartInfo(edge) { UseShellExecute = false };
+            launch.ArgumentList.Add("--app=" + web.Address);
+            launch.ArgumentList.Add("--user-data-dir=" + Path.Combine(Library.DataDirectory, "web-profile"));
+            launch.ArgumentList.Add("--no-first-run");
+            launch.ArgumentList.Add("--disable-background-mode");
+            launch.ArgumentList.Add("--disable-features=msEdgeStartupBoost");
+            var process = Process.Start(launch) ?? throw new IOException("A janela do Cinevo não abriu.");
+            webWindow = process;
+            process.Exited += (_, _) => Dispatcher.InvokeAsync(() =>
+            {
+                webWindow = null;
+                process.Dispose();
+                if (!closed && !IsVisible) Close();
+            });
+            process.EnableRaisingEvents = true;
+            if (!process.HasExited) Hide();
+            else
+            {
+                webWindow = null;
+                Show();
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!closed) Status.Text = "Interface web indisponível. " + ex.Message;
+        }
+        finally { openingWeb = false; }
+    }
+
+    private object WebCatalog(string section, string search, int page, int limit)
+    {
+        var saved = library.Movies.Where(movie => !movie.ImportedOnly).ToList();
+        var imports = library.Movies.Where(movie => movie.IsOnline).ToList();
+        var collection = section switch
+        {
+            "imports" => imports.OrderBy(movie => !movie.ImportedOnly).ThenByDescending(movie => movie.Added),
+            "favorites" => saved.Where(movie => movie.Favorite).OrderBy(movie => movie.Title, StringComparer.CurrentCultureIgnoreCase),
+            "continue" => saved.Where(movie => !movie.Watched && movie.ResumeMilliseconds > 30000).OrderByDescending(movie => movie.Added),
+            _ => saved.OrderByDescending(movie => movie.Added)
+        };
+        var offset = (page - 1) * limit;
+        var list = collection.Where(movie => search.Length == 0 ||
+            $"{movie.Title} {movie.Year} {movie.Genre}".Contains(search, StringComparison.CurrentCultureIgnoreCase))
+            .Skip(offset).Take(limit + 1).ToList();
+        var returning = saved.Where(movie => !movie.Watched && movie.ResumeMilliseconds > 30000).OrderByDescending(movie => movie.Added).Take(12);
+        var favorites = saved.Where(movie => movie.Favorite).OrderByDescending(movie => movie.Added).Take(12);
+        var spotlight = page == 1 && section == "library" && search.Length == 0
+            ? returning.FirstOrDefault() ?? saved.OrderByDescending(movie => movie.Added).FirstOrDefault() : null;
+        return new
+        {
+            movies = list.Take(limit).Select(WebMovie).ToArray(),
+            more = list.Count > limit,
+            spotlight = spotlight == null ? null : WebMovie(spotlight),
+            returning = spotlight == null ? null : returning.Select(WebMovie).ToArray(),
+            favorites = spotlight == null ? null : favorites.Select(WebMovie).ToArray(),
+            total = saved.Count,
+            imported = imports.Count(movie => movie.ImportedOnly),
+            version = Updater.CurrentVersion
+        };
+    }
+
+    private object WebMovie(Movie movie)
+    {
+        if (!webIds.TryGetValue(movie, out var id))
+        {
+            if (webIds.Count > library.Movies.Count + 100)
+            {
+                var present = library.Movies.ToHashSet();
+                foreach (var removed in webIds.Keys.Where(key => !present.Contains(key)).ToArray())
+                {
+                    webMovies.Remove(webIds[removed]);
+                    webIds.Remove(removed);
+                }
+            }
+            id = Guid.NewGuid().ToString("N");
+            webIds.Add(movie, id);
+            webMovies.Add(id, movie);
+        }
+        return new
+        {
+            id, movie.Title, movie.Year, movie.Genre, movie.Description, movie.Favorite, movie.Watched,
+            movie.IsOnline, movie.ImportedOnly, movie.Progress, movie.Rating, movie.PlayLabel, movie.Available,
+            hasCover = movie.Cover.Length > 0,
+            coverVersion = movie.Cover.GetHashCode(StringComparison.Ordinal)
+        };
+    }
+
+    private async Task<byte[]?> ReadWebCoverAsync(string id)
+    {
+        var path = await Dispatcher.InvokeAsync(() => webMovies.TryGetValue(id, out var movie) && library.Movies.Contains(movie) ? movie.Cover : null);
+        if (string.IsNullOrEmpty(path)) return null;
+        try
+        {
+            await using var input = File.OpenRead(path);
+            if (input.Length is < 9 or > 12 * 1024 * 1024) return null;
+            var bytes = new byte[(int)input.Length];
+            await input.ReadExactlyAsync(bytes, lifetime.Token);
+            return RemoteFiles.IsImage(bytes) || bytes[0] == 'B' && bytes[1] == 'M' ? bytes : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+    }
+
+    private bool webDialogOpen;
+    private bool webImporting;
+    private async Task<object?> DispatchWebActionAsync(WebAction command)
+    {
+        if (command.Name == "import-batch")
+        {
+            var address = command.Address ?? "";
+            if (address.Length > 4000 || !RemoteFiles.IsPublicHttps(address))
+                throw new InvalidDataException("Cole um endereço HTTPS público completo.");
+            if (webImporting) throw new InvalidDataException("Já existe uma importação em andamento.");
+            webImporting = true;
+            try
+            {
+                var connection = await PortalService.GetOrCreateConnectionAsync(lifetime.Token);
+                return await PortalService.ImportBatchAsync(connection, address, command.Continuation, lifetime.Token);
+            }
+            catch (System.Net.Http.HttpRequestException)
+            {
+                throw new InvalidDataException("O portal está indisponível. Confira a conexão e tente novamente.");
+            }
+            catch (OperationCanceledException) when (!lifetime.IsCancellationRequested)
+            {
+                throw new InvalidDataException("A resposta demorou demais. Você pode tentar continuar.");
+            }
+            finally { webImporting = false; }
+        }
+        if (command.Name == "sync-imports")
+        {
+            var titlesReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _ = SyncPortalAsync(true, titlesReady: titlesReady);
+            if (!await titlesReady.Task) throw new InvalidDataException("A importação foi salva no portal. Sincronize novamente para ver os títulos.");
+            return null;
+        }
+        await RunWebActionAsync(command);
+        return null;
+    }
+
+    private async Task RunWebActionAsync(WebAction command)
+    {
+        if (closed) return;
+        var args = new RoutedEventArgs();
+        switch (command.Name)
+        {
+            case "add-folder": RunWebDialog(() => AddFolder_Click(this, args)); return;
+            case "portal": RunWebDialog(() => Portal_Click(this, args)); return;
+            case "folders": RunWebDialog(() => Folders_Click(this, args)); return;
+            case "settings": RunWebDialog(() => Settings_Click(this, args)); return;
+            case "classic": Show(); Activate(); return;
+            case "quit": Close(); return;
+            case "scan": await ScanAsync(); return;
+            case "cancel-scan": scan?.Cancel(); return;
+            case "sync": await SyncPortalAsync(true); return;
+            case "covers": Covers_Click(this, args); return;
+            case "update": Update_Click(this, args); return;
+        }
+        if (command.Id == null || !webMovies.TryGetValue(command.Id, out var movie) || !library.Movies.Contains(movie))
+            throw new InvalidDataException("O título não está mais disponível.");
+        switch (command.Name)
+        {
+            case "play": await RunWebDialogAsync(() => Play(movie)); return;
+            case "details": RunWebDialog(() => ShowMovieDetails(movie)); return;
+            case "add-to-library": AddImportedMovie(movie); return;
+            case "favorite": movie.Favorite = !movie.Favorite; break;
+            case "watched": movie.Watched = !movie.Watched; break;
+            default: throw new InvalidDataException("Ação desconhecida.");
+        }
+        library.Save();
+        Refresh();
+    }
+
+    private void RunWebDialog(Action show)
+    {
+        if (webDialogOpen) return;
+        webDialogOpen = true;
+        try { show(); }
+        finally { webDialogOpen = false; }
+    }
+
+    private async Task RunWebDialogAsync(Func<Task> show)
+    {
+        if (webDialogOpen) return;
+        webDialogOpen = true;
+        try { await show(); }
+        finally { webDialogOpen = false; }
+    }
+
+    private void AddImportedMovie(Movie movie)
+    {
+        if (!movie.ImportedOnly) return;
+        movie.ImportedOnly = false;
+        library.Save();
+        Status.Text = $"Adicionado à biblioteca · {movie.Title}";
+        Refresh();
+    }
+}
