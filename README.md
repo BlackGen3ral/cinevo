@@ -1,8 +1,8 @@
-# Cinevo 0.1.19 · Beta
+# Cinevo 0.1.20 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.19-beta.20/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.20-beta.21/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -78,7 +78,7 @@ Quando existe um vídeo direto, **Assistir** reproduz a origem no player integra
 
 O arquivo de conexão é pessoal e contém o identificador privado da coleção. No PC, ele é armazenado separadamente em `portal.dat`, protegido pelo usuário do Windows via DPAPI; não integra os backups JSON do catálogo. Nunca publique esse arquivo ou o arquivo de conexão no GitHub.
 
-A versão instalada verifica a release mais recente do GitHub ao abrir. Se houver uma versão superior, baixa o instalador, valida seu SHA-256 e instala ao fechar o app. Você também pode usar **Instalar atualização**. É possível desativar esse comportamento em **Configurações**.
+A versão instalada verifica a release mais recente do GitHub ao abrir. Se houver uma versão superior, baixa o instalador e valida seu SHA-256. Clique em **Atualizar** para instalar em segundo plano e reiniciar o Cinevo. Fechar o app encerra a sessão. É possível desativar o download automático em **Configurações**.
 
 Ao abrir o Cinevo, o atualizador limpa os instaladores de versões já instaladas. Quando prepara uma atualização, guarda somente o instalador pendente.
 
@@ -96,7 +96,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.19-beta.20
+./scripts/build.ps1 -Version 0.1.20-beta.21
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.

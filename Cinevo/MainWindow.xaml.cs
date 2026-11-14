@@ -158,7 +158,7 @@ public partial class MainWindow : Window
         var window = new Window { Title = "Configurações do Cinevo", Width = 600, Height = 565, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         var panel = new StackPanel { Margin = new Thickness(26) };
         panel.Children.Add(new TextBlock { Text = $"Cinevo {Updater.CurrentVersion} · Beta", FontSize = 24, Margin = new Thickness(0, 0, 0, 20) });
-        var auto = new CheckBox { Content = "Baixar atualizações e instalar ao fechar", IsChecked = library.AutoUpdate, Foreground = System.Windows.Media.Brushes.White, Margin = new Thickness(0, 0, 0, 20) };
+        var auto = new CheckBox { Content = "Baixar atualizações automaticamente", IsChecked = library.AutoUpdate, Foreground = System.Windows.Media.Brushes.White, Margin = new Thickness(0, 0, 0, 20) };
         auto.Click += (_, _) => { library.AutoUpdate = auto.IsChecked == true; library.Save(); }; panel.Children.Add(auto);
         var art = new CheckBox { Content = "Buscar capas, sinopses e trailers pelo título e ano", IsChecked = library.AutoCovers, Foreground = System.Windows.Media.Brushes.White, Margin = new Thickness(0,0,0,8) };
         art.Click += (_, _) => { library.AutoCovers = art.IsChecked == true; library.Save(); if (!library.AutoCovers) coverSearch?.Cancel(); }; panel.Children.Add(art);
@@ -237,7 +237,7 @@ public partial class MainWindow : Window
             {
                 updateProgress = new("ready");
                 if (installRequested) BeginInstall();
-                else Status.Text = library.AutoUpdate ? "Atualização pronta. Será instalada ao fechar o Cinevo." : "Atualização pronta.";
+                else Status.Text = "Atualização pronta. Clique em Atualizar para instalar e reiniciar.";
             }
             else
             {
@@ -265,18 +265,18 @@ public partial class MainWindow : Window
             installRequested = false;
             return;
         }
-        if (!LaunchUpdate(restart: true)) return;
+        if (!LaunchUpdate()) return;
         Close();
     }
 
-    private bool LaunchUpdate(bool restart)
+    private bool LaunchUpdate()
     {
         if (updateInstaller == null) return false;
         try
         {
-            var args = "/SP- /SILENT /NORESTART /CLOSEAPPLICATIONS /NORESTARTAPPLICATIONS";
-            if (restart) args += " /CinevoUpdate=1";
-            using var process = Process.Start(new ProcessStartInfo(updateInstaller, args) { UseShellExecute = true });
+            const string args = "/SP- /VERYSILENT /NORESTART /CLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /CinevoUpdate=1";
+            using var process = Process.Start(new ProcessStartInfo(updateInstaller, args)
+                { UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden });
             if (process == null) throw new IOException("O instalador não abriu.");
             updateInstaller = null;
             return true;
@@ -291,7 +291,6 @@ public partial class MainWindow : Window
     }
     private void OnClosing(object? sender, CancelEventArgs e)
     {
-        if (updateInstaller != null && library.AutoUpdate && !LaunchUpdate(restart: false)) { e.Cancel = true; return; }
         scan?.Cancel();
         closed = true; lifetime.Cancel();
         web?.Stop();
