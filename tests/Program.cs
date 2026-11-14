@@ -1,4 +1,6 @@
 using Cinevo;
+if(args.Length==3&&args[0]=="--live-portal"){await LivePortalCheck.Run(args[1],args[2]);return;}
+if(args.Length==2&&args[0]=="--connect-portal"){PortalService.SaveConnection(PortalService.ReadPairing(args[1]));Console.WriteLine("Conexão privada configurada e protegida pelo Windows.");return;}
 if (args.Length == 3 && args[0] == "--live-covers") { await LiveCoverCheck.Run(args[1], args[2]); return; }
 static void Assert(bool condition, string reason) { if (!condition) throw new Exception(reason); }
 var parsed = Scanner.Parse("Duna.Parte.Dois.2024.1080p.BluRay.mkv");
@@ -22,6 +24,7 @@ try {
  Assert(restored.Movies[0].Favorite && restored.Movies[0].Watched && restored.Movies[0].Rating == 5 && restored.Movies[0].Notes == "Ótimo", "Metadados persistem");
  await UpdateTests.Run(root);
  await CoverTests.Run(root);
+ await PortalTests.Run(root);
  Environment.SetEnvironmentVariable("CINEVO_TEST_DATA", Path.Combine(root, "profile"));
  var persisted = new Library { Movies = [new Movie { Title = "Persistência", ResumeMilliseconds = 45000, DurationMilliseconds = 90000, CoverSource = "https://pt.wikipedia.org/wiki/Teste" }] };
  persisted.Save(); persisted.Movies[0].Notes = "Segunda gravação"; persisted.Save();

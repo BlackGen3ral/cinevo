@@ -37,7 +37,7 @@ public partial class PlayerWindow : Window
     }
     private void Start()
     {
-        try { engine = new VlcEngine(System.IO.Path.Combine(AppContext.BaseDirectory, "vlc")); engine.Open(movie.Path, Video.VideoHandle); engine.Volume = (int)Volume.Value; timer.Start(); }
+        try { engine = new VlcEngine(System.IO.Path.Combine(AppContext.BaseDirectory, "vlc")); engine.Open(movie.IsOnline&&!movie.HasLocalFile?movie.StreamUrl:movie.Path, Video.VideoHandle); engine.Volume = (int)Volume.Value; timer.Start(); }
         catch (Exception ex) { PlayerStatus.Text = "Não foi possível iniciar o vídeo. " + ex.Message; }
     }
     private static string TimeText(long ms) { var time = TimeSpan.FromMilliseconds(Math.Max(0, ms)); return time.TotalHours >= 1 ? $"{(int)time.TotalHours:00}:{time.Minutes:00}:{time.Seconds:00}" : $"{time.Minutes:00}:{time.Seconds:00}"; }
@@ -70,7 +70,7 @@ public partial class PlayerWindow : Window
         updating = false;
     }
     private void CaptureProgress() { if (engine == null || engine.State is not (3 or 4)) return; movie.DurationMilliseconds = Math.Max(0, engine.Length); movie.ResumeMilliseconds = Math.Max(0, engine.Time); if (movie.DurationMilliseconds > 0 && movie.ResumeMilliseconds >= movie.DurationMilliseconds * .95) { movie.Watched = true; movie.ResumeMilliseconds = 0; } }
-    private void Pause_Click(object sender, RoutedEventArgs e) { if (engine == null) return; if (engine.State == 6) { engine.Open(movie.Path, Video.VideoHandle); resumed = true; timer.Start(); } else engine.Pause(engine.State != 4); }
+    private void Pause_Click(object sender, RoutedEventArgs e) { if (engine == null) return; if (engine.State == 6) { engine.Open(movie.IsOnline&&!movie.HasLocalFile?movie.StreamUrl:movie.Path, Video.VideoHandle); resumed = true; timer.Start(); } else engine.Pause(engine.State != 4); }
     private void Back_Click(object sender, RoutedEventArgs e) => Close();
     private void BackTen_Click(object sender, RoutedEventArgs e) => Seek(-10000);
     private void ForwardTen_Click(object sender, RoutedEventArgs e) => Seek(10000);

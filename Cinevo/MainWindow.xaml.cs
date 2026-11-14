@@ -27,7 +27,7 @@ public partial class MainWindow : Window
         ready = true;
         VersionLabel.Text = $"Cinevo {Updater.CurrentVersion} · Beta";
         Refresh();
-        Loaded += async (_, _) => { var update = library.AutoUpdate && Updater.IsInstalled ? CheckUpdate(false) : Task.CompletedTask; if (library.Folders.Count > 0) await ScanAsync(); else if (library.AutoCovers) await FetchCoversAsync(); await update; };
+        Loaded += async (_, _) => { var update = library.AutoUpdate && Updater.IsInstalled ? CheckUpdate(false) : Task.CompletedTask; await SyncPortalAsync(false); if (library.Folders.Count > 0) await ScanAsync(); else if (library.AutoCovers) await FetchCoversAsync(); await update; };
         Closing += OnClosing;
     }
     private void Refresh()
@@ -69,11 +69,11 @@ public partial class MainWindow : Window
         try
         {
             var result = await Task.Run(() => Scanner.Scan(library.Folders.ToArray(), scan.Token));
-            var existing = library.Movies.ToDictionary(m => m.Path, StringComparer.OrdinalIgnoreCase);
+            var existing = library.Movies.Where(m=>m.Path.Length>0).GroupBy(m=>m.Path,StringComparer.OrdinalIgnoreCase).ToDictionary(g=>g.Key,g=>g.First(),StringComparer.OrdinalIgnoreCase);
             foreach (var movie in result.Movies)
                 if (existing.TryGetValue(movie.Path, out var saved)) { saved.Bytes = movie.Bytes; saved.Available = true; } else { library.Movies.Add(movie); existing[movie.Path] = movie; }
             var found = result.Movies.Select(m => m.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            foreach (var movie in library.Movies) movie.Available = found.Contains(movie.Path) || File.Exists(movie.Path);
+            foreach (var movie in library.Movies) movie.Available = movie.IsOnline || found.Contains(movie.Path) || File.Exists(movie.Path);
             library.Save(); Refresh();
             Status.Text = result.Errors.Count == 0 ? $"Biblioteca atualizada · {result.Movies.Count} arquivos encontrados." : $"{result.Movies.Count} arquivos encontrados · {result.Errors.Count} locais não puderam ser lidos. Registros anteriores preservados.";
         }
@@ -85,8 +85,16 @@ public partial class MainWindow : Window
     private void Filter_Click(object sender, RoutedEventArgs e) { filter = (string)((Button)sender).Tag; PageTitle.Text = filter switch { "favorites" => "Seus favoritos", "watched" => "Já vistos, bem lembrados", "unwatched" => "Sua próxima sessão", _ => "Minha biblioteca" }; Refresh(); }
     private void Search_Changed(object sender, TextChangedEventArgs e) => Refresh();
     private void Sort_Changed(object sender, SelectionChangedEventArgs e) => Refresh();
-    private void Play(Movie movie)
+    private async void Play(Movie movie)
     {
+        if (movie.IsOnline && !movie.HasLocalFile)
+        {
+            if (movie.StreamUrl.Length == 0) { if (RemoteFiles.IsPublicHttps(movie.SourceUrl)) Process.Start(new ProcessStartInfo(movie.SourceUrl) { UseShellExecute = true }); return; }
+            try { Status.Text="Conectando ao vídeo da origem…"; await RemoteFiles.ValidateAsync(movie.StreamUrl,lifetime.Token); }
+            catch(Exception ex) { if (!closed) MessageBox.Show("Não foi possível acessar o vídeo: "+ex.Message,"Cinevo"); return; }
+            if(closed)return;
+            new PlayerWindow(movie,()=>library.Save()){Owner=this}.ShowDialog();Refresh();return;
+        }
         if (!File.Exists(movie.Path)) { MessageBox.Show("O arquivo não está disponível. Conecte o disco ou confira a pasta original.\n\n" + movie.Path, "Cinevo"); return; }
         var player = new PlayerWindow(movie, () => library.Save()) { Owner = this };
         player.ShowDialog(); Refresh();
@@ -98,7 +106,7 @@ public partial class MainWindow : Window
     private void Details_Click(object sender, RoutedEventArgs e)
     {
         if (((FrameworkElement)sender).DataContext is not Movie movie) return;
-        var dialog = new MovieDialog(movie, covers) { Owner = this };
+        var dialog = new MovieDialog(movie, covers, DownloadMovie) { Owner = this };
         if (dialog.ShowDialog() == true) { library.Save(); Refresh(); }
     }
     private void Folders_Click(object sender, RoutedEventArgs e)
@@ -110,7 +118,7 @@ public partial class MainWindow : Window
         var remove = new Button { Content = "Remover pasta selecionada", Margin = new Thickness(0, 16, 0, 0), IsEnabled = scan == null };
         remove.Click += (_, _) => { if (list.SelectedItem is not string path) return; if (MessageBox.Show("Remover esta pasta e os registros dos filmes dela do catálogo?\n" + path, "Cinevo", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
             library.Folders.Remove(path);
-            library.Movies.RemoveAll(m => !library.Folders.Any(root => IsInside(m.Path, root)));
+            library.Movies.RemoveAll(m => !m.IsOnline && !library.Folders.Any(root => IsInside(m.Path, root)));
             library.Save(); list.ItemsSource = library.Folders.ToArray(); Refresh(); };
         panel.Children.Add(remove); window.Content = panel; window.ShowDialog();
     }

@@ -1,8 +1,8 @@
-# Cinevo 0.1.2 · Beta
+# Cinevo 0.1.3 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.2-beta.3/Cinevo-Setup.exe) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.3-beta.4/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -40,6 +40,18 @@ No player: **Espaço** pausa/continua; **← / →** recuam/avançam 10 segundos
 
 ## Atualizações
 
+### Portal online e downloads
+
+Abra o [portal Cinevo](https://cinevo-portal.arthurgabrielfera.workers.dev), cole um endereço HTTPS e clique em **Importar**. O portal tenta ler título, descrição, capa, vídeos HTML e dados estruturados (OpenGraph/JSON-LD). Uma página com uma lista estruturada pode adicionar até 40 títulos; não há varredura de todo o domínio. Páginas que exigem login, bloqueiam o acesso ou dependem de scripts podem ser incompatíveis. Não contorna essas restrições. Um embed de outro player fica como link da origem.
+
+O site abre sem chave ou senha. A coleção é separada automaticamente por uma sessão do navegador. Em **Conectar ao app**, baixe o arquivo de conexão. No Cinevo, abra **Portal online → Conectar portal** e escolha esse arquivo. Depois, use **Sincronizar coleção agora** ou reabra o app. O botão **Abrir meu portal** volta à mesma coleção no navegador. Guarde o arquivo de conexão: apagar os dados do navegador ou trocar de dispositivo cria uma coleção vazia até restaurar essa conexão.
+
+Títulos importados entram na biblioteca sem alterar seus favoritos, notas ou vídeos locais. As capas são copiadas para o cache local. Ao remover um título no portal, a cópia já sincronizada no PC é preservada. Os vídeos e as notas locais nunca são enviados ao portal.
+
+Quando existe um vídeo direto, **Assistir** reproduz a origem no player integrado. Sem vídeo direto, o botão **Abrir origem** abre a página no navegador. Em **Detalhes**, **Baixar no PC** aparece somente para arquivos diretos disponibilizados no endereço ou em links de download declarados pela origem. O download vai diretamente da origem ao PC, com seleção de pasta, progresso e cancelamento; arquivos parciais são removidos. Após concluir, o vídeo pode ser assistido offline. Playlists de streaming, DRM, login e arquivos indisponíveis não são convertidos em downloads. Ter um link acessível não transfere direitos de uso do conteúdo.
+
+O arquivo de conexão é pessoal e contém o identificador privado da coleção. No PC, ele é armazenado separadamente em `portal.dat`, protegido pelo usuário do Windows via DPAPI; não integra os backups JSON do catálogo. Nunca publique esse arquivo ou o arquivo de conexão no GitHub.
+
 A versão instalada verifica a release mais recente do GitHub ao abrir. Se houver uma versão superior, baixa o instalador, valida seu SHA-256 e instala ao fechar o app. Você também pode usar **Instalar atualização**. É possível desativar esse comportamento em **Configurações**.
 
 Sem conexão, o catálogo continua funcionando. A primeira versão não tem certificado de assinatura de código; o Windows pode exibir uma mensagem de editor desconhecido. A verificação SHA-256 detecta corrupção do download, mas não substitui assinatura de código.
@@ -56,7 +68,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.2-beta.3
+./scripts/build.ps1 -Version 0.1.3-beta.4
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.

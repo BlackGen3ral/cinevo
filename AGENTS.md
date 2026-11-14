@@ -15,3 +15,7 @@ O SDK local pode estar em .tools/dotnet/dotnet.exe. O compilador local Inno Setu
 O player usa LibVLC 3.0.24 via interoperabilidade nativa, sem NuGet. scripts/prepare-vlc.ps1 baixa os binários oficiais e os fontes correspondentes com hashes fixos. Preserve as licenças e publique o asset vlc-3.0.24-source.tar.xz junto ao instalador. scripts/build.ps1 inclui teste real de vídeo, áudio e legenda no LibVLC.
 
 Capas usam a API MediaWiki/Wikipédia por título e ano, com cache, fonte acessível e opção de corrigir correspondência. Não inclua capas ou vídeos nos arquivos versionados. Para QA visual, use CINEVO_TEST_DATA apontando para .tools/qa-profile; esse perfil e a instância ficam separados do catálogo instalado. Nunca sobrescreva o catálogo real para preparar demonstrações.
+
+O portal está em portal/, hospedado diretamente na conta Cloudflare do proprietário: https://cinevo-portal.arthurgabrielfera.workers.dev. Fonte/configuração de recursos em portal/deployment.json e portal/README.md. Preserve o D1 e o isolamento por sessão ao atualizar. O proprietário pediu para retirar a tela de chave; mantenha a abertura direta, sem senha ou chave visível. O identificador automático de coleção e o arquivo de conexão não devem ir ao GitHub.
+
+Execute também npm test em portal/ ao mudar importação/sincronização. O download no Cinevo deve usar arquivos diretos oferecidos pela origem, gravar em streaming e remover parciais ao cancelar. Nunca enviar vídeos locais ao Worker nem contornar login/DRM. Não remova os títulos sincronizados do PC ao apagar o item no portal.

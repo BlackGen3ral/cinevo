@@ -6,10 +6,17 @@ using Microsoft.Win32;
 namespace Cinevo;
 public sealed class MovieDialog : Window
 {
-    public MovieDialog(Movie movie, CoverService covers)
+    public MovieDialog(Movie movie, CoverService covers, Action<Movie,Window>? download = null)
     {
         Title = "Detalhes do filme"; Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(16,18,24)); Foreground = System.Windows.Media.Brushes.White; Width = 620; Height = 820; MinHeight = 500; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var stack = new StackPanel { Margin = new Thickness(28) };
+        if(movie.IsOnline)
+        {
+            if(movie.Description.Length>0)stack.Children.Add(new TextBlock{Text=movie.Description,TextWrapping=TextWrapping.Wrap,Foreground=System.Windows.Media.Brushes.LightGray,Margin=new Thickness(0,0,0,15)});
+            if(RemoteFiles.IsPublicHttps(movie.SourceUrl)){var origin=new Button{Content="Abrir página original ↗",Margin=new Thickness(0,0,0,12)};origin.Click+=(_,_)=>Process.Start(new ProcessStartInfo(movie.SourceUrl){UseShellExecute=true});stack.Children.Add(origin);}
+            if(movie.DownloadUrl.Length>0 && download!=null){var get=new Button{Content=movie.HasLocalFile?"Baixar outra cópia no PC":"↓  Baixar no PC",Margin=new Thickness(0,0,0,12),Background=System.Windows.Media.Brushes.MediumPurple};get.Click+=(_,_)=>download(movie,this);stack.Children.Add(get);}
+            else stack.Children.Add(new TextBlock{Text="A origem não disponibilizou um arquivo para download.",Foreground=System.Windows.Media.Brushes.Gray,FontSize=11,Margin=new Thickness(0,0,0,14)});
+        }
         TextBox Field(string label, string text) { stack.Children.Add(new TextBlock { Text = label, Margin = new Thickness(0, 10, 0, 6) }); var input = new TextBox { Text = text }; stack.Children.Add(input); return input; }
         var title = Field("Título", movie.Title); var year = Field("Ano", movie.Year); var genre = Field("Gênero", movie.Genre);
         var notes = Field("Suas anotações", movie.Notes); notes.AcceptsReturn = true; notes.Height = 80; notes.TextWrapping = TextWrapping.Wrap;

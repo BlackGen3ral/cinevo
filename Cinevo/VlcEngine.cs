@@ -28,7 +28,8 @@ public sealed class VlcEngine : IDisposable
     }
     public void Open(string path, IntPtr hwnd)
     {
-        var media = Native.libvlc_media_new_path(instance, path);
+        var remote = Uri.TryCreate(path,UriKind.Absolute,out var uri) && uri.Scheme=="https";
+        var media = remote ? Native.libvlc_media_new_location(instance,path) : Native.libvlc_media_new_path(instance, path);
         if (media == IntPtr.Zero) throw new InvalidOperationException("Não foi possível abrir o arquivo de vídeo.");
         try { Native.libvlc_media_player_set_media(player, media); Native.libvlc_media_player_set_hwnd(player, hwnd); Native.libvlc_video_set_mouse_input(player, 0); Native.libvlc_video_set_key_input(player, 0); if (Native.libvlc_media_player_play(player) != 0) throw new InvalidOperationException("O vídeo não pôde ser iniciado."); }
         finally { Native.libvlc_media_release(media); }
@@ -61,6 +62,7 @@ public sealed class VlcEngine : IDisposable
         [DllImport("libvlc", CallingConvention = CallingConvention.Cdecl)] internal static extern IntPtr libvlc_media_player_new(IntPtr instance);
         [DllImport("libvlc", CallingConvention = CallingConvention.Cdecl)] internal static extern void libvlc_media_player_release(IntPtr player);
         [DllImport("libvlc", CallingConvention = CallingConvention.Cdecl)] internal static extern IntPtr libvlc_media_new_path(IntPtr instance, [MarshalAs(UnmanagedType.LPUTF8Str)] string path);
+        [DllImport("libvlc", CallingConvention = CallingConvention.Cdecl)] internal static extern IntPtr libvlc_media_new_location(IntPtr instance, [MarshalAs(UnmanagedType.LPUTF8Str)] string location);
         [DllImport("libvlc", CallingConvention = CallingConvention.Cdecl)] internal static extern void libvlc_media_release(IntPtr media);
         [DllImport("libvlc", CallingConvention = CallingConvention.Cdecl)] internal static extern void libvlc_media_player_set_media(IntPtr player, IntPtr media);
         [DllImport("libvlc", CallingConvention = CallingConvention.Cdecl)] internal static extern void libvlc_media_player_set_hwnd(IntPtr player, IntPtr hwnd);

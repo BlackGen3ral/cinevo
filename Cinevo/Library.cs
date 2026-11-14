@@ -13,6 +13,13 @@ public sealed class Movie : INotifyPropertyChanged
     public string Year { get; set; } = "";
     public string Genre { get; set; } = "";
     public string Notes { get; set; } = "";
+    public string PortalId { get; set; } = "";
+    public string SourceUrl { get; set; } = "";
+    public string StreamUrl { get; set; } = "";
+    public string DownloadUrl { get; set; } = "";
+    public string Description { get; set; } = "";
+    [System.Text.Json.Serialization.JsonIgnore] public bool IsOnline => PortalId.Length > 0;
+    [System.Text.Json.Serialization.JsonIgnore] public bool HasLocalFile => Path.Length > 0 && File.Exists(Path);
     private string cover = "";
     public string Cover { get => cover; set { cover = value; Changed(); } }
     public string CoverSource { get; set; } = "";
@@ -25,11 +32,11 @@ public sealed class Movie : INotifyPropertyChanged
     public long Bytes { get; set; }
     public DateTime Added { get; set; } = DateTime.UtcNow;
     [System.Text.Json.Serialization.JsonIgnore] public bool Available { get; set; } = true;
-    [System.Text.Json.Serialization.JsonIgnore] public string Subtitle => $"{(Year.Length > 0 ? Year + "  ·  " : "")}{System.IO.Path.GetExtension(Path).TrimStart('.').ToUpperInvariant()}  ·  {Bytes / 1073741824d:0.0} GB";
-    [System.Text.Json.Serialization.JsonIgnore] public string State => !Available ? "Arquivo indisponível" : Watched ? "✓ Assistido" : "Para assistir";
+    [System.Text.Json.Serialization.JsonIgnore] public string Subtitle => IsOnline && !HasLocalFile ? $"{(Year.Length > 0 ? Year + "  ·  " : "")}PORTAL ONLINE" : $"{(Year.Length > 0 ? Year + "  ·  " : "")}{System.IO.Path.GetExtension(Path).TrimStart('.').ToUpperInvariant()}  ·  {Bytes / 1073741824d:0.0} GB";
+    [System.Text.Json.Serialization.JsonIgnore] public string State => IsOnline && !HasLocalFile ? StreamUrl.Length > 0 ? "Vídeo online" : "Link da origem" : !Available ? "Arquivo indisponível" : Watched ? "✓ Assistido" : "Para assistir";
     [System.Text.Json.Serialization.JsonIgnore] public string Badge => Favorite ? "★ FAVORITO" : Rating > 0 ? new string('★', Rating) : "CINEVO";
     [System.Text.Json.Serialization.JsonIgnore] public string Initial => string.IsNullOrWhiteSpace(Title) ? "C" : Title[..1].ToUpperInvariant();
-    [System.Text.Json.Serialization.JsonIgnore] public string PlayLabel => ResumeMilliseconds > 30000 && !Watched ? "▶  Continuar" : "▶  Assistir";
+    [System.Text.Json.Serialization.JsonIgnore] public string PlayLabel => IsOnline && !HasLocalFile && StreamUrl.Length == 0 ? "↗  Abrir origem" : ResumeMilliseconds > 30000 && !Watched ? "▶  Continuar" : "▶  Assistir";
     [System.Text.Json.Serialization.JsonIgnore] public double Progress => DurationMilliseconds > 0 ? Math.Clamp(ResumeMilliseconds * 100d / DurationMilliseconds, 0, 100) : 0;
 }
 public sealed class Library
