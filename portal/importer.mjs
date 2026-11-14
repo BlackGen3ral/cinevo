@@ -66,15 +66,30 @@ export async function downloadOptions(html, url, Rewriter = HTMLRewriter) {
 }
 
 async function nextCatalogPage(html, url, Rewriter = HTMLRewriter) {
- let next = '';
- const parser = new Rewriter().on('a[rel~="next"], link[rel~="next"], a.next.page-numbers, .pagination a.next, a[aria-label="Próxima página"]', {
+ const current = new URL(url);
+ const number = address => {
+  const target = new URL(address);
+  return Number(target.searchParams.get('paged') || target.searchParams.get('page') ||
+   target.pathname.match(/\/(?:page|pagina)\/(\d+)\/?$/i)?.[1] || 1);
+ };
+ let next = '', numbered = '';
+ const navigation = '.pagination, .paginacao, .wp-pagenavi, .nav-links';
+ const candidateFor = href => {
+  const address = safe(href, url);
+  return address && address !== url && new URL(address).origin === current.origin ? address : '';
+ };
+ const parser = new Rewriter().on('a[rel~="next"], link[rel~="next"], a.nextpostslink, a.next.page-numbers, .pagination a.next, a[aria-label="Próxima página"]', {
   element(element) {
-   const candidate = safe(element.getAttribute('href'), url);
-   if (candidate && candidate !== url && new URL(candidate).origin === new URL(url).origin) next ||= candidate;
+   next ||= candidateFor(element.getAttribute('href'));
+  }
+ }).on(navigation.split(', ').map(selector => selector + ' a[href]').join(', '), {
+  element(element) {
+   const address = candidateFor(element.getAttribute('href'));
+   if (address && number(address) === number(url) + 1) numbered ||= address;
   }
  });
  await parser.transform(new Response(html)).text();
- return next;
+ return next || numbered;
 }
 const filmPath = /\/(?:filme?s?|movies?|film|titulo|title|watch|tv|series|epis[oó]dios?|episodes?)\//i;
 const listingPath = /\/(?:category|categoria|tag|genre|genero|page|pagina|search|busca)\//i;
@@ -89,17 +104,17 @@ async function catalogCards(html, pageUrl, Rewriter) {
     if (!sourceUrl) return;
     const target = new URL(sourceUrl);
     if (target.origin !== new URL(pageUrl).origin || sourceUrl === pageUrl || listingPath.test(target.pathname) || mediaUrl(sourceUrl, pageUrl)) return;
-    card = { sourceUrl, title: '', image: '', alt: '', label: '', heading: '' };
+    const entry = card = { sourceUrl, title: '', image: '', alt: '', label: '', heading: '' };
     card.label = clean(element.getAttribute('title') || element.getAttribute('aria-label'), 240);
     element.onEndTag(() => {
-     const name = clean(card.heading || card.label || card.alt || card.title, 240);
+     const name = clean(entry.heading || entry.alt || entry.label || entry.title, 240);
      if (name && !/^(?:assistir|ver filme|saiba mais|ver mais|poster|capa|play|home|início|filmes|séries|download)$/i.test(name) &&
-      (card.image || filmPath.test(target.pathname)) && (filmPath.test(target.pathname) || card.heading || card.alt)) {
+      (entry.image || filmPath.test(target.pathname)) && (filmPath.test(target.pathname) || entry.heading || entry.alt)) {
       const year = name.match(/\b(19\d{2}|20\d{2})\s*\)?$/)?.[1] || '';
-      const item = { title: name, description: '', year, coverUrl: card.image, sourceUrl, streamUrl: '', downloadUrl: '', importedFrom: pageUrl };
+      const item = { title: name, description: '', year, coverUrl: entry.image, sourceUrl, streamUrl: '', downloadUrl: '', importedFrom: pageUrl };
       if (!cards.has(sourceUrl) || !cards.get(sourceUrl).coverUrl && item.coverUrl) cards.set(sourceUrl, item);
      }
-     card = undefined;
+     if (card === entry) card = undefined;
     });
    },
    text(part) { if (card && card.title.length < 300) card.title += part.text; }
@@ -130,6 +145,7 @@ export async function parsePage(html,url,Rewriter=HTMLRewriter, catalogPage=fals
  for(const s of scripts){try{visit(JSON.parse(s.text));}catch{}}
  const movies=nodes.filter(n=>[n['@type']].flat().some(t=>['Movie','TVSeries','TVEpisode'].includes(t)));
  const structured=movies.length?movies:nodes.filter(n=>[n['@type']].flat().includes('VideoObject'));
+ const detailPage = /^(?:article|video\.)/i.test(meta['og:type'] || '');
  const items=[];
  for(const n of structured){
   const video=[n.video].flat().find(v=>v&&typeof v==='object')||{};
@@ -138,9 +154,17 @@ export async function parsePage(html,url,Rewriter=HTMLRewriter, catalogPage=fals
   const poster=[n.image||n.thumbnailUrl||video.thumbnailUrl].flat()[0];
   items.push({title:clean(n.name,240),description:clean(n.description),year:String(n.datePublished||'').match(/\b(19\d{2}|20\d{2})\b/)?.[0]||'',coverUrl:safe(typeof poster==='object'?poster?.url:poster,url),sourceUrl:source,streamUrl:stream,downloadUrl:downloads.find(d=>d===stream)||'',importedFrom:url});
  }
- if (!items.length && !videos.length && !downloads.length && !/^video\./i.test(meta['og:type'] || '') && !meta['og:video'] && !meta['og:video:secure_url']) {
+ if ((catalogPage || !items.length) && !videos.length && !downloads.length && !detailPage && !meta['og:video'] && !meta['og:video:secure_url']) {
   const cards = await catalogCards(html, url, Rewriter);
-  if (cards.length >= 2 || catalogPage && cards.length) return cards;
+  if (cards.length >= 2 || catalogPage && cards.length) {
+   const byUrl = new Map(cards.map(card => [card.sourceUrl, card]));
+   for (const item of items) {
+    if (!item.title || item.sourceUrl === url) continue;
+    const card = byUrl.get(item.sourceUrl);
+    byUrl.set(item.sourceUrl, card ? {...item, coverUrl: item.coverUrl || card.coverUrl, year: item.year || card.year} : item);
+   }
+   return [...byUrl.values()];
+  }
  }
  if(!items.length||items.length===1){
   const i=items[0]||{sourceUrl:url,importedFrom:url};
@@ -149,7 +173,7 @@ export async function parsePage(html,url,Rewriter=HTMLRewriter, catalogPage=fals
   i.coverUrl=i.coverUrl||safe(meta['og:image']||meta['twitter:image'],url);
   i.streamUrl=i.streamUrl||mediaUrl(meta['og:video:secure_url']||meta['og:video']||videos[0]||downloads[0],url);
   i.downloadUrl=i.downloadUrl||downloads[0]||'';i.year=i.year||'';
-  i.linkOnly = !items.length && !i.streamUrl && !/^video\./i.test(meta['og:type'] || '');
+  i.linkOnly = !items.length && !i.streamUrl && !(detailPage && (meta['og:title'] || meta['og:image']));
   if(i.title)items.splice(0,items.length,i);
  }
  const unique=new Map();for(const item of items){if(!item.title)continue;const key=item.sourceUrl+'|'+item.title.toLocaleLowerCase();if(!unique.has(key))unique.set(key,item);}
@@ -180,7 +204,7 @@ export async function importCatalog(value, options = {}) {
  const items = new Map();
  const visited = new Set();
  let next = publicUrl(value).href;
- let partial = false;
+ let partial = '';
  while (next && !visited.has(next) && visited.size < 4) {
   const address = next;
   visited.add(address);
@@ -188,7 +212,11 @@ export async function importCatalog(value, options = {}) {
   try { page = await importPage(address, {...options,catalogPage: options.catalogPage || visited.size > 1}); }
   catch (error) {
    if (!items.size) throw error;
-   partial = true;
+   partial = error instanceof ImportError ? error.message : 'A página seguinte não respondeu.';
+   break;
+  }
+  if (page.items.every(item => item.linkOnly) && (options.catalogPage || visited.size > 1 || page.next)) {
+   partial = 'Nenhum título foi identificado nesta página do catálogo.';
    break;
   }
   for (const item of page.items) {
@@ -197,7 +225,11 @@ export async function importCatalog(value, options = {}) {
   next = page.next;
  }
  if (!items.size) throw new ImportError('Nenhum filme foi identificado nas páginas disponíveis. Tente o link de um filme específico.',422);
- return {items:[...items.values()],next:visited.has(next)&&!partial?'':next,partial};
+ if (visited.has(next) && !partial) {
+  partial = 'O site repetiu uma página do catálogo.';
+  next = '';
+ }
+ return {items:[...items.values()],next,partial};
 }
 
 export async function loadDownloads(value,options = {}) {

@@ -1,6 +1,6 @@
 <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><title>Cinevo · Sua coleção conectada</title><style>
 :root{font-family:Inter,"Segoe UI",sans-serif;color:#eeeaf5;background:#0e1016;--muted:#9294a7;--accent:#baa2f3}*{box-sizing:border-box}body{margin:0}button,input{font:inherit}button{cursor:pointer;border:1px solid #3d354d;color:#e9e2f7;background:#292334;border-radius:10px;padding:12px 17px}button:hover{background:#3d3150}button:disabled{opacity:.5;cursor:wait}a{color:var(--accent)}header{height:88px;border-bottom:1px solid #242631;display:flex;align-items:center;justify-content:space-between;padding:0 5vw}.brand{font-weight:750;font-size:27px;letter-spacing:-1px}.brand span{color:var(--accent);margin-right:10px}header small{font-size:10px;border:1px solid #514361;padding:5px 7px;border-radius:5px;margin-left:10px;color:#c8b2ed;letter-spacing:1px}.actions{display:flex;gap:8px}main{max-width:1250px;margin:auto;padding:56px 24px 35px}.eyebrow{font-size:11px;letter-spacing:2px;color:#baa2f3}h1{font-size:clamp(30px,4vw,49px);line-height:1.1;letter-spacing:-1.7px;max-width:750px;margin:17px 0}p{color:var(--muted);line-height:1.7}.intro{display:grid;grid-template-columns:1fr 210px;gap:40px;align-items:center}.orb{width:170px;height:170px;border:24px solid #baa2f3;border-right-color:transparent;border-radius:50%;position:relative;opacity:.9}.orb:after{content:'';position:absolute;left:57px;top:36px;border-left:39px solid #eeeaf5;border-top:25px solid transparent;border-bottom:25px solid transparent}.import-box{margin:35px 0 18px;background:linear-gradient(120deg,#221c30,#181c29);border:1px solid #393044;border-radius:18px;padding:25px}form{display:flex;gap:12px}input{min-width:0;width:100%;background:#10131b;border:1px solid #3a3c4d;border-radius:9px;color:white;padding:15px 17px}input:focus,button:focus-visible,a:focus-visible{outline:2px solid #baa2f3;outline-offset:3px}.primary{background:#baa2f3;color:#191321;font-weight:650;min-width:140px}.primary:hover{background:#d1bdfb}.hint{font-size:12px;margin:13px 0 0}.status{min-height:30px;margin:10px 0;color:#c6b2ee;font-size:13px}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:22px;margin:40px 0 24px}.toolbar h2{font-weight:550;font-size:23px;margin:0 0 8px}.toolbar input{max-width:320px;font-size:13px}.count{font-size:12px;color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:22px}.card{min-width:0;border:1px solid #2d2b39;border-radius:13px;overflow:hidden;background:#191c26}.poster{aspect-ratio:2/3;background:linear-gradient(155deg,#3c2e50,#19222c);position:relative;display:flex;align-items:center;justify-content:center;font-size:65px;color:#8974ad}.poster img{width:100%;height:100%;object-fit:cover;position:absolute}.tag{position:absolute;bottom:10px;left:10px;color:#e7dcf7;background:#13121dcf;border:1px solid #52415f;border-radius:5px;padding:5px 7px;font-size:9px;letter-spacing:.8px}.info{padding:15px}.info h3{font-size:15px;margin:0 0 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.info p{font-size:12px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:58px;margin:10px 0}.info a{font-size:12px}.card-foot{display:flex;justify-content:space-between;align-items:center;margin-top:14px}.delete{font-size:11px;padding:6px 9px;color:#b4a7c5}.empty{padding:70px 20px;text-align:center;border:1px dashed #373040;border-radius:15px;color:#9591a5;grid-column:1/-1}.empty strong{display:block;font-size:22px;font-weight:500;color:#d5cce2;margin-bottom:12px}footer{font-size:11px;color:#777c90;padding:35px 0}dialog{background:#181b25;color:#ede7f6;border:1px solid #51415f;border-radius:16px;max-width:560px;width:calc(100% - 32px);padding:28px}dialog::backdrop{background:#070910cc}dialog input{margin:12px 0}dialog h2{margin-top:0}dialog .actions{margin-top:18px;justify-content:flex-end}.hidden{display:none!important}@media(max-width:650px){header{height:78px;padding:0 20px}.actions button{font-size:11px;padding:10px}main{padding:32px 18px}.intro{display:block}.orb{display:none}form{flex-direction:column}.toolbar{align-items:flex-start;flex-direction:column}.toolbar input{max-width:none}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.info{padding:11px}header small{display:none}}
-</style></head><body><header><div class="brand"><span>◒</span>cinevo<small>PORTAL BETA</small></div><div class="actions"><button id="connect">Conectar ao app</button><span class="count">Sem senha · Sua coleção</span></div></header><main><section class="intro"><div><div class="eyebrow">SEU CINEMA, AGORA CONECTADO</div><h1>Encontrou um filme?<br>Guarde a próxima sessão.</h1><p>Cole o endereço de um catálogo ou filme para adicionar à sua coleção e consultar as opções direto no navegador.</p></div><div class="orb" aria-hidden="true"></div></section><section class="import-box"><form id="import"><input id="url" type="url" required placeholder="Cole aqui o endereço do filme ou vídeo…" aria-label="Endereço para importar" autocomplete="off"><button class="primary" id="submit">＋ Importar</button></form><p class="hint">Título, capa e descrição automáticos. Vídeos e downloads aparecem quando a origem oferece links diretos.</p></section><div id="status" class="status" role="status" aria-live="polite"></div><section><div class="toolbar"><div><h2>Sua coleção online</h2><div id="count" class="count">Conectando à biblioteca…</div></div><input id="search" placeholder="Buscar na coleção…" aria-label="Buscar na coleção"></div><div id="grid" class="grid"></div></section><footer>Seu catálogo é privado. As páginas são importadas uma vez; links de origem são preservados. Sites com login, proteção ou conteúdo carregado por scripts podem não ser compatíveis.<br>Seus vídeos locais e suas anotações do PC ficam no Cinevo.</footer></main>
+</style></head><body><header><div class="brand"><span>◒</span>cinevo<small>PORTAL BETA</small></div><div class="actions"><button id="connect">Conectar ao app</button><span class="count">Sem senha · Sua coleção</span></div></header><main><section class="intro"><div><div class="eyebrow">SEU CINEMA, AGORA CONECTADO</div><h1>Encontrou um filme?<br>Guarde a próxima sessão.</h1><p>Cole o endereço de um catálogo ou filme para adicionar à sua coleção e consultar as opções direto no navegador.</p></div><div class="orb" aria-hidden="true"></div></section><section class="import-box"><form id="import"><input id="url" type="url" required placeholder="Cole aqui o endereço do catálogo ou filme…" aria-label="Endereço para importar" autocomplete="off"><button class="primary" id="submit">＋ Importar</button></form><p class="hint">As próximas páginas do catálogo são importadas automaticamente.</p></section><div id="status" class="status" role="status" aria-live="polite"></div><section><div class="toolbar"><div><h2>Sua coleção online</h2><div id="count" class="count">Conectando à biblioteca…</div></div><input id="search" placeholder="Buscar na coleção…" aria-label="Buscar na coleção"></div><div id="grid" class="grid"></div></section><footer>Seu catálogo é privado. As páginas são importadas uma vez; links de origem são preservados. Sites com login, proteção ou conteúdo carregado por scripts podem não ser compatíveis.<br>Seus vídeos locais e suas anotações do PC ficam no Cinevo.</footer></main>
 <dialog id="pair"><h2>Leve a coleção para o Cinevo.</h2><p>Baixe o arquivo de conexão e abra <b>Portal online → Conectar portal</b> no app. Escolha esse arquivo uma única vez.</p><p>Esse arquivo conecta este navegador ao seu app. Guarde-o para recuperar a coleção em outro dispositivo.</p><div class="actions"><button id="closePair">Fechar</button><button id="pairDownload" class="primary">Baixar conexão</button></div></dialog>
 <dialog id="details" aria-labelledby="detailsTitle">
  <div class="detail-header"><h2 id="detailsTitle"></h2><button id="closeDetails" aria-label="Fechar detalhes">Fechar</button></div>
@@ -22,7 +22,7 @@
 .download-choice small{display:block;margin-top:4px}.detail-button{padding:7px 10px;font-size:12px}
 </style>
 <script>
-let items=[],covers=[];const $=id=>document.getElementById(id);
+let items=[];const $=id=>document.getElementById(id);
 let detailRequest;
 function httpsUrl(value) {
  try {
@@ -107,30 +107,69 @@ async function load() {
   render();
  } catch(error) { status(error.message); }
 }
-function render(){covers.forEach(URL.revokeObjectURL);covers=[];const grid=$('grid');grid.replaceChildren();const q=$('search').value.toLocaleLowerCase();const shown=items.filter(i=>(i.title+' '+i.year+' '+i.description).toLocaleLowerCase().includes(q));$('count').textContent=items.length+' títulos';if(!shown.length){const div=document.createElement('div');div.className='empty';const strong=document.createElement('strong');strong.textContent=items.length?'Nenhum título encontrado.':'Uma coleção começa com um endereço.';div.append(strong,document.createTextNode(items.length?'Tente outra busca.':'Cole o link de uma página ou vídeo para começar.'));grid.append(div);return}
-for(const item of shown){const card=document.createElement('article');card.className='card';const poster=document.createElement('div');poster.className='poster';poster.textContent=item.title.slice(0,1);if(item.coverUrl){const img=document.createElement('img');img.alt='Capa de '+item.title;img.loading='lazy';poster.append(img);fetch('/api/items/'+item.id+'/cover',{credentials:'same-origin'}).then(async r=>{if(!r.ok||!img.isConnected)return;const url=URL.createObjectURL(await r.blob());covers.push(url);if(img.isConnected)img.src=url;else URL.revokeObjectURL(url)}).catch(()=>{})}const tag=document.createElement('span');tag.className='tag';tag.textContent=item.downloadUrl?'DOWNLOAD NA ORIGEM':item.streamUrl?'VÍDEO DISPONÍVEL':'LINK SALVO';poster.append(tag);const info=document.createElement('div');info.className='info';const title=document.createElement('h3');title.textContent=item.title;title.title=item.title;const year=document.createElement('span');year.className='count';year.textContent=item.year||new URL(item.sourceUrl).hostname;const description=document.createElement('p');description.textContent=item.description||'Adicionado pelo endereço da origem.';const foot=document.createElement('div');foot.className='card-foot';const link=document.createElement('a');link.href=item.sourceUrl;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Abrir origem ↗';const remove=document.createElement('button');remove.className='delete';remove.textContent='Remover';remove.onclick=async()=>{if(!confirm('Remover '+item.title+' do portal?'))return;try{await api('/api/items/'+item.id,{method:'DELETE'});await load();status('Título removido do portal.')}catch(e){status(e.message)}};const details=document.createElement('button');details.type='button';details.className='detail-button';details.textContent='Ver detalhes';details.onclick=()=>showDetails(item);foot.append(details,remove);info.append(title,year,description,foot);card.append(poster,info);grid.append(card)}}
+function render(){const grid=$('grid');grid.replaceChildren();const q=$('search').value.toLocaleLowerCase();const shown=items.filter(i=>(i.title+' '+i.year+' '+i.description).toLocaleLowerCase().includes(q));$('count').textContent=items.length+' títulos';if(!shown.length){const div=document.createElement('div');div.className='empty';const strong=document.createElement('strong');strong.textContent=items.length?'Nenhum título encontrado.':'Uma coleção começa com um endereço.';div.append(strong,document.createTextNode(items.length?'Tente outra busca.':'Cole o link de uma página ou vídeo para começar.'));grid.append(div);return}
+for(const item of shown){const card=document.createElement('article');card.className='card';const poster=document.createElement('div');poster.className='poster';poster.textContent=item.title.slice(0,1);if(item.coverUrl){const img=document.createElement('img');img.alt='Capa de '+item.title;img.loading='lazy';img.decoding='async';img.src='/api/items/'+item.id+'/cover';img.onerror=()=>img.remove();poster.append(img)}const tag=document.createElement('span');tag.className='tag';tag.textContent=item.downloadUrl?'DOWNLOAD NA ORIGEM':item.streamUrl?'VÍDEO DISPONÍVEL':'LINK SALVO';poster.append(tag);const info=document.createElement('div');info.className='info';const title=document.createElement('h3');title.textContent=item.title;title.title=item.title;const year=document.createElement('span');year.className='count';year.textContent=item.year||new URL(item.sourceUrl).hostname;const description=document.createElement('p');description.textContent=item.description||'Adicionado pelo endereço da origem.';const foot=document.createElement('div');foot.className='card-foot';const link=document.createElement('a');link.href=item.sourceUrl;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Abrir origem ↗';const remove=document.createElement('button');remove.className='delete';remove.textContent='Remover';remove.onclick=async()=>{if(!confirm('Remover '+item.title+' do portal?'))return;try{await api('/api/items/'+item.id,{method:'DELETE'});await load();status('Título removido do portal.')}catch(e){status(e.message)}};const details=document.createElement('button');details.type='button';details.className='detail-button';details.textContent='Ver detalhes';details.onclick=()=>showDetails(item);foot.append(details,remove);info.append(title,year,description,foot);card.append(poster,info);grid.append(card)}}
 const more = document.createElement('button');
-more.textContent = 'Importar próximas páginas';
+more.textContent = 'Continuar importação';
 more.hidden = true;
 $('status').after(more);
+const pause = document.createElement('button');
+pause.textContent = 'Pausar';
+pause.hidden = true;
+more.after(pause);
 let nextPage = '';
+let paused = false;
+let running = false;
+const visitedPages = new Set();
+pause.onclick = () => {
+ paused = true;
+ pause.disabled = true;
+ status('Pausando após as páginas em andamento…');
+};
 async function importPages(url, continuation = false) {
- $('submit').disabled = more.disabled = true;
- status('Buscando filmes nas páginas do catálogo…');
+ if (running || !url) return;
+ running = true;
+ paused = false;
+ $('submit').disabled = $('url').disabled = true;
+ more.hidden = true;
+ pause.hidden = pause.disabled = false;
+ let total = 0, outcome = '';
+ nextPage = url;
  try {
-  const result = await api('/api/import', {method:'POST', body:JSON.stringify({url, continuation})});
-  nextPage = result.next || '';
+  while (nextPage && !paused) {
+   const current = nextPage;
+   status(total ? `${total} títulos processados. Buscando próximas páginas…` : 'Buscando filmes no endereço…');
+   const result = await api('/api/import', {method:'POST', body:JSON.stringify({url:current, continuation})});
+   total += result.count;
+   nextPage = result.next || '';
+   outcome = result.message;
+   if (result.partial) { outcome = result.partial; break; }
+   visitedPages.add(current);
+   if (visitedPages.has(nextPage)) {
+    nextPage = '';
+    outcome = 'O site repetiu uma página do catálogo.';
+    break;
+   }
+   continuation = true;
+  }
+  if (paused && nextPage) outcome = 'Importação pausada.';
+  if (!nextPage) $('url').value = '';
+ } catch (error) {
+  outcome = error.message;
+  if (!continuation) nextPage = '';
+ } finally {
+  if (total) await load();
+  status(total > 1 ? `${total} títulos processados. ${nextPage || !outcome.endsWith('processados.') ? outcome : ''}`.trim() : outcome);
   more.hidden = !nextPage;
-  if (!continuation) $('url').value = '';
-  await load();
-  status(result.message + (nextPage ? ' O site tem mais páginas.' : ''));
- } catch (error) { status(error.message); }
- finally { $('submit').disabled = more.disabled = false; }
+  pause.hidden = true;
+  $('submit').disabled = $('url').disabled = false;
+  running = false;
+ }
 }
 $('import').onsubmit = event => {
  event.preventDefault();
- nextPage = '';
- more.hidden = true;
+ if (running) return;
+ visitedPages.clear();
  return importPages($('url').value.trim());
 };
 more.onclick = () => importPages(nextPage, true);

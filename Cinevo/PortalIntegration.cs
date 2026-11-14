@@ -7,16 +7,151 @@ using Microsoft.Win32;
 namespace Cinevo;
 public partial class MainWindow
 {
-    private bool syncingPortal;
-    private async Task SyncPortalAsync(bool manual, bool showResult = false)
+    private readonly SemaphoreSlim portalSync = new(1);
+    private void ImportAddress_Click(object sender, RoutedEventArgs e)
     {
-        if(syncingPortal||closed)return;syncingPortal=true;
+        var panel = new StackPanel { Margin = new Thickness(26) };
+        var window = new Window
+        {
+            Title = "Importar endereço — Cinevo", Owner = this, Width = 590, SizeToContent = SizeToContent.Height,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize,
+            Background = Brush("#101218"), Foreground = Brush("#ECEEF4"), Content = panel
+        };
+        panel.Children.Add(new TextBlock { Text = "Importar endereço", FontSize = 26, Margin = new Thickness(0, 0, 0, 12) });
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Cole o link HTTPS de um catálogo ou de um filme. O Cinevo segue as próximas páginas automaticamente.",
+            TextWrapping = TextWrapping.Wrap, Foreground = Brush("#ADB0BE"), Margin = new Thickness(0, 0, 0, 14)
+        });
+        var input = new TextBox { MaxLength = 4000 };
+        System.Windows.Automation.AutomationProperties.SetName(input, "Endereço do catálogo ou filme");
+        panel.Children.Add(input);
+        var message = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 16), MinHeight = 32 };
+        panel.Children.Add(message);
+        var controls = new StackPanel { Orientation = Orientation.Horizontal };
+        var start = new Button { Content = "Importar", IsDefault = true, Background = Brush("#B49AF8"), Foreground = Brush("#171121") };
+        var pause = new Button { Content = "Pausar", Visibility = Visibility.Collapsed };
+        var resume = new Button { Content = "Continuar importação", Visibility = Visibility.Collapsed };
+        var close = new Button { Content = "Fechar", IsCancel = true };
+        foreach (var button in new[] { start, pause, resume, close }) controls.Children.Add(button);
+        panel.Children.Add(controls);
+        window.Loaded += (_, _) => input.Focus();
+
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        string? next = null;
+        var running = false;
+        var paused = false;
+        var continuation = false;
+        pause.Click += (_, _) =>
+        {
+            paused = true;
+            pause.IsEnabled = false;
+            message.Text = "Pausando após as páginas em andamento…";
+        };
+        window.Closing += (_, args) =>
+        {
+            if (running) args.Cancel = true;
+        };
+        start.Click += async (_, _) =>
+        {
+            var value = input.Text.Trim();
+            if (!RemoteFiles.IsPublicHttps(value))
+            {
+                message.Text = "Cole um endereço HTTPS público completo.";
+                return;
+            }
+            visited.Clear();
+            next = new UriBuilder(value) { Fragment = "" }.Uri.AbsoluteUri;
+            continuation = false;
+            await ImportAsync();
+        };
+        resume.Click += async (_, _) => await ImportAsync();
+        window.ShowDialog();
+
+        async Task ImportAsync()
+        {
+            if (running || string.IsNullOrEmpty(next)) return;
+            running = true;
+            paused = false;
+            start.IsEnabled = input.IsEnabled = close.IsEnabled = false;
+            pause.Visibility = Visibility.Visible;
+            pause.IsEnabled = true;
+            resume.Visibility = Visibility.Collapsed;
+            var count = 0;
+            var outcome = "";
+            try
+            {
+                message.Text = "Buscando filmes no endereço…";
+                var connection = await PortalService.GetOrCreateConnectionAsync(lifetime.Token);
+                while (!paused && !string.IsNullOrEmpty(next))
+                {
+                    var current = next;
+                    var batch = await PortalService.ImportBatchAsync(connection, current, continuation, lifetime.Token);
+                    count += batch.Count;
+                    next = batch.Next;
+                    outcome = batch.Message;
+                    continuation = true;
+                    if (!string.IsNullOrEmpty(batch.Partial))
+                    {
+                        outcome = batch.Partial;
+                        break;
+                    }
+                    visited.Add(current);
+                    if (!string.IsNullOrEmpty(next) && (!RemoteFiles.IsPublicHttps(next) || visited.Contains(next)))
+                    {
+                        outcome = "O site devolveu uma página repetida ou inválida.";
+                        next = null;
+                        break;
+                    }
+                    if (!paused && !string.IsNullOrEmpty(next))
+                        message.Text = $"{count} títulos processados. Buscando próximas páginas…";
+                }
+                if (paused && !string.IsNullOrEmpty(next)) outcome = "Importação pausada.";
+            }
+            catch (OperationCanceledException) when (!lifetime.IsCancellationRequested)
+            {
+                outcome = "A resposta demorou demais. Você pode tentar continuar.";
+            }
+            catch (Exception ex)
+            {
+                outcome = ex.Message;
+            }
+            finally
+            {
+                pause.Visibility = Visibility.Collapsed;
+                if (!closed && count > 0)
+                {
+                    message.Text = "Atualizando sua biblioteca…";
+                    var titlesReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    _ = SyncPortalAsync(true, titlesReady: titlesReady);
+                    if (!await titlesReady.Task) outcome += " Confira a sincronização na biblioteca.";
+                }
+                message.Text = count > 1 && outcome.EndsWith("processados.", StringComparison.Ordinal)
+                    ? $"{count} títulos processados."
+                    : count > 1 ? $"{count} títulos processados. {outcome}" : outcome;
+                start.IsEnabled = input.IsEnabled = close.IsEnabled = true;
+                resume.Visibility = string.IsNullOrEmpty(next) ? Visibility.Collapsed : Visibility.Visible;
+                running = false;
+            }
+        }
+    }
+    private async Task SyncPortalAsync(bool manual, bool showResult = false, TaskCompletionSource<bool>? titlesReady = null)
+    {
+        var acquired = false;
         try
         {
+            if (closed) return;
+            acquired = await portalSync.WaitAsync(titlesReady == null ? 0 : Timeout.Infinite, lifetime.Token);
+            if (!acquired) return;
             var connection=PortalService.LoadConnection();
             if(connection==null){if(manual)Status.Text="Abra Portal online e importe o arquivo de conexão uma vez.";return;}
             if(manual)Status.Text="Sincronizando sua coleção online…";
-            var result = await PortalService.SyncAsync(library, connection, lifetime.Token);
+            var result = await PortalService.SyncAsync(library, connection, lifetime.Token, onTitlesReady: () =>
+            {
+                library.Save();
+                Refresh();
+                titlesReady?.TrySetResult(true);
+            });
             if (closed) return;
             library.Save();
             Refresh();
@@ -26,7 +161,11 @@ public partial class MainWindow
                     : $"Portal sincronizado · {result.Total} na coleção online · {result.Added} novos.";
         }
         catch(Exception ex){if((manual||showResult)&&!closed)Status.Text="Não foi possível sincronizar: "+ex.Message;}
-        finally{syncingPortal=false;}
+        finally
+        {
+            if (acquired) portalSync.Release();
+            titlesReady?.TrySetResult(false);
+        }
     }
     private void Portal_Click(object sender,RoutedEventArgs e)
     {

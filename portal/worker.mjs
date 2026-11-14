@@ -43,7 +43,7 @@ export default {async fetch(request,env){
    const count = imported.length;
    const savedLink = count === 1 && imported[0].linkOnly;
    const message = savedLink?'Salvamos o link da página. Nenhum filme foi identificado. Tente o endereço de um filme específico.':`${count} ${count===1?'título processado':'títulos processados'}.`;
-   return json({count,next,message:partial?message+' A página seguinte não respondeu.':message});
+   return json({count,next,message,partial});
   }
   const match=url.pathname.match(/^\/api\/items\/([a-f0-9]{64})(\/cover|\/downloads)?$/);
   if(match&&request.method==='DELETE'&&!match[2]){await env.DB.prepare('DELETE FROM catalog_items WHERE id=? AND owner_hash=?').bind(match[1],owner).run();return json({ok:true});}

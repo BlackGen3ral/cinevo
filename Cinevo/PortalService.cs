@@ -26,6 +26,7 @@ public sealed class PortalFeed
 public sealed record PortalSyncResult(int Added, int Total);
 public sealed record PortalDownload(string Url, string Label, string Kind);
 public sealed record PortalDownloads(List<PortalDownload> Options);
+public sealed record PortalImportBatch(int Count, string Next, string Message, string Partial);
 public static class PortalService
 {
     public const string DefaultEndpoint = "https://cinevo-portal.arthurgabrielfera.workers.dev";
@@ -57,6 +58,43 @@ public static class PortalService
         ValidateConnection(c); var http = new HttpClient(handler??new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(45), BaseAddress = new Uri(c.Endpoint) };
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", c.Key); http.DefaultRequestHeaders.UserAgent.ParseAdd("Cinevo/" + Updater.CurrentVersion); return http;
     }
+    public static async Task<PortalConnection> GetOrCreateConnectionAsync(CancellationToken token)
+    {
+        if (LoadConnection() is { } connection) return connection;
+
+        var cookies = new CookieContainer();
+        using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, CookieContainer = cookies })
+        {
+            BaseAddress = new Uri(DefaultEndpoint),
+            Timeout = TimeSpan.FromSeconds(15)
+        };
+        using var request = new HttpRequestMessage(HttpMethod.Head, "/");
+        using var response = await http.SendAsync(request, token);
+        response.EnsureSuccessStatusCode();
+        var key = cookies.GetCookies(http.BaseAddress)["cinevo_session"]?.Value ?? "";
+        connection = new PortalConnection(DefaultEndpoint, key);
+        SaveConnection(connection);
+        return connection;
+    }
+
+    public static async Task<PortalImportBatch> ImportBatchAsync(PortalConnection connection, string address, bool continuation, CancellationToken token)
+    {
+        using var http = Client(connection);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(100));
+        http.Timeout = Timeout.InfiniteTimeSpan;
+        using var content = new StringContent(JsonSerializer.Serialize(new { url = address, continuation }), Encoding.UTF8, "application/json");
+        using var response = await http.PostAsync("/api/import", content, timeout.Token);
+        var bytes = await RemoteFiles.ReadBoundedAsync(response, 16 * 1024, timeout.Token);
+        if (!response.IsSuccessStatusCode)
+        {
+            using var json = JsonDocument.Parse(bytes);
+            throw new InvalidDataException(json.RootElement.TryGetProperty("error", out var error)
+                ? error.GetString() : "O portal não conseguiu ler o endereço.");
+        }
+        return JsonSerializer.Deserialize<PortalImportBatch>(bytes, JsonOptions)
+            ?? throw new InvalidDataException("O portal retornou uma importação inválida.");
+    }
     public static async Task<List<PortalDownload>> GetDownloadsAsync(string itemId, CancellationToken token)
     {
         if (itemId.Length != 64 || !itemId.All(Uri.IsHexDigit)) return [];
@@ -68,7 +106,7 @@ public static class PortalService
         var bytes = await RemoteFiles.ReadBoundedAsync(response, 128 * 1024, token);
         return JsonSerializer.Deserialize<PortalDownloads>(bytes, JsonOptions)?.Options ?? [];
     }
-    public static async Task<PortalSyncResult> SyncAsync(Library library, PortalConnection connection, CancellationToken token,HttpMessageHandler? handler=null)
+    public static async Task<PortalSyncResult> SyncAsync(Library library, PortalConnection connection, CancellationToken token, HttpMessageHandler? handler = null, Action? onTitlesReady = null)
     {
         using var http = Client(connection,handler);
         var items = new Dictionary<string, PortalItem>(StringComparer.Ordinal);
@@ -86,6 +124,7 @@ public static class PortalService
         }
         var imported = 0;
         var total = 0;
+        var missingCovers = new List<(Movie Movie, PortalItem Item)>();
         var existing = library.Movies.Where(movie => movie.IsOnline).ToLookup(movie => movie.PortalId, StringComparer.Ordinal);
         foreach (var item in items.Values)
         {
@@ -96,17 +135,25 @@ public static class PortalService
             if (movie == null) { movie = new Movie { PortalId = item.Id, Title = item.Title, Year = item.Year }; library.Movies.Add(movie); imported++; }
             movie.SourceUrl = item.SourceUrl; movie.StreamUrl = RemoteFiles.IsPublicHttps(item.StreamUrl) ? item.StreamUrl : ""; movie.DownloadUrl = RemoteFiles.IsPublicHttps(item.DownloadUrl) ? item.DownloadUrl : ""; movie.Description = item.Description;
             if (item.CoverUrl.Length > 0 && (movie.Cover.Length == 0 || !File.Exists(movie.Cover)))
+                missingCovers.Add((movie, item));
+        }
+        onTitlesReady?.Invoke();
+        foreach (var group in missingCovers.Chunk(6))
+        {
+            await Task.WhenAll(group.Select(async entry =>
             {
+                var (movie, item) = entry;
                 try
                 {
                     using var cover = await http.GetAsync("/api/items/" + item.Id + "/cover", HttpCompletionOption.ResponseHeadersRead, token);
-                    if (!cover.IsSuccessStatusCode) continue;
+                    if (!cover.IsSuccessStatusCode) return;
                     var image = await RemoteFiles.ReadBoundedAsync(cover, 5 * 1024 * 1024, token);
-                    if (!RemoteFiles.IsImage(image)) continue;
-                    var dir = System.IO.Path.Combine(Library.DataDirectory, "covers"); Directory.CreateDirectory(dir); var path = System.IO.Path.Combine(dir, "portal-" + item.Id + ".img"); await File.WriteAllBytesAsync(path, image, token); movie.Cover = path; movie.CoverSource = item.SourceUrl;
+                    if (!RemoteFiles.IsImage(image) || File.Exists(movie.Cover) || !library.Movies.Contains(movie)) return;
+                    var dir = System.IO.Path.Combine(Library.DataDirectory, "covers"); Directory.CreateDirectory(dir); var path = System.IO.Path.Combine(dir, "portal-" + item.Id + ".img"); await File.WriteAllBytesAsync(path, image, token);
+                    if (!File.Exists(movie.Cover)) { movie.Cover = path; movie.CoverSource = item.SourceUrl; }
                 }
                 catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException && !token.IsCancellationRequested) { }
-            }
+            }));
         }
         return new PortalSyncResult(imported, total);
     }
