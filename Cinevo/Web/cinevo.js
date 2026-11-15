@@ -35,10 +35,20 @@ function command(text, style, name, id) {
 }
 
 async function request(path, options = {}) {
-  const response = await fetch(path, { ...options, headers: { ...headers, ...options.headers } });
+  let response;
+  try { response = await fetch(path, { ...options, headers: { ...headers, ...options.headers } }); }
+  catch (error) {
+    if (error.name === 'AbortError') throw error;
+    throw new Error('A conexão com o Cinevo foi interrompida. Confira se o aplicativo continua aberto.');
+  }
   if (!response.ok) {
     const info = await response.json().catch(() => ({}));
-    throw new Error(info.error || 'Abra a interface pelo aplicativo Cinevo.');
+    const message = response.status === 401 || response.status === 403
+      ? 'A sessão da interface expirou. Feche esta janela e abra a interface pelo Cinevo.'
+      : response.status === 429 ? 'Muitas consultas em sequência. Aguarde um pouco e tente novamente.'
+      : response.status >= 500 ? 'O serviço não conseguiu concluir a operação. Tente novamente em alguns minutos.'
+      : 'A operação não foi concluída (HTTP ' + response.status + '). Confira os dados e tente novamente.';
+    throw new Error(typeof info.error === 'string' ? info.error : message);
   }
   return response;
 }

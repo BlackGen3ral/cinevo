@@ -4,6 +4,7 @@ namespace Cinevo;
 
 public sealed class CatalogSource
 {
+    public bool LocalImport { get; set; }
     public string Address { get; set; } = "";
     public string Next { get; set; } = "";
     public DateTime LastCompletedUtc { get; set; }

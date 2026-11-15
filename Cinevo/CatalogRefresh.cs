@@ -9,11 +9,21 @@ public partial class MainWindow
         manualPortalImports++;
         try
         {
-            var result = await PortalService.ImportBatchAsync(connection, address, continuation, lifetime.Token);
+            PortalImportBatch result;
+            try
+            {
+                var useLocal = library.CatalogSources.Any(source => source.LocalImport &&
+                    Uri.TryCreate(source.Address, UriKind.Absolute, out var saved) && new Uri(address).Host == saved.Host);
+                result = useLocal ? await ImportLocalCatalogAsync(address, lifetime.Token) :
+                    await PortalService.ImportBatchAsync(connection, address, continuation, lifetime.Token);
+            }
+            catch (Exception ex) when (!lifetime.IsCancellationRequested &&
+                ex is System.IO.InvalidDataException or System.Net.Http.HttpRequestException or System.Text.Json.JsonException)
+            { result = await ImportLocalCatalogAsync(address, lifetime.Token); }
             if (!continuation && result.Count > 0)
             {
                 var source = CatalogWatch.Register(library, address);
-                if (source != null) source.LastCompletedUtc = DateTime.UtcNow;
+                if (source != null) { source.LastCompletedUtc = DateTime.UtcNow; source.LocalImport = result.Local; }
                 library.Save();
             }
             return result;
@@ -37,7 +47,8 @@ public partial class MainWindow
                         try
                         {
                             await CatalogWatch.AdvanceAsync(source,
-                                (address, continuation, token) => PortalService.ImportBatchAsync(connection, address, continuation, token),
+                                (address, continuation, token) => source.LocalImport ? ImportLocalCatalogAsync(address, token) :
+                                    PortalService.ImportBatchAsync(connection, address, continuation, token),
                                 DateTime.UtcNow, lifetime.Token);
                         }
                         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { return; }
@@ -47,7 +58,7 @@ public partial class MainWindow
                         }
                         if (closed) return;
                         library.Save();
-                        await SyncPortalAsync(false);
+                        if (!source.LocalImport) await SyncPortalAsync(false);
                     }
                 }
             }

@@ -4,6 +4,11 @@ internal static class SourceDownloadTests
 {
     internal static void Run()
     {
+        var unavailable = PortalService.ImportResponseError(503, System.Text.Encoding.UTF8.GetBytes("error code: 1102"));
+        var rejected = PortalService.ImportResponseError(403, System.Text.Encoding.UTF8.GetBytes("<html>Denied</html>"));
+        var specific = PortalService.ImportResponseError(422, System.Text.Encoding.UTF8.GetBytes("{\"error\":\"Origem incompatível\"}"));
+        if (!unavailable.Message.Contains("indisponível") || !rejected.Message.Contains("recusou") || specific.Message != "Origem incompatível")
+            throw new Exception("A resposta de importação perdeu a causa da falha.");
         var magnet = "magnet:?xt=urn:btih:" + new string('a', 40) + "&amp;dn=Demo.1080p&amp;tr=udp%3A%2F%2Ftracker.example.org";
         var html = $"""
             <script>const ignored='<a download href="/wrong.mp4">Baixar</a>';</script>

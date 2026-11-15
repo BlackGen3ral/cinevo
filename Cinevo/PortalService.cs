@@ -31,7 +31,7 @@ public sealed class PortalFeed
 public sealed record PortalSyncResult(int Added, int Total);
 public sealed record PortalDownload(string Url, string Label, string Kind);
 public sealed record PortalDownloads(List<PortalDownload> Options);
-public sealed record PortalImportBatch(int Count, string Next, string Message, string Partial, int Total = 0);
+public sealed record PortalImportBatch(int Count, string Next, string Message, string Partial, int Total = 0, bool Local = false);
 public static class PortalService
 {
     public const string DefaultEndpoint = "https://cinevo-portal.arthurgabrielfera.workers.dev";
@@ -93,12 +93,29 @@ public static class PortalService
         var bytes = await RemoteFiles.ReadBoundedAsync(response, 16 * 1024, timeout.Token);
         if (!response.IsSuccessStatusCode)
         {
-            using var json = JsonDocument.Parse(bytes);
-            throw new InvalidDataException(json.RootElement.TryGetProperty("error", out var error)
-                ? error.GetString() : "O portal não conseguiu ler o endereço.");
+            throw ImportResponseError((int)response.StatusCode, bytes);
         }
-        return JsonSerializer.Deserialize<PortalImportBatch>(bytes, JsonOptions)
-            ?? throw new InvalidDataException("O portal retornou uma importação inválida.");
+        try { return JsonSerializer.Deserialize<PortalImportBatch>(bytes, JsonOptions)
+            ?? throw new InvalidDataException("O portal retornou uma importação vazia. Tente novamente."); }
+        catch (JsonException) { throw new InvalidDataException("O portal retornou uma resposta inválida para a importação. Tente novamente."); }
+    }
+    internal static InvalidDataException ImportResponseError(int status, byte[] bytes)
+    {
+        try
+        {
+            using var json = JsonDocument.Parse(bytes);
+            if (json.RootElement.ValueKind == JsonValueKind.Object && json.RootElement.TryGetProperty("error", out var error) &&
+                error.ValueKind == JsonValueKind.String && error.GetString() is { Length: > 0 and <= 1000 } message)
+                return new InvalidDataException(message);
+        }
+        catch (JsonException) { }
+        return new InvalidDataException(status switch
+        {
+            401 or 403 => "O portal recusou a conexão da importação. Abra o Cinevo novamente e tente importar o endereço.",
+            429 => "O portal recebeu muitas consultas. Aguarde um pouco e tente importar novamente.",
+            502 or 503 or 504 => "O portal está temporariamente indisponível para importar este endereço. Tente novamente em alguns minutos.",
+            _ => $"A importação falhou (HTTP {status}). Tente novamente ou confira a página original."
+        });
     }
     public static async Task<List<PortalDownload>> GetDownloadsAsync(string itemId, string sourceUrl, CancellationToken token)
     {
@@ -164,13 +181,15 @@ public static class PortalService
             if (item.Id.Length != 64 || !item.Id.All(Uri.IsHexDigit) || string.IsNullOrWhiteSpace(item.Title)) continue;
             if (!RemoteFiles.IsPublicHttps(item.SourceUrl)) continue;
             total++;
-            var movie = existing[item.Id].FirstOrDefault();
+            var movie = existing[item.Id].FirstOrDefault() ?? library.Movies.FirstOrDefault(candidate =>
+                candidate.IsOnline && candidate.SourceUrl == item.SourceUrl);
             if (movie == null)
             {
                 movie = new Movie { PortalId = item.Id, Title = item.Title, Year = item.Year, ImportedOnly = true };
                 library.Movies.Add(movie);
                 imported++;
             }
+            movie.PortalId = item.Id;
             movie.SourceUrl = item.SourceUrl;
             if (RemoteFiles.IsPublicHttps(item.StreamUrl)) movie.StreamUrl = item.StreamUrl;
             if (RemoteFiles.IsPublicHttps(item.DownloadUrl)) movie.DownloadUrl = item.DownloadUrl;

@@ -85,7 +85,10 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
             if (string.IsNullOrWhiteSpace(command?.Name)) return Results.BadRequest();
             try { return await action(command) is { } result ? Results.Json(result) : Results.NoContent(); }
             catch (InvalidDataException ex) { return Results.BadRequest(new { error = ex.Message }); }
-            catch (OperationCanceledException) { return Results.StatusCode(503); }
+            catch (OperationCanceledException) { return Results.Json(new { error = "A operação demorou para responder ou foi cancelada. Tente novamente." }, statusCode: 503); }
+            catch (System.Net.Http.HttpRequestException) { return Results.Json(new { error = "Não foi possível conectar ao serviço. Confira a internet e tente novamente." }, statusCode: 502); }
+            catch (JsonException) { return Results.Json(new { error = "O serviço retornou dados inválidos. Tente novamente." }, statusCode: 502); }
+            catch (IOException) { return Results.Json(new { error = "Não foi possível ler ou salvar os dados desta operação." }, statusCode: 500); }
         });
         await app.StartAsync(token).ConfigureAwait(false);
         origin = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
