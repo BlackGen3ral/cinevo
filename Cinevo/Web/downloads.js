@@ -68,7 +68,9 @@ function createTransferCard(hash) {
       await transferAction('torrent-remove', hash);
       refreshTransfers(true);
     }));
-  controls.append(control, remove);
+  const reannounce = button('Buscar pares novamente', 'secondary', event =>
+    actOnTransfer('torrent-reannounce', hash, event.currentTarget));
+  controls.append(control, reannounce, remove);
   foot.append(rates, controls);
   card.append(header, metrics, track, foot);
   return { card, update(item) {
@@ -82,7 +84,13 @@ function createTransferCard(hash) {
     setText(bytes, storageSize(item.completed) + (item.size > 0 ? ' de ' + storageSize(item.size) : ''));
     fill.style.width = value + '%';
     track.setAttribute('aria-valuenow', value);
-    setText(rates, color === 'done' ? 'Disponível no PC' :
+    const waitingForPeers = /meta|stalledDL/i.test(item.state || '') && color === 'wait';
+    const peers = Number.isInteger(item.seeds) && item.seeds >= 0 &&
+      Number.isInteger(item.leechers) && item.leechers >= 0 ? item.seeds + item.leechers : null;
+    const peerStatus = peers === 0 ? 'Nenhum par conectado' : peers === null ? '' :
+      peers.toLocaleString('pt-BR') + (peers === 1 ? ' par conectado' : ' pares conectados');
+    reannounce.hidden = !waitingForPeers;
+    setText(rates, waitingForPeers ? peerStatus : color === 'done' ? 'Disponível no PC' :
       (item.speed > 0 ? storageSize(item.speed) + '/s · ' + timeLeft(item.eta) : ''));
     const nextMode = color === 'done' ? 'torrent-files' : color === 'paused' ? 'torrent-resume' : 'torrent-pause';
     card.dataset.status = color;
@@ -167,6 +175,8 @@ async function actOnTransfer(name, hash, trigger, address) {
       picker.replaceChildren(...result.map(file => button(file.name + ' · ' + storageSize(file.size), 'secondary',
         event => actOnTransfer('torrent-play', hash, event.currentTarget, String(file.index)))));
       $('#torrent-files').showModal();
+    } else if (name === 'torrent-reannounce') {
+      setText($('#torrent-message'), 'O qBittorrent solicitou uma nova busca aos trackers.');
     } else if (name === 'torrent-add') {
       setText($('#torrent-message'), 'Link enviado ao qBittorrent.');
     }

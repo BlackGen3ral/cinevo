@@ -31,6 +31,12 @@ if(u.pathname==='/__numbered')return Response.json(await importCatalog(base,{val
  const metadata=page===1?'<script type="application/ld+json">'+JSON.stringify({'@type':'Movie',name:'Filme 1',url:'/filmes/1',description:'Sinopse'})+'</script>':'';
  return new Response('<title>Catálogo</title>'+metadata+card(page)+card(page+10)+'<nav class="wp-pagenavi"><a href="?page=4">4</a><a href="?page='+(page+1)+'">'+(page+1)+'</a></nav>',{headers:{'content-type':'text/html'}});
 }}));
+if(u.pathname==='/__quality'){
+ const a='magnet:?xt=urn:btih:'+'b'.repeat(40)+'&amp;dn=Example%2E1080p%2EHEVC&amp;tr=udp%3A%2F%2Ftracker.example.org';
+ const b='magnet:?xt=urn:btih:'+'c'.repeat(40)+'&amp;dn=Example';
+ const c='magnet:?xt=urn:btih:'+'d'.repeat(40)+'&amp;dn=Example.720p';
+ return Response.json(await downloadOptions('<a href="'+a+'">Torrent</a><a href="'+b+'"></a><a href="'+c+'" title="4K">Baixar</a><a href="/categoria/1080p/">1080p</a><a href="/files/test.mp4" download>480p</a>',base));
+}
 if(u.pathname==='/__options')return Response.json(await downloadOptions('<a href="magnet:?xt=urn:btih:'+'a'.repeat(40)+'&amp;dn=Demo">1080p | 4.50 GB | Dual Áudio</a><a href="/demo.mp4" download>720p</a><a href="/filmes/other">Outro filme</a>',base));
 `;
 const mf=new Miniflare({compatibilityDate:'2026-07-30',modules:[{type:'ESModule',path:'harness.mjs',contents:harness+handler.replace('return worker.fetch(request,env);',checks+'return worker.fetch(request,u.pathname==="/api/downloads"?{}:env);')},{type:'ESModule',path:'worker.mjs',contents:entry},{type:'ESModule',path:'importer.mjs',contents:await readFile(new URL('../importer.mjs',import.meta.url),'utf8')}],bindings:{AUTH_HASH:createHash('sha256').update(key).digest('hex')},d1Databases:{DB:'test-db'}});
@@ -129,4 +135,10 @@ test('download lookup works with no database binding and requires a session',asy
  assert.deepEqual((await response.json()).options,[{url:'https://media.example.org/example.mp4',label:'Baixar vídeo',kind:'file'}]);
  const privateUrl=await mf.dispatchFetch(url,{...request,headers,body:JSON.stringify({url:'https://127.0.0.1/'})});
  assert.equal(privateUrl.status,400);
+});
+
+test('download quality uses the own magnet or link label and ignores category badges',async()=>{
+ const options=await(await mf.dispatchFetch('https://portal.test/__quality')).json();
+ assert.deepEqual(options.map(({kind,label})=>[kind,label]),[['torrent','1080p'],['torrent','Qualidade não informada'],['torrent','4K'],['file','480p']]);
+ assert.match(options[0].url,/&dn=Example%2E1080p%2EHEVC&tr=udp%3A%2F%2Ftracker\.example\.org$/);
 });

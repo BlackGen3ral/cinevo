@@ -177,7 +177,7 @@ public partial class MainWindow
             {
                 configured = true,
                 transfers = transfers.Where(item => TorrentClient.IsHash(item.Hash)).Select(item =>
-                    new { item.Hash, item.Name, item.Progress, item.Size, item.Completed, item.Speed, item.Eta, item.State })
+                    new { item.Hash, item.Name, item.Progress, item.Size, item.Completed, item.Speed, item.Eta, item.State, item.Seeds, item.Leechers })
             };
         }
         if (command.Name == "torrent-add")
@@ -189,6 +189,9 @@ public partial class MainWindow
         var hash = command.Id!.ToLowerInvariant();
         switch (command.Name)
         {
+            case "torrent-reannounce":
+                await GetTorrentClient().ReannounceAsync(hash, lifetime.Token);
+                return null;
             case "torrent-remove":
                 await GetTorrentClient().RemoveAsync(hash, lifetime.Token);
                 return null;

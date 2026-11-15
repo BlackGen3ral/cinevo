@@ -23,7 +23,9 @@ internal sealed record TorrentConnection(int Port, string Username, string Passw
 
 internal sealed record TorrentTransfer(string Hash, string Name, double Progress, long Size, long Completed,
     [property: JsonPropertyName("dlspeed")] long Speed, long Eta, string State,
-    [property: JsonPropertyName("save_path")] string SavePath);
+    [property: JsonPropertyName("save_path")] string SavePath,
+    [property: JsonPropertyName("num_seeds")] int Seeds = -1,
+    [property: JsonPropertyName("num_leechs")] int Leechers = -1);
 
 internal sealed record TorrentFile(int Index, string Name, double Progress, int Priority, long Size);
 
@@ -152,6 +154,10 @@ internal sealed class TorrentClient : IDisposable
     public Task SetRunningAsync(string hash, bool start, CancellationToken token) =>
         SendAsync(start ? "torrents/start" : "torrents/stop", token,
             () => new FormUrlEncodedContent(new Dictionary<string,string> { ["hashes"] = hash }), start ? "torrents/resume" : "torrents/pause");
+
+    public Task ReannounceAsync(string hash, CancellationToken token) =>
+        SendAsync("torrents/reannounce", token,
+            () => new FormUrlEncodedContent(new Dictionary<string, string> { ["hashes"] = hash }));
 
     public Task RemoveAsync(string hash, CancellationToken token) =>
         SendAsync("torrents/delete", token, () => new FormUrlEncodedContent(new Dictionary<string, string>

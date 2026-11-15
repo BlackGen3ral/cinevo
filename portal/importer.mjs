@@ -36,6 +36,12 @@ function entities(value){return value.replace(/&amp;/gi,'&').replace(/&quot;/gi,
 function safe(value,base){if(typeof value!=='string'||!value.trim())return '';try{return publicUrl(entities(value),base).href;}catch{return '';}}
 function clean(value,max=800){return typeof value==='string'?entities(value.replace(/<[^>]*>/g,' ')).replace(/\s+/g,' ').trim().slice(0,max):'';}
 export function mediaUrl(value,base){const url=safe(value,base);return url&&/\.(mp4|mkv|webm|mov|m4v|avi|m3u8|mpd)$/i.test(new URL(url).pathname)?url:'';}
+function downloadQuality(value) {
+ const quality = value.match(/(?:^|[^a-z0-9])((?:4320|2160|1440|1080|720|576|480|360)[pi]|[48]k|full[- ._]?hd)(?=[^a-z0-9]|$)/i)?.[1];
+ if (!quality) return '';
+ if (/^full/i.test(quality)) return 'Full HD';
+ return /k$/i.test(quality) ? quality.toUpperCase() : quality.toLowerCase();
+}
 export async function downloadOptions(html, url, Rewriter = HTMLRewriter) {
  const options = new Map();
  let current;
@@ -52,11 +58,17 @@ export async function downloadOptions(html, url, Rewriter = HTMLRewriter) {
    current = entry;
    element.onEndTag(() => {
     if (current === entry) current = undefined;
-    const name = clean(entry.text, 160) || clean(label, 160);
+    let name = clean(entry.text, 160) || clean(label, 160);
+    const path = magnet ? '' : new URL(address).pathname;
     const offered = explicit || /\b(?:download|baixar|\d{3,4}p)\b/i.test(name);
-    if (!magnet && !offered) return;
-    const direct = !magnet && !!mediaUrl(address, url) && !/\.(?:m3u8|mpd)$/i.test(new URL(address).pathname);
-    if (options.size < 20) options.set(address, { url: address, label: name || (magnet ? 'Torrent' : 'Baixar arquivo'), kind: magnet ? 'torrent' : direct ? 'file' : 'link' });
+    if (!magnet && (!offered || (!explicit && /^\/(?:categoria|category|tag|genre|genero|qualidade|quality)\//i.test(path)))) return;
+    if (magnet && !downloadQuality(name)) {
+     const displayName = new URLSearchParams(address.slice(address.indexOf('?') + 1)).get('dn') || '';
+     const quality = downloadQuality(label) || downloadQuality(displayName);
+     if (quality) name = !name || /^(?:🧲\s*)?(?:torrent|baixar|download)?$/iu.test(name) ? quality : quality + ' · ' + name;
+    }
+    const direct = !magnet && !!mediaUrl(address, url) && !/\.(?:m3u8|mpd)$/i.test(path);
+    if (options.size < 20) options.set(address, { url: address, label: name || (magnet ? 'Qualidade não informada' : 'Baixar arquivo'), kind: magnet ? 'torrent' : direct ? 'file' : 'link' });
    });
   },
   text(part) { if (current && current.text.length < 300) current.text += part.text; }
