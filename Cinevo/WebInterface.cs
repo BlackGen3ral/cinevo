@@ -57,6 +57,10 @@ public partial class MainWindow
             // the window to an existing process and exit before Cinevo can track it.
             var sessions = Path.GetFullPath(Path.Combine(Library.DataDirectory, "web-sessions"));
             var profile = Path.Combine(sessions, Guid.NewGuid().ToString("N"));
+            var preferences = Directory.CreateDirectory(Path.Combine(profile, "Default"));
+            await File.WriteAllTextAsync(Path.Combine(preferences.FullName, "Preferences"),
+                """{"translate":{"enabled":false}}""", lifetime.Token);
+            if (closed) return;
             web.PrepareWindow();
             var launch = new ProcessStartInfo(browser) { UseShellExecute = false };
             launch.ArgumentList.Add("--app=" + web.Address);
