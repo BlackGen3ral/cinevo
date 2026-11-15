@@ -275,7 +275,8 @@ public partial class MainWindow : Window
         if (updateInstaller == null) return false;
         try
         {
-            const string args = "/SP- /VERYSILENT /NORESTART /CLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /CinevoUpdate=1";
+            var args = "/SP- /VERYSILENT /NORESTART /CLOSEAPPLICATIONS /NORESTARTAPPLICATIONS /CinevoUpdate=1" +
+                $" /CinevoWaitPid={Environment.ProcessId}";
             using var process = Process.Start(new ProcessStartInfo(updateInstaller, args)
                 { UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden });
             if (process == null) throw new IOException("O instalador não abriu.");

@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.1.21"
+  #define AppVersion "0.1.22"
 #endif
 [Setup]
 AppId={{AEAD2361-3C54-45F4-BCE9-6D8D821D281C}
@@ -35,10 +35,35 @@ Source: "..\dist\app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs c
 Name: "{group}\Cinevo"; Filename: "{app}\Cinevo.exe"
 Name: "{autodesktop}\Cinevo"; Filename: "{app}\Cinevo.exe"; Tasks: desktopicon
 [Run]
-Filename: "{app}\Cinevo.exe"; Flags: nowait runasoriginaluser; Check: CinevoUpdate
+Filename: "{app}\Cinevo.exe"; Parameters: "--after-update"; Flags: nowait runasoriginaluser; Check: CinevoUpdate
 Filename: "{app}\Cinevo.exe"; Description: "Abrir o Cinevo"; Flags: nowait postinstall skipifsilent
 
 [Code]
+function OpenProcess(Access: LongWord; InheritHandle: Boolean; ProcessId: LongWord): THandle;
+  external 'OpenProcess@kernel32.dll stdcall';
+function WaitForSingleObject(Handle: THandle; Milliseconds: LongWord): LongWord;
+  external 'WaitForSingleObject@kernel32.dll stdcall';
+function CloseHandle(Handle: THandle): Boolean;
+  external 'CloseHandle@kernel32.dll stdcall';
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ProcessId: Integer;
+  ProcessHandle: THandle;
+begin
+  Result := '';
+  ProcessId := StrToIntDef(ExpandConstant('{param:CinevoWaitPid|0}'), 0);
+  if ProcessId <= 0 then Exit;
+  ProcessHandle := OpenProcess($00100000, False, ProcessId);
+  if ProcessHandle = 0 then Exit;
+  try
+    if WaitForSingleObject(ProcessHandle, 30000) <> 0 then
+      Result := 'O Cinevo ainda está encerrando. Feche o app e tente a atualização novamente.';
+  finally
+    CloseHandle(ProcessHandle);
+  end;
+end;
+
 function CinevoUpdate: Boolean;
 begin
   Result := ExpandConstant('{param:CinevoUpdate|0}') = '1';

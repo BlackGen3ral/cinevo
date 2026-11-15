@@ -1,8 +1,8 @@
-# Cinevo 0.1.21 · Beta
+# Cinevo 0.1.22 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.21-beta.22/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.22-beta.23/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -84,6 +84,8 @@ A versão instalada verifica a release mais recente do GitHub ao abrir. Se houve
 
 Ao abrir o Cinevo, o atualizador limpa os instaladores de versões já instaladas. Quando prepara uma atualização, guarda somente o instalador pendente.
 
+O instalador aguarda o processo do Cinevo encerrar antes de substituir os arquivos. Durante a instalação, novas aberturas do app são encerradas automaticamente, e o próprio instalador reabre o Cinevo ao terminar a atualização.
+
 Sem conexão, o catálogo continua funcionando. A primeira versão não tem certificado de assinatura de código; o Windows pode exibir uma mensagem de editor desconhecido. A verificação SHA-256 detecta corrupção do download, mas não substitui assinatura de código.
 
 ## Seus dados
@@ -98,7 +100,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.21-beta.22
+./scripts/build.ps1 -Version 0.1.22-beta.23
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.

@@ -7,6 +7,12 @@ public partial class App : Application
     private Mutex? instance;
     protected override void OnStartup(StartupEventArgs e)
     {
+        if (!e.Args.Contains("--after-update") && Mutex.TryOpenExisting("Cinevo.Setup", out var setup))
+        {
+            setup.Dispose();
+            Shutdown();
+            return;
+        }
         var testProfile = Environment.GetEnvironmentVariable("CINEVO_TEST_DATA");
         var suffix = string.IsNullOrEmpty(testProfile) ? "" : ".Test." + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(testProfile)))[..12];
         instance = new Mutex(true, "Local\\Cinevo.Desktop" + suffix, out var first);
