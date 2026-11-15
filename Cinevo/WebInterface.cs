@@ -232,9 +232,9 @@ public partial class MainWindow
                 PortalCoverCache.Touch(cache);
                 return cached;
             }
-            var connection = PortalService.LoadConnection();
-            if (connection == null) return null;
-            var image = await PortalService.FetchCoverAsync(connection, cover.Item2, lifetime.Token);
+            var image = await PortalService.FetchSourceCoverAsync(cover.Item3, lifetime.Token);
+            if (image == null && PortalService.LoadConnection() is { } connection)
+                image = await PortalService.FetchCoverAsync(connection, cover.Item2, lifetime.Token);
             if (image != null) await PortalCoverCache.StoreAsync(cache, image, lifetime.Token);
             return image;
         }
@@ -289,7 +289,7 @@ public partial class MainWindow
                 .ThenByDescending(movie => movie.Added).Skip(offset).FirstOrDefault();
             return movie == null ? null : WebMovie(movie);
         }
-        if (command.Name is "download-options" or "download-source")
+        if (command.Name is "download-options" or "download-source" or "download-resolve")
         {
             if (command.Id == null || !webMovies.TryGetValue(command.Id, out var movie) || !library.Movies.Contains(movie) || !movie.IsOnline)
                 throw new InvalidDataException("Título indisponível.");
@@ -306,10 +306,12 @@ public partial class MainWindow
             if (RemoteFiles.IsPublicHttps(movie.DownloadUrl) && !options.Any(option => option.Url == movie.DownloadUrl))
                 options.Insert(0, new PortalDownload(movie.DownloadUrl, "Baixar no PC", "file"));
             options = options.Where(option => option.Kind == "torrent" ? TorrentClient.IsMagnet(option.Url) :
-                option.Kind is "file" or "link" && RemoteFiles.IsPublicHttps(option.Url)).ToList();
+                option.Kind is "file" or "link" or "resolve" && RemoteFiles.IsPublicHttps(option.Url)).ToList();
             if (command.Name == "download-options") return options;
             var selected = options.Find(option => option.Url == command.Address && option.Kind != "torrent")
                 ?? throw new InvalidDataException("A opção escolhida não está mais disponível.");
+            if (selected.Kind == "resolve") selected = await DynamicDownloads.ResolveAsync(movie.SourceUrl, selected, lifetime.Token);
+            if (command.Name == "download-resolve") return selected;
             if (selected.Kind == "file") RunWebDialog(() => DownloadMovie(movie, this, selected.Url));
             else using (Process.Start(new ProcessStartInfo(selected.Url) { UseShellExecute = true })) { }
             return null;

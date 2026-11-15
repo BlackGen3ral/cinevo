@@ -133,7 +133,9 @@ public static class PortalService
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
             response.EnsureSuccessStatusCode();
             var bytes = await RemoteFiles.ReadBoundedAsync(response, 128 * 1024, token);
-            return JsonSerializer.Deserialize<PortalDownloads>(bytes, JsonOptions)?.Options ?? [];
+            var options = JsonSerializer.Deserialize<PortalDownloads>(bytes, JsonOptions)?.Options ?? [];
+            return options.Count == 0 && RemoteFiles.IsPublicHttps(sourceUrl)
+                ? await SourceDownloads.LoadAsync(sourceUrl, token) : options;
         }
         catch (Exception ex) when (!token.IsCancellationRequested && RemoteFiles.IsPublicHttps(sourceUrl) &&
             ex is HttpRequestException or IOException or JsonException or OperationCanceledException)
@@ -142,6 +144,23 @@ public static class PortalService
         }
     }
     private static readonly HttpClient PortalCovers = new(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
+
+    internal static async Task<byte[]?> FetchSourceCoverAsync(string url, CancellationToken token)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(12));
+        for (var redirect = 0; redirect < 5; redirect++)
+        {
+            await RemoteFiles.ValidateAsync(url, timeout.Token);
+            using var response = await PortalCovers.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+            if ((int)response.StatusCode is 301 or 302 or 303 or 307 or 308 && response.Headers.Location != null)
+            { url = new Uri(new Uri(url), response.Headers.Location).AbsoluteUri; continue; }
+            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentType?.MediaType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) != true) return null;
+            var bytes = await RemoteFiles.ReadBoundedAsync(response, 5 * 1024 * 1024, timeout.Token);
+            return RemoteFiles.IsImage(bytes) ? bytes : null;
+        }
+        return null;
+    }
 
     internal static async Task<byte[]?> FetchCoverAsync(PortalConnection connection, string itemId, CancellationToken token)
     {

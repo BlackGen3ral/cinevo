@@ -17,6 +17,7 @@ internal static class SourceDownloads
     internal static List<PortalDownload> Parse(string html, Uri origin)
     {
         var result = new Dictionary<string, PortalDownload>(StringComparer.Ordinal);
+        foreach (var option in DynamicDownloads.Parse(html, origin)) result.TryAdd(option.Url, option);
         html = Regex.Replace(html, @"<!--.*?-->|<(script|style)\b[^>]*>.*?</\1\s*>", "", RegexOptions.IgnoreCase | RegexOptions.Singleline, RegexTimeout);
         foreach (Match anchor in Anchors.Matches(html))
         {
@@ -56,6 +57,12 @@ internal static class SourceDownloads
 
     internal static async Task<List<PortalDownload>> LoadAsync(string source, CancellationToken token)
     {
+        var page = await ReadPageAsync(source, token);
+        return Parse(page.Html, page.Url);
+    }
+
+    internal static async Task<(string Html, Uri Url)> ReadPageAsync(string source, CancellationToken token)
+    {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(TimeSpan.FromSeconds(25));
         using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
@@ -76,12 +83,12 @@ internal static class SourceDownloads
                 if (!response.IsSuccessStatusCode)
                     throw new InvalidDataException($"A página de origem recusou a consulta (HTTP {(int)response.StatusCode}). Abra a origem para conferir o acesso.");
                 var type = response.Content.Headers.ContentType?.MediaType;
-                if (type is not ("text/html" or "application/xhtml+xml")) return [];
+                if (type is not ("text/html" or "application/xhtml+xml")) return ("", new Uri(current));
                 var bytes = await RemoteFiles.ReadBoundedAsync(response, 2 * 1024 * 1024, timeout.Token);
                 var encoding = Encoding.UTF8;
                 try { if (response.Content.Headers.ContentType?.CharSet is { } charset) encoding = Encoding.GetEncoding(charset.Trim('"')); }
                 catch (ArgumentException) { }
-                return Parse(encoding.GetString(bytes), new Uri(current));
+                return (encoding.GetString(bytes), new Uri(current));
             }
             throw new InvalidDataException("A origem redirecionou a consulta muitas vezes.");
         }

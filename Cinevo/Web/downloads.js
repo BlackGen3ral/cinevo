@@ -250,14 +250,17 @@ async function showSourceDownloads(movie, trigger) {
       choices.append(button(label, 'secondary', async event => {
         const selected = event.currentTarget;
         selected.disabled = true;
+        let torrentSelected = option.kind === 'torrent';
         setText(message, '');
         choices.querySelector('.source-connection')?.remove();
         try {
-          if (option.kind !== 'torrent') {
+          const resolved = option.kind === 'resolve' ? await transferAction('download-resolve', movie.id, option.url) : option;
+          torrentSelected = resolved.kind === 'torrent';
+          if (resolved.kind !== 'torrent') {
             await transferAction('download-source', movie.id, option.url);
             return;
           }
-          await transferAction('torrent-add', movie.id, option.url, sourceFolder.value);
+          await transferAction('torrent-add', movie.id, resolved.url, sourceFolder.value);
           if (choices.isConnected && $('#details').open) {
             $('#details').close();
             changeSection('downloads');
@@ -265,7 +268,7 @@ async function showSourceDownloads(movie, trigger) {
           }
         } catch (error) {
           setText(message, error.message);
-          if (option.kind === 'torrent') {
+          if (torrentSelected) {
             const actions = node('div', 'actions source-connection');
             const open = button('Abrir qBittorrent', 'secondary', async () => {
               open.disabled = true;
