@@ -300,7 +300,7 @@ public partial class MainWindow
                 if (!RemoteFiles.IsPublicHttps(movie.DownloadUrl))
                     throw new InvalidDataException(ex is System.Net.Http.HttpRequestException { StatusCode: System.Net.HttpStatusCode.NotFound }
                         ? "O título não está mais na coleção do portal. Importe o endereço novamente ou abra a página original."
-                        : "A consulta de downloads falhou. Tente novamente ou abra a página original.");
+                        : ex is InvalidDataException ? ex.Message : "A consulta de downloads falhou. Tente novamente ou abra a página original.");
                 options = [];
             }
             if (RemoteFiles.IsPublicHttps(movie.DownloadUrl) && !options.Any(option => option.Url == movie.DownloadUrl))

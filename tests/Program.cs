@@ -1,4 +1,5 @@
 using Cinevo;
+SourceDownloadTests.Run();
 if(args.Length==3&&args[0]=="--live-portal"){await LivePortalCheck.Run(args[1],args[2]);return;}
 if(args.Length==2&&args[0]=="--connect-portal"){PortalService.SaveConnection(PortalService.ReadPairing(args[1]));Console.WriteLine("Conexão privada configurada e protegida pelo Windows.");return;}
 if (args.Length == 3 && args[0] == "--live-covers") { await LiveCoverCheck.Run(args[1], args[2]); return; }

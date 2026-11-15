@@ -102,19 +102,27 @@ public static class PortalService
     }
     public static async Task<List<PortalDownload>> GetDownloadsAsync(string itemId, string sourceUrl, CancellationToken token)
     {
-        if (itemId.Length != 64 || !itemId.All(Uri.IsHexDigit)) return [];
-        var connection = await GetOrCreateConnectionAsync(token);
-        using var http = Client(connection);
-        using var request = RemoteFiles.IsPublicHttps(sourceUrl)
-            ? new HttpRequestMessage(HttpMethod.Post, "/api/downloads")
-            {
-                Content = new StringContent(JsonSerializer.Serialize(new { url = sourceUrl }), Encoding.UTF8, "application/json")
-            }
-            : new HttpRequestMessage(HttpMethod.Get, $"/api/items/{itemId}/downloads");
-        using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
-        response.EnsureSuccessStatusCode();
-        var bytes = await RemoteFiles.ReadBoundedAsync(response, 128 * 1024, token);
-        return JsonSerializer.Deserialize<PortalDownloads>(bytes, JsonOptions)?.Options ?? [];
+        if (!RemoteFiles.IsPublicHttps(sourceUrl) && (itemId.Length != 64 || !itemId.All(Uri.IsHexDigit))) return [];
+        try
+        {
+            var connection = await GetOrCreateConnectionAsync(token);
+            using var http = Client(connection);
+            using var request = RemoteFiles.IsPublicHttps(sourceUrl)
+                ? new HttpRequestMessage(HttpMethod.Post, "/api/downloads")
+                {
+                    Content = new StringContent(JsonSerializer.Serialize(new { url = sourceUrl }), Encoding.UTF8, "application/json")
+                }
+                : new HttpRequestMessage(HttpMethod.Get, $"/api/items/{itemId}/downloads");
+            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
+            response.EnsureSuccessStatusCode();
+            var bytes = await RemoteFiles.ReadBoundedAsync(response, 128 * 1024, token);
+            return JsonSerializer.Deserialize<PortalDownloads>(bytes, JsonOptions)?.Options ?? [];
+        }
+        catch (Exception ex) when (!token.IsCancellationRequested && RemoteFiles.IsPublicHttps(sourceUrl) &&
+            ex is HttpRequestException or IOException or JsonException or OperationCanceledException)
+        {
+            return await SourceDownloads.LoadAsync(sourceUrl, token);
+        }
     }
     private static readonly HttpClient PortalCovers = new(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
 

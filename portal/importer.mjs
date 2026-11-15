@@ -45,7 +45,7 @@ function downloadQuality(value) {
 export async function downloadOptions(html, url, Rewriter = HTMLRewriter) {
  const options = new Map();
  let current;
- const parser = new Rewriter().on('a[href]', {
+ const parser = new Rewriter().on('script,style', {element(element){element.remove();}}).on('a[href]', {
   element(element) {
    const href = entities(element.getAttribute('href') || '');
    if (!href) return;
@@ -73,7 +73,7 @@ export async function downloadOptions(html, url, Rewriter = HTMLRewriter) {
   },
   text(part) { if (current && current.text.length < 300) current.text += part.text; }
  });
- await parser.transform(new Response(html)).text();
+ await parser.transform(html instanceof Response ? html : new Response(html)).text();
  return [...options.values()];
 }
 
@@ -336,5 +336,13 @@ export async function loadDownloads(value,options = {}) {
   await response.body?.cancel();
   return [];
  }
- return downloadOptions(await boundedText(response),url.href,options.Rewriter);
+ const max=2*1024*1024;
+ if(Number(response.headers.get('content-length'))>max){await response.body?.cancel();throw new ImportError('A página é grande demais para consultar.',413);}
+ let received=0;
+ const body=response.body?.pipeThrough(new TransformStream({transform(chunk,controller){
+  received+=chunk.byteLength;
+  if(received>max)throw new ImportError('A página é grande demais para consultar.',413);
+  controller.enqueue(chunk);
+ }}));
+ return downloadOptions(new Response(body),url.href,options.Rewriter);
 }
