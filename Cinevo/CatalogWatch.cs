@@ -10,6 +10,7 @@ public sealed class CatalogSource
     public DateTime LastHeadCheckUtc { get; set; }
     public DateTime RetryAfterUtc { get; set; }
     public HashSet<string> Visited { get; set; } = [];
+    public int ImportRevision { get; set; }
 }
 
 public static class CatalogWatch
@@ -20,7 +21,7 @@ public static class CatalogWatch
         address = new UriBuilder(address) { Fragment = "" }.Uri.AbsoluteUri;
         var source = library.CatalogSources.FirstOrDefault(item => item.Address == address);
         if (source != null) return source;
-        source = new CatalogSource { Address = address };
+        source = new CatalogSource { Address = address, ImportRevision = 1 };
         library.CatalogSources.Add(source);
         return source;
     }
@@ -37,6 +38,13 @@ public static class CatalogWatch
                 .Where(part => !Regex.IsMatch(part, @"^(?:page|paged)=\d+$", RegexOptions.IgnoreCase)));
             Register(library, url.Uri.AbsoluteUri);
         }
+        foreach (var source in library.CatalogSources.Where(source => source.ImportRevision < 1))
+        {
+            source.Next = "";
+            source.Visited.Clear();
+            source.LastCompletedUtc = source.LastHeadCheckUtc = source.RetryAfterUtc = default;
+            source.ImportRevision = 1;
+        }
     }
 
     public static bool IsDue(CatalogSource source, DateTime now) => source.RetryAfterUtc <= now &&
@@ -52,7 +60,8 @@ public static class CatalogWatch
         token.ThrowIfCancellationRequested();
         if (batch.Partial.Length > 0)
         {
-            // Retry this batch after a temporary failure, keeping earlier pages.
+            if (batch.Count > 0 && RemoteFiles.IsPublicHttps(batch.Next) && !source.Visited.Contains(batch.Next))
+                source.Next = batch.Next;
             source.RetryAfterUtc = now.AddMinutes(5);
             return;
         }

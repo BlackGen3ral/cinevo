@@ -37,11 +37,11 @@ internal static class CatalogWatchTests
         if (longCatalog.Next != "https://example.org/page/5/") throw new Exception("A busca de novidades perdeu a paginação anterior.");
         await CatalogWatch.AdvanceAsync(source, (address, continuation, token) =>
             Task.FromResult(new PortalImportBatch(3, "https://example.org/page/7/", "", "Site indisponível")), now, CancellationToken.None);
-        if (source.Next != "https://example.org/page/5/" || CatalogWatch.IsDue(source, now.AddMinutes(4)))
+        if (source.Next != "https://example.org/page/7/" || CatalogWatch.IsDue(source, now.AddMinutes(4)))
             throw new Exception("Uma página bloqueada precisa ser repetida depois, sem perder o cursor.");
         await CatalogWatch.AdvanceAsync(source, (address, continuation, token) =>
         {
-            if (address != "https://example.org/page/5/" || !continuation) throw new Exception("A continuação foi perdida.");
+            if (address != "https://example.org/page/7/" || !continuation) throw new Exception("A continuação foi perdida.");
             return Task.FromResult(new PortalImportBatch(10, "", "", ""));
         }, now.AddMinutes(5), CancellationToken.None);
         if (CatalogWatch.IsDue(source, now.AddMinutes(34)) || !CatalogWatch.IsDue(source, now.AddMinutes(35)) || source.Next.Length > 0)
@@ -49,6 +49,11 @@ internal static class CatalogWatchTests
         await CatalogWatch.AdvanceAsync(source, (address, continuation, token) =>
             Task.FromResult(new PortalImportBatch(2, source.Address, "", "")), now.AddMinutes(35), CancellationToken.None);
         if (source.Next.Length > 0) throw new Exception("Paginação circular não foi encerrada.");
+        source.ImportRevision = 0;
+        source.Next = "https://example.org/page/53/";
+        CatalogWatch.Discover(library);
+        if (source.Next.Length > 0 || source.ImportRevision != 1 || !CatalogWatch.IsDue(source, now))
+            throw new Exception("Fontes antigas devem recomeçar com a leitura completa do catálogo.");
         Console.WriteLine("PASS: catálogos antigos, atualização periódica, paginação persistente e repetição após falha.");
     }
 }

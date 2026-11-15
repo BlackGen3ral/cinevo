@@ -33,18 +33,24 @@ export default {async fetch(request,env){
   if(url.pathname==='/api/import'&&request.method==='POST'){
    const text=await boundedText(request,8192);let data;try{data=JSON.parse(text);}catch{throw new ImportError('Endereço inválido.');}
    if(typeof data.url!=='string'||data.url.length>4000)throw new ImportError('Cole o endereço da página.');
-   const {items:imported,next,partial}=await importCatalog(data.url,{catalogPage:data.continuation===true});
+   const {items:imported,next,partial,total}=await importCatalog(data.url,{catalogPage:data.continuation===true});
    const statements=[];
    for(const item of imported){
-    const key=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(owner+'|'+item.sourceUrl+'|'+item.title.toLowerCase()));const id=[...new Uint8Array(key)].map(b=>b.toString(16).padStart(2,'0')).join('');
-    const available = Object.fromEntries(Object.entries(item).filter(([, value]) => value !== '' && value != null));
-    statements.push(env.DB.prepare('INSERT INTO catalog_items(id,owner_hash,source_url,title,data,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT DO UPDATE SET data=json_patch(catalog_items.data, excluded.data)').bind(id,owner,item.sourceUrl,item.title,JSON.stringify(available),new Date().toISOString()));
+    const identity = item.canonicalSource ? item.sourceUrl : item.sourceUrl+'|'+item.title.toLowerCase();
+    const key=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(owner+'|'+identity));const id=[...new Uint8Array(key)].map(b=>b.toString(16).padStart(2,'0')).join('');
+    const available = Object.fromEntries(Object.entries(item).filter(([name, value]) => name !== 'canonicalSource' && value !== '' && value != null));
+    if (item.canonicalSource) available.catalogSource = 'wordpress';
+    statements.push(env.DB.prepare(`INSERT INTO catalog_items(id,owner_hash,source_url,title,data,created_at)
+      VALUES(COALESCE((SELECT id FROM catalog_items WHERE owner_hash=? AND source_url=?
+        AND (?=1 OR json_extract(data,'$.catalogSource')='wordpress') ORDER BY created_at,id LIMIT 1),?),?,?,?,?,?)
+      ON CONFLICT DO UPDATE SET data=json_patch(catalog_items.data, excluded.data)`)
+      .bind(owner,item.sourceUrl,item.canonicalSource?1:0,id,owner,item.sourceUrl,item.title,JSON.stringify(available),new Date().toISOString()));
    }
    for(let start=0;start<statements.length;start+=40) await env.DB.batch(statements.slice(start,start+40));
    const count = imported.length;
    const savedLink = count === 1 && imported[0].linkOnly;
    const message = savedLink?'Salvamos o link da página. Nenhum filme foi identificado. Tente o endereço de um filme específico.':`${count} ${count===1?'título processado':'títulos processados'}.`;
-   return json({count,next,message,partial});
+   return json({count,next,message,partial,total});
   }
   const match=url.pathname.match(/^\/api\/items\/([a-f0-9]{64})(\/cover|\/downloads)?$/);
   if(match&&request.method==='DELETE'&&!match[2]){await env.DB.prepare('DELETE FROM catalog_items WHERE id=? AND owner_hash=?').bind(match[1],owner).run();return json({ok:true});}

@@ -1,7 +1,19 @@
 import {test,after} from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import {createHash} from 'node:crypto';import {Miniflare} from 'miniflare';
 const key='b'.repeat(64);const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
-const entry=(await readFile(new URL('../worker.mjs',import.meta.url),'utf8')).replace("import html from './index.html';",'const html='+JSON.stringify(html)+';');
-const harness=`import worker from './worker.mjs';import {parsePage,importAddress,publicUrl,publicIp,fetchPublic,importCatalog,downloadOptions} from './importer.mjs';
+const fixture=`
+export async function fixtureFetch(address) {
+ const url=new URL(address);
+ if(url.pathname==='/') return new Response('<link rel="https://api.w.org/" href="/wp-json/"><title>Catalog</title>',{headers:{'content-type':'text/html'}});
+ const page=Number(url.searchParams.get('page')||1);
+ return Response.json([0,1].map(index=>({id:page*10+index,link:'https://wp.example.org/film-'+(page*10+index),
+  title:{rendered:'Filme &#8211; '+(page*10+index)+' (2024)'},excerpt:{rendered:'<p>Sinopse pública.</p>'},
+  _embedded:{'wp:featuredmedia':[{source_url:'https://wp.example.org/capa.jpg'}]}})),{headers:{'X-WP-TotalPages':'5','X-WP-Total':'10'}});
+}
+`;
+const entry=(await readFile(new URL('../worker.mjs',import.meta.url),'utf8'))
+ .replace("import html from './index.html';",'const html='+JSON.stringify(html)+';')
+ .replace('await importCatalog(data.url,{catalogPage:data.continuation===true})','await importCatalog(data.url,{catalogPage:data.continuation===true,validate:async()=>{},fetcher:fixtureFetch})')+fixture;
+const harness=`import worker,{fixtureFetch} from './worker.mjs';import {parsePage,importAddress,publicUrl,publicIp,fetchPublic,importCatalog,downloadOptions} from './importer.mjs';
 const card=(n)=>'<a href="/filmes/'+n+'"><img src="/'+n+'.jpg" alt="Filme '+n+'"></a>';
 const catalog=async address=>{const page=Number(new URL(address).searchParams.get('page')||1);const html='<title>Catálogo</title>'+card(page)+(page<6?'<a rel="next" href="?page='+(page+1)+'">Próximo</a>':'');return new Response(html,{headers:{'content-type':'text/html'}});};
 const base='https://catalog.example.org/filmes';
@@ -9,6 +21,7 @@ const base='https://catalog.example.org/filmes';
 const handler=`
 export default{async fetch(request,env){const u=new URL(request.url);if(u.pathname==='/__parse'){const p=await request.json();return Response.json(await parsePage(p.html,p.url));}if(u.pathname==='/__direct'){return Response.json(await importAddress('https://media.w3.org/test.mp4',{validate:async()=>{},fetcher:async()=>new Response('video',{headers:{'Content-Type':'video/mp4'}})}));}if(u.pathname==='/__blocked'){try{await fetchPublic('https://example.org/start',{validate:async()=>{},fetcher:async()=>new Response(null,{status:302,headers:{location:'https://127.0.0.1/admin'}})});return new Response('FAIL');}catch{return new Response('BLOCKED');}}return worker.fetch(request,env);}};`;
 const checks=`
+if(u.pathname==='/__wp')return Response.json(await importCatalog(u.searchParams.has('more')?'https://wp.example.org/wp-json/wp/v2/posts?page=5':'https://wp.example.org/',{validate:async()=>{},fetcher:fixtureFetch}));
 if(u.pathname==='/__catalog')return Response.json(await importCatalog(u.searchParams.has('more')?base+'?page=5':base,{catalogPage:u.searchParams.has('more'),validate:async()=>{},fetcher:catalog}));
 if(u.pathname==='/__numbered')return Response.json(await importCatalog(base,{validate:async()=>{},fetcher:async address=>{
  const page=Number(new URL(address).searchParams.get('page')||1);
@@ -74,3 +87,33 @@ test('catalog is durable, removable and does not store credentials',async()=>{co
 test('static site headers and missing route',async()=>{const response=await mf.dispatchFetch('https://portal.test/');assert.equal(response.status,200);assert.ok(response.headers.get('Content-Security-Policy').includes("frame-ancestors 'none'"));assert.equal((await mf.dispatchFetch('https://portal.test/missing')).status,404);});
 test('no access-key screen; automatic HttpOnly session isolates browsers',async()=>{const page=await mf.dispatchFetch('https://portal.test/');const cookie=page.headers.get('set-cookie');assert.ok(cookie.includes('HttpOnly'));assert.ok(!(await page.text()).includes('id="login"'));const result=await mf.dispatchFetch('https://portal.test/api/items',{headers:{Cookie:cookie.split(';')[0]}});assert.equal(result.status,200);const owner=createHash('sha256').update(key).digest('hex');await db.prepare('INSERT OR IGNORE INTO catalog_items(id,owner_hash,source_url,title,data,created_at) VALUES(?,?,?,?,?,?)').bind('c'.repeat(64),owner,'https://media.w3.org/private','Private',JSON.stringify({title:'Private'}),'2026-11-14').run();const own=await(await mf.dispatchFetch('https://portal.test/api/items',{headers})).json();assert.ok(own.items.some(i=>i.title==='Private'));const other=await(await mf.dispatchFetch('https://portal.test/api/items',{headers:{Cookie:cookie.split(';')[0]}})).json();assert.ok(!other.items.some(i=>i.title==='Private'));const denied=await mf.dispatchFetch('https://portal.test/api/items/'+'c'.repeat(64),{method:'DELETE',headers:{Cookie:cookie.split(';')[0]}});assert.equal(denied.status,200);assert.ok(await db.prepare('SELECT id FROM catalog_items WHERE id=?').bind('c'.repeat(64)).first());});
 test('public URL and address validation',async()=>{const {publicUrl,publicIp}=await import('../importer.mjs');for(const url of ['http://example.org','https://127.1/','https://user:pass@example.org','https://intranet.local/','https://[::1]/','https://example.org:444/'])assert.throws(()=>publicUrl(url));for(const ip of ['127.0.0.1','10.0.0.1','169.254.1.1','192.168.1.1','::1','fc00::1','::ffff:127.0.0.1'])assert.equal(publicIp(ip),false);assert.equal(publicIp('1.1.1.1'),true);});
+
+test('WordPress public catalog follows every API page with title, cover and synopsis',async()=>{
+ const first=await(await mf.dispatchFetch('https://portal.test/__wp')).json();
+ assert.equal(first.items.length,8);
+ assert.equal(first.total,10);
+ assert.equal(first.items[0].title,'Filme – 10 (2024)');
+ assert.equal(first.items[0].description,'Sinopse pública.');
+ assert.equal(first.items[0].coverUrl,'https://wp.example.org/capa.jpg');
+ assert.equal(first.items[0].importedFrom,'https://wp.example.org/');
+ assert.equal(new URL(first.next).searchParams.get('page'),'5');
+ const last=await(await mf.dispatchFetch('https://portal.test/__wp?more')).json();
+ assert.equal(last.items.length,2);
+ assert.equal(last.next,'');
+});
+
+test('switching legacy catalog to WordPress preserves IDs and concurrent imports do not duplicate titles',async()=>{
+ const owner=createHash('sha256').update(key).digest('hex');
+ const id='e'.repeat(64),source='https://wp.example.org/film-10';
+ await db.prepare('INSERT INTO catalog_items(id,owner_hash,source_url,title,data,created_at) VALUES(?,?,?,?,?,?)')
+  .bind(id,owner,source,'Título antigo com qualidade',JSON.stringify({title:'Título antigo com qualidade',sourceUrl:source,downloadUrl:'https://wp.example.org/a.mp4'}),'2020-01-01').run();
+ const run=()=>mf.dispatchFetch('https://portal.test/api/import',{method:'POST',headers,body:JSON.stringify({url:'https://wp.example.org/'})});
+ const responses=await Promise.all([run(),run()]);
+ for(const response of responses)assert.equal(response.status,200);
+ const {results}=await db.prepare('SELECT id,data FROM catalog_items WHERE owner_hash=? AND source_url LIKE ?').bind(owner,'https://wp.example.org/%').all();
+ assert.equal(results.length,8);
+ const record=results.find(row=>row.id===id);
+ assert.ok(record);
+ assert.equal(JSON.parse(record.data).downloadUrl,'https://wp.example.org/a.mp4');
+ assert.equal(JSON.parse(record.data).catalogSource,'wordpress');
+});

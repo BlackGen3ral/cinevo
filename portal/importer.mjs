@@ -32,7 +32,7 @@ export async function boundedText(response,max=2*1024*1024){
  const reader=response.body?.getReader();if(!reader)return '';let total=0;const chunks=[];try{while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;if(total>max)throw new ImportError('A página é grande demais para importar.',413);chunks.push(value);}}finally{await reader.cancel();}
  const data=new Uint8Array(total);let offset=0;for(const c of chunks){data.set(c,offset);offset+=c.length;}return new TextDecoder().decode(data);
 }
-function entities(value){return value.replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&lt;/gi,'<').replace(/&gt;/gi,'>');}
+function entities(value){return value.replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/&nbsp;/gi,' ').replace(/&#(?:x([0-9a-f]+)|(\d+));/gi,(_,hex,decimal)=>{const point=parseInt(hex||decimal,hex?16:10);return point>0&&point<=0x10ffff?String.fromCodePoint(point):'';});}
 function safe(value,base){if(typeof value!=='string'||!value.trim())return '';try{return publicUrl(entities(value),base).href;}catch{return '';}}
 function clean(value,max=800){return typeof value==='string'?entities(value.replace(/<[^>]*>/g,' ')).replace(/\s+/g,' ').trim().slice(0,max):'';}
 export function mediaUrl(value,base){const url=safe(value,base);return url&&/\.(mp4|mkv|webm|mov|m4v|avi|m3u8|mpd)$/i.test(new URL(url).pathname)?url:'';}
@@ -209,16 +209,62 @@ function mergeItem(previous, item) {
   mediaType: item.mediaType || previous.mediaType, seriesTitle: item.seriesTitle || previous.seriesTitle,
   season: item.season ?? previous.season, episode: item.episode ?? previous.episode };
 }
+function wordpressPostsUrl(url) {
+ return /\/wp-json\/wp\/v2\/posts\/?$/.test(url.pathname) || url.searchParams.get('rest_route') === '/wp/v2/posts';
+}
+
+async function wordpressPage(response, url) {
+ let posts;
+ try { posts = JSON.parse(await boundedText(response)); }
+ catch { throw new ImportError('A listagem pública do site retornou dados inválidos.',422); }
+ if (!Array.isArray(posts)) throw new ImportError('Este endereço não contém uma listagem pública de filmes.',422);
+ const items = posts.map(post => {
+  const sourceUrl = safe(post.link, url);
+  if (!sourceUrl || new URL(sourceUrl).origin !== url.origin || !Number.isSafeInteger(post.id)) return null;
+  const title = clean(post.title?.rendered, 240);
+  if (!title) return null;
+  return {...classify({title, sourceUrl, description:clean(post.excerpt?.rendered),
+   year:title.match(/\(((?:19|20)\d{2})\)/)?.[1] || title.match(/\b((?:19|20)\d{2})\b/)?.[1] || '',
+   coverUrl:safe(post._embedded?.['wp:featuredmedia']?.[0]?.source_url,url),
+   importedFrom:url.origin+'/',streamUrl:'',downloadUrl:''}),canonicalSource:true};
+ }).filter(Boolean);
+ const page = Number(url.searchParams.get('page') || 1);
+ const pages = Number(response.headers.get('X-WP-TotalPages'));
+ const next = new URL(url);
+ next.searchParams.set('page',String(page+1));
+ return {items,next:Number.isSafeInteger(pages) && page < pages ? next.href : '',total:Number(response.headers.get('X-WP-Total')) || 0};
+}
+
 async function importPage(value,options={}){
  const initial=publicUrl(value);const {response,url}=await fetchPublic(initial.href,options);
  if(!response.ok){await response.body?.cancel();throw new ImportError(response.status===401||response.status===403?'O site exige acesso ou bloqueou a importação. Abra-o na origem.':'O site não respondeu com uma página disponível.',422);}
  const type=response.headers.get('content-type')||'';
+ if (wordpressPostsUrl(url) && /application\/json/.test(type)) return wordpressPage(response,url);
  if(type.startsWith('video/')||mediaUrl(url.href,url)&&!type.includes('html')){
   await response.body?.cancel();const isFile=!/\.(m3u8|mpd)$/i.test(url.pathname);
   return {items:[{title:clean(decodeURIComponent(url.pathname.split('/').pop()||url.hostname).replace(/\.[^.]+$/,'').replace(/[._]/g,' '),240),description:'Vídeo disponibilizado diretamente pela origem.',year:'',coverUrl:'',sourceUrl:url.href,streamUrl:url.href,downloadUrl:isFile?url.href:'',importedFrom:initial.href}],next:''};
  }
  if(!/text\/html|application\/xhtml/.test(type)){await response.body?.cancel();throw new ImportError('Este endereço não contém uma página de filme ou vídeo direto.',422);}
  const html=await boundedText(response);
+ if (url.pathname === '/' && !url.search) {
+  let api;
+  await new (options.Rewriter || HTMLRewriter)().on('link[rel="https://api.w.org/"]', {element(element) {
+   const address = safe(element.getAttribute('href'),url);
+   if (address && new URL(address).origin === url.origin) api = address;
+  }}).transform(new Response(html)).text();
+  if (api) {
+   const endpoint = new URL(api);
+   endpoint.pathname = endpoint.pathname.replace(/\/$/,'') + '/wp/v2/posts';
+   endpoint.search = new URLSearchParams({per_page:'50',page:'1',_embed:'wp:featuredmedia',_fields:'id,link,title,excerpt,_links,_embedded'}).toString();
+   try {
+    const feed = await fetchPublic(endpoint.href, options);
+    if (feed.response.ok && /application\/json/.test(feed.response.headers.get('content-type') || '')) {
+     const parsed = await wordpressPage(feed.response,feed.url);
+     if (parsed.items.length) return parsed;
+    } else await feed.response.body?.cancel();
+   } catch { /* Keep importing the visible catalog when the optional public API is unavailable. */ }
+  }
+ }
  const pagination = await nextCatalogPage(html, url.href, options.Rewriter);
  const items=await parsePage(html,url.href,options.Rewriter, options.catalogPage || !!pagination);
  if(!items.length)throw new ImportError('Não encontramos informações públicas nessa página. Sites que dependem de login ou carregamento por scripts podem não ser compatíveis.',422);
@@ -235,6 +281,7 @@ export async function importCatalog(value, options = {}) {
  const visited = new Set();
  let next = publicUrl(value).href;
  let partial = '';
+ let total = 0;
  while (next && !visited.has(next) && visited.size < 4) {
   const address = next;
   visited.add(address);
@@ -249,6 +296,7 @@ export async function importCatalog(value, options = {}) {
    partial = 'Nenhum título foi identificado nesta página do catálogo.';
    break;
   }
+  total = Math.max(total,page.total || 0);
   for (const item of page.items) {
    if (!item.linkOnly || visited.size === 1 && !page.next && !options.catalogPage) {
     const key = item.sourceUrl + '|' + item.title.toLowerCase();
@@ -262,7 +310,7 @@ export async function importCatalog(value, options = {}) {
   partial = 'O site repetiu uma página do catálogo.';
   next = '';
  }
- return {items:[...items.values()],next,partial};
+ return {items:[...items.values()],next,partial,total};
 }
 
 export async function loadDownloads(value,options = {}) {

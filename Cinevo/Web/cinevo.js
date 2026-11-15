@@ -705,18 +705,20 @@ async function runImport() {
   $('#resume-import').hidden = true;
   const progress = $('#import-status');
   let count = 0;
+  let total = 0;
   let syncNeeded = false;
   let message = '';
   try {
     while (importing.next && !importing.paused) {
       const address = importing.next;
-      progress.textContent = count ? count + ' títulos processados. Buscando próximas páginas…' : 'Buscando filmes no endereço…';
+      progress.textContent = count ? count + (total ? ' de ' + total : '') + ' títulos processados. Buscando próximas páginas…' : 'Buscando filmes no endereço…';
       const result = await (await request('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: 'import-batch', address, continuation: importing.continuation })
       })).json();
       count += result.count;
+      total = Math.max(total, result.total || 0);
       syncNeeded ||= !result.local && result.count > 0;
       importing.next = result.next || '';
       importing.continuation = true;
@@ -732,7 +734,6 @@ async function runImport() {
     if (importing.paused && importing.next) message = 'Importação pausada.';
   } catch (error) {
     message = error.message;
-    if (!importing.continuation) importing.next = '';
   } finally {
     $('#pause-import').hidden = true;
     if (count) {

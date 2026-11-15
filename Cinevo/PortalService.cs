@@ -31,7 +31,7 @@ public sealed class PortalFeed
 public sealed record PortalSyncResult(int Added, int Total);
 public sealed record PortalDownload(string Url, string Label, string Kind);
 public sealed record PortalDownloads(List<PortalDownload> Options);
-public sealed record PortalImportBatch(int Count, string Next, string Message, string Partial);
+public sealed record PortalImportBatch(int Count, string Next, string Message, string Partial, int Total = 0);
 public static class PortalService
 {
     public const string DefaultEndpoint = "https://cinevo-portal.arthurgabrielfera.workers.dev";
