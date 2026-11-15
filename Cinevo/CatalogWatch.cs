@@ -16,6 +16,15 @@ public sealed class CatalogSource
 
 public static class CatalogWatch
 {
+    public static string NormalizeImportAddress(string address)
+    {
+        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri) ||
+            !uri.AbsolutePath.TrimEnd('/').EndsWith("/wp-json/wp/v2/posts", StringComparison.Ordinal)) return address;
+        var parts = uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+        var unique = parts.GroupBy(part => part.Split('=', 2)[0], StringComparer.Ordinal).Select(group => group.Last());
+        return new UriBuilder(uri) { Query = string.Join("&", unique) }.Uri.AbsoluteUri;
+    }
+
     public static CatalogSource? Register(Library library, string address)
     {
         if (!RemoteFiles.IsPublicHttps(address) || TmdbClient.IsSiteUrl(address)) return null;

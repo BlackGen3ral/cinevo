@@ -316,7 +316,7 @@ public partial class MainWindow
         }
         if (command.Name == "import-batch")
         {
-            var address = command.Address ?? "";
+            var address = CatalogWatch.NormalizeImportAddress(command.Address ?? "");
             if (address.Length > 4000 || !RemoteFiles.IsPublicHttps(address))
                 throw new InvalidDataException("Cole um endereço HTTPS público completo.");
             if (webImporting) throw new InvalidDataException("Já existe uma importação em andamento.");

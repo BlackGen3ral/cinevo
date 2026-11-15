@@ -1,4 +1,4 @@
-param([string]$Version = '0.1.36-beta.37', [string]$InnoCompiler = '')
+param([string]$Version = '0.1.37-beta.38', [string]$InnoCompiler = '')
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 Push-Location $root

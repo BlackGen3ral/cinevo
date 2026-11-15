@@ -5,6 +5,14 @@ internal static class CatalogWatchTests
 {
     public static async Task Run()
     {
+        var legacy = "https://example.org/wp-json/wp/v2/posts?page=49" +
+            string.Concat(Enumerable.Repeat("&per_page=16&_embed=wp:featuredmedia&_fields=id,link,title", 100));
+        var normalized = CatalogWatch.NormalizeImportAddress(legacy);
+        if (normalized.Length > 300 || !normalized.Contains("page=49&") ||
+            normalized.Split("per_page=").Length != 2 || !normalized.Contains("per_page=16"))
+            throw new Exception("A continuação antiga deve manter a página e o tamanho do lote sem acumular parâmetros.");
+        if (CatalogWatch.NormalizeImportAddress("https://example.org/?tag=a&tag=b") != "https://example.org/?tag=a&tag=b")
+            throw new Exception("Parâmetros de endereços comuns devem ser preservados.");
         var now = DateTime.UtcNow;
         var library = new Library
         {

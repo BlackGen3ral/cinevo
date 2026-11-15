@@ -10,8 +10,16 @@ namespace Cinevo;
 
 public partial class MainWindow
 {
+    private static readonly HttpClient CatalogHttp = new(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false })
+    {
+        Timeout = Timeout.InfiniteTimeSpan,
+        DefaultRequestHeaders = { { "User-Agent", "Cinevo/" + Updater.CurrentVersion } }
+    };
+    private readonly Dictionary<string, (DateTime Saved, Dictionary<string, (string Cover, string Year)> Art)> catalogLayouts = new();
+
     private async Task<PortalImportBatch> ImportLocalCatalogAsync(string address, CancellationToken token)
     {
+        address = CatalogWatch.NormalizeImportAddress(address);
         var origin = new Uri(address);
         var api = new UriBuilder(origin) { Fragment = "" };
         var isApi = origin.AbsolutePath.TrimEnd('/').EndsWith("/wp-json/wp/v2/posts", StringComparison.Ordinal);
@@ -22,11 +30,15 @@ public partial class MainWindow
             var slug = origin.AbsolutePath.Trim('/');
             api.Query = page.Length > 0 ? "page=" + page : slug.Length > 0 ? "slug=" + Uri.EscapeDataString(slug) : "page=1";
         }
-        api.Query = api.Query.TrimStart('?') + "&per_page=16&_embed=wp:featuredmedia&_fields=id,link,title,excerpt,_links,_embedded";
+        var queryParts = api.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+        var requestedSize = queryParts.FirstOrDefault(part => part.StartsWith("per_page=", StringComparison.Ordinal))?[9..];
+        var pageSize = int.TryParse(requestedSize, out var savedSize) && savedSize is >= 1 and <= 100 ? savedSize : 100;
+        api.Query = string.Join("&", queryParts.Where(part => !part.StartsWith("per_page=") &&
+            !part.StartsWith("_embed=") && !part.StartsWith("_fields="))) +
+            $"&per_page={pageSize}&_embed=wp:featuredmedia&_fields=id,link,title,excerpt,_links,_embedded";
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(TimeSpan.FromSeconds(25));
-        using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("Cinevo/" + Updater.CurrentVersion);
+        var http = CatalogHttp;
         var current = api.Uri;
         for (var redirect = 0; redirect < 5; redirect++)
         {
@@ -47,10 +59,15 @@ public partial class MainWindow
             var pageQuery = current.Query.TrimStart('?').Split('&');
             var pageParameter = pageQuery.FirstOrDefault(part => part.StartsWith("page="))?[5..];
             var catalogPage = int.TryParse(pageParameter, out var catalogNumber) ? catalogNumber : 1;
-            var art = await ReadCatalogArtAsync(http, new Uri(origin, catalogPage > 1 ? "/page/" + catalogPage + "/" : "/"), timeout.Token);
+            var posts = json.RootElement.EnumerateArray().Where(post => post.ValueKind == JsonValueKind.Object).ToArray();
+            var existingSources = library.Movies.Select(movie => movie.SourceUrl).ToHashSet(StringComparer.Ordinal);
+            var needsArt = posts.Any(post => post.TryGetProperty("link", out var link) && link.ValueKind == JsonValueKind.String &&
+                !existingSources.Contains(link.GetString()!) && (!post.TryGetProperty("_embedded", out var embedded) ||
+                !embedded.TryGetProperty("wp:featuredmedia", out var images) || images.ValueKind != JsonValueKind.Array || images.GetArrayLength() == 0));
+            var art = needsArt ? await ReadBatchArtAsync(http, origin, catalogPage, pageSize, timeout.Token) : [];
             var added = new List<Movie>();
             var count = 0;
-            foreach (var post in json.RootElement.EnumerateArray())
+            foreach (var post in posts)
             {
                 if (!post.TryGetProperty("link", out var link) || link.ValueKind != JsonValueKind.String ||
                     !Uri.TryCreate(link.GetString(), UriKind.Absolute, out var source) || source.Host != origin.Host ||
@@ -59,7 +76,7 @@ public partial class MainWindow
                 var title = CatalogText(titleValue.GetString()!, 240);
                 if (title.Length == 0) continue;
                 count++;
-                if (library.Movies.Any(movie => movie.SourceUrl == source.AbsoluteUri)) continue;
+                if (!existingSources.Add(source.AbsoluteUri)) continue;
                 var movie = new Movie
                 {
                     Title = title, SourceUrl = source.AbsoluteUri, ImportedFrom = origin.GetLeftPart(UriPartial.Authority) + "/",
@@ -113,6 +130,7 @@ public partial class MainWindow
             const string pattern = "<a\\b[^>]*href=[\"'](?<url>[^\"']+)[\"'][^>]*>(?<body>.*?)</a\\s*>";
             foreach (Match card in Regex.Matches(html, pattern, RegexOptions.Singleline | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(200)))
             {
+                if (!Regex.IsMatch(card.Groups["body"].Value, @"<h[1-6]\b", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(200))) continue;
                 if (!Uri.TryCreate(address, WebUtility.HtmlDecode(card.Groups["url"].Value), out var source) || source.Host != address.Host) continue;
                 var image = Regex.Match(card.Groups["body"].Value, "<img\\b[^>]*src=[\"'](?<src>[^\"']+)[\"']", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(200));
                 if (!image.Success || !Uri.TryCreate(address, WebUtility.HtmlDecode(image.Groups["src"].Value), out var cover) || !RemoteFiles.IsPublicHttps(cover.AbsoluteUri)) continue;
@@ -121,5 +139,33 @@ public partial class MainWindow
         }
         catch (Exception ex) when (ex is IOException or HttpRequestException or RegexMatchTimeoutException) { }
         return result;
+    }
+
+    private async Task<Dictionary<string, (string Cover, string Year)>> ReadBatchArtAsync(
+        HttpClient http, Uri origin, int apiPage, int pageSize, CancellationToken token)
+    {
+        var home = new Uri(origin, "/");
+        if (!catalogLayouts.TryGetValue(home.AbsoluteUri, out var layout) || apiPage == 1 || DateTime.UtcNow - layout.Saved > TimeSpan.FromMinutes(2))
+        {
+            var art = await ReadCatalogArtAsync(http, home, token);
+            if (catalogLayouts.Count >= 8) catalogLayouts.Clear();
+            layout = (DateTime.UtcNow, art);
+            catalogLayouts[home.AbsoluteUri] = layout;
+        }
+        var first = new Dictionary<string, (string Cover, string Year)>(layout.Art);
+        var cardsPerPage = first.Count > 0 ? first.Count : 16;
+        var start = (apiPage - 1) * pageSize / cardsPerPage + 1;
+        var end = (apiPage * pageSize + cardsPerPage - 1) / cardsPerPage;
+        using var slots = new SemaphoreSlim(3);
+        var pages = Enumerable.Range(start, Math.Min(12, end - start + 1)).Where(page => page > 1);
+        var results = await Task.WhenAll(pages.Select(async page =>
+        {
+            await slots.WaitAsync(token);
+            try { return await ReadCatalogArtAsync(http, new Uri(home, "page/" + page + "/"), token); }
+            finally { slots.Release(); }
+        }));
+        foreach (var page in results)
+            foreach (var (source, art) in page) first.TryAdd(source, art);
+        return first;
     }
 }
