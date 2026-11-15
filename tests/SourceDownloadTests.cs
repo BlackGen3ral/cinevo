@@ -19,6 +19,12 @@ internal static class SourceDownloadTests
         if (buttons.Count != 1 || buttons[0].Kind != "resolve" || !buttons[0].Label.Contains("1080P") ||
             !buttons[0].Label.Contains("Episódio 01") || !buttons[0].Url.EndsWith("#cinevo-download=dual_audio/0"))
             throw new Exception("Os botões públicos carregados por clique não foram identificados corretamente.");
+        var liberated = SourceDownloads.Parse("<a href='https://linkliberado.xyz/liberar.php?t=public-token'>1080p</a>", new Uri("https://example.org/film"));
+        if (liberated.Count != 1 || liberated[0].Kind != "resolve" ||
+            DynamicDownloads.IsLinkLiberado("https://linkliberado.xyz.evil.org/liberar.php?t=x") ||
+            DynamicDownloads.IsLinkLiberado("http://linkliberado.xyz/liberar.php?t=x") ||
+            DynamicDownloads.IsLinkLiberado("https://linkliberado.xyz/other.php?t=x"))
+            throw new Exception("O reconhecimento do Link Liberado deve ficar restrito à página pública conhecida.");
         var magnet = "magnet:?xt=urn:btih:" + new string('a', 40) + "&amp;dn=Demo.1080p&amp;tr=udp%3A%2F%2Ftracker.example.org";
         var html = $"""
             <script>const ignored='<a download href="/wrong.mp4">Baixar</a>';</script>

@@ -254,12 +254,14 @@ async function showSourceDownloads(movie, trigger) {
         setText(message, '');
         choices.querySelector('.source-connection')?.remove();
         try {
+          if (option.kind === 'resolve') setText(message, 'Consultando a liberação do download na origem…');
           const resolved = option.kind === 'resolve' ? await transferAction('download-resolve', movie.id, option.url) : option;
           torrentSelected = resolved.kind === 'torrent';
           if (resolved.kind !== 'torrent') {
             await transferAction('download-source', movie.id, option.url);
             return;
           }
+          setText(message, 'Enviando ao qBittorrent…');
           await transferAction('torrent-add', movie.id, resolved.url, sourceFolder.value);
           if (choices.isConnected && $('#details').open) {
             $('#details').close();

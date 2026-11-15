@@ -31,7 +31,8 @@ internal static class SourceDownloads
             name = Regex.Replace(name, @"\s+", " ", RegexOptions.None, RegexTimeout).Trim();
             var label = attributes.GetValueOrDefault("aria-label") ?? attributes.GetValueOrDefault("title") ?? "";
             if (name.Length == 0) name = label;
-            var explicitDownload = Regex.IsMatch(anchor.Groups["attrs"].Value, @"(?:^|\s)download(?:\s|=|$)", RegexOptions.IgnoreCase, RegexTimeout);
+            var liberated = DynamicDownloads.IsLinkLiberado(address.AbsoluteUri);
+            var explicitDownload = liberated || Regex.IsMatch(anchor.Groups["attrs"].Value, @"(?:^|\s)download(?:\s|=|$)", RegexOptions.IgnoreCase, RegexTimeout);
             if (!torrent && !explicitDownload)
             {
                 var offered = Regex.IsMatch(name, @"\b(?:download|baixar|\d{3,4}p)\b", RegexOptions.IgnoreCase, RegexTimeout);
@@ -49,7 +50,7 @@ internal static class SourceDownloads
             if (name.Length == 0) name = torrent ? "Qualidade não informada" : "Baixar arquivo";
             var direct = Scanner.Extensions.Contains(Path.GetExtension(address.AbsolutePath));
             var url = torrent ? href : address.AbsoluteUri;
-            result.TryAdd(url, new PortalDownload(url, name[..Math.Min(name.Length, 160)], torrent ? "torrent" : direct ? "file" : "link"));
+            result.TryAdd(url, new PortalDownload(url, name[..Math.Min(name.Length, 160)], torrent ? "torrent" : liberated ? "resolve" : direct ? "file" : "link"));
             if (result.Count >= 20) break;
         }
         return result.Values.ToList();

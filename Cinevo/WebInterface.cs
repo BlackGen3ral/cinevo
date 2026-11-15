@@ -307,6 +307,7 @@ public partial class MainWindow
                 options.Insert(0, new PortalDownload(movie.DownloadUrl, "Baixar no PC", "file"));
             options = options.Where(option => option.Kind == "torrent" ? TorrentClient.IsMagnet(option.Url) :
                 option.Kind is "file" or "link" or "resolve" && RemoteFiles.IsPublicHttps(option.Url)).ToList();
+            options = options.Select(option => DynamicDownloads.IsLinkLiberado(option.Url) ? option with { Kind = "resolve" } : option).ToList();
             if (command.Name == "download-options") return options;
             var selected = options.Find(option => option.Url == command.Address && option.Kind != "torrent")
                 ?? throw new InvalidDataException("A opção escolhida não está mais disponível.");

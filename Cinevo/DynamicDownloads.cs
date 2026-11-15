@@ -8,6 +8,9 @@ namespace Cinevo;
 
 internal static class DynamicDownloads
 {
+    internal static bool IsLinkLiberado(string address) => Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
+        RemoteFiles.IsPublicHttps(address) && uri.Host.TrimEnd('.').Equals("linkliberado.xyz", StringComparison.OrdinalIgnoreCase) &&
+        uri.AbsolutePath.TrimEnd('/').Equals("/liberar.php", StringComparison.OrdinalIgnoreCase);
     private static readonly TimeSpan Timeout = TimeSpan.FromMilliseconds(250);
     private static string Attribute(string html, string name) => WebUtility.HtmlDecode(Regex.Match(html,
         Regex.Escape(name) + "=[\"'](?<v>[^\"']*)[\"']", RegexOptions.IgnoreCase, Timeout).Groups["v"].Value);
@@ -40,6 +43,7 @@ internal static class DynamicDownloads
 
     internal static async Task<PortalDownload> ResolveAsync(string source, PortalDownload choice, CancellationToken token)
     {
+        if (IsLinkLiberado(choice.Url)) return await ResolveLinkAsync(choice, token);
         var page = await SourceDownloads.ReadPageAsync(source, token);
         if (!Parse(page.Html, page.Url).Any(option => option.Url == choice.Url))
             throw new InvalidDataException("Essa opção mudou na origem. Reabra a ficha do filme e tente novamente.");
@@ -65,16 +69,36 @@ internal static class DynamicDownloads
         if (!data.RootElement.GetProperty("success").GetBoolean() || !data.RootElement.GetProperty("data").TryGetProperty("url", out var value))
             throw new InvalidDataException("A origem não disponibilizou esse link agora.");
         var url = value.GetString() ?? "";
-        if (RemoteFiles.IsPublicHttps(url) && new Uri(url) is { Host: "linkliberado.xyz", AbsolutePath: "/liberar.php" } destination)
+        return await ResolveLinkAsync(new PortalDownload(url, choice.Label, "link"), token);
+    }
+
+    internal static async Task<PortalDownload> ResolveLinkAsync(PortalDownload choice, CancellationToken token)
+    {
+        var url = choice.Url;
+        if (IsLinkLiberado(url))
         {
-            var publicEndpoint = new UriBuilder(destination) { Query = destination.Query.TrimStart('?') + "&ll_magnet=1" }.Uri.AbsoluteUri;
+            var destination = new Uri(url);
+            var query = destination.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries)
+                .Where(part => !part.StartsWith("ll_magnet=", StringComparison.OrdinalIgnoreCase));
+            var publicEndpoint = new UriBuilder(destination) { Query = string.Join("&", query) + "&ll_magnet=1" }.Uri.AbsoluteUri;
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+            timeout.CancelAfter(TimeSpan.FromSeconds(20));
+            using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
             await RemoteFiles.ValidateAsync(publicEndpoint, timeout.Token);
             using var request = new HttpRequestMessage(HttpMethod.Get, publicEndpoint);
             request.Headers.Accept.ParseAdd("application/json");
             using var revealed = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
-            revealed.EnsureSuccessStatusCode();
-            using var magnet = JsonDocument.Parse(await RemoteFiles.ReadBoundedAsync(revealed, 16 * 1024, timeout.Token));
-            if (magnet.RootElement.TryGetProperty("magnet", out var magnetValue)) url = magnetValue.GetString() ?? "";
+            if (!revealed.IsSuccessStatusCode)
+                throw new InvalidDataException("O Link Liberado não disponibilizou o download agora. Tente novamente ou abra a origem.");
+            try
+            {
+                using var magnet = JsonDocument.Parse(await RemoteFiles.ReadBoundedAsync(revealed, 16 * 1024, timeout.Token));
+                if (!magnet.RootElement.TryGetProperty("magnet", out var magnetValue) || magnetValue.ValueKind != JsonValueKind.String ||
+                    !TorrentClient.IsMagnet(magnetValue.GetString()))
+                    throw new InvalidDataException("O Link Liberado ainda não retornou um magnet válido. Tente novamente ou abra a origem.");
+                url = magnetValue.GetString()!;
+            }
+            catch (JsonException) { throw new InvalidDataException("O Link Liberado retornou uma página em vez do magnet. Abra a origem e confira a liberação."); }
         }
         if (TorrentClient.IsMagnet(url)) return new PortalDownload(url, choice.Label, "torrent");
         if (RemoteFiles.IsPublicHttps(url)) return new PortalDownload(url, choice.Label,
