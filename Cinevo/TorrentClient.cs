@@ -114,7 +114,11 @@ internal sealed class TorrentClient : IDisposable
         }
         catch (HttpRequestException)
         {
-            throw new InvalidDataException("Não foi possível acessar o qBittorrent. Abra-o e confira a porta da Interface Web.");
+            var processes = System.Diagnostics.Process.GetProcessesByName("qbittorrent");
+            foreach (var process in processes) process.Dispose();
+            throw new InvalidDataException(processes.Length == 0
+                ? "O qBittorrent está fechado. Clique em Abrir qBittorrent e tente novamente."
+                : $"O qBittorrent está aberto, mas a Interface Web não respondeu na porta {connection.Port}. Confira a porta em Configurar conexão.");
         }
         catch (OperationCanceledException) when (!token.IsCancellationRequested)
         {

@@ -190,14 +190,18 @@ $('#torrent-form').onsubmit = async event => {
 setInterval(() => refreshTransfers(), 1500);
 
 async function showSourceDownloads(movie, trigger) {
-  const panel = $('#detail-content .detail-information');
-  let choices = panel.querySelector('.source-downloads');
-  if (choices) return;
-  choices = node('div', 'source-downloads');
+  const panel = $('#detail-content .detail-intro');
+  const existing = panel.querySelector('.source-downloads');
+  if (existing) {
+    existing.scrollIntoView({ block: 'nearest' });
+    return;
+  }
+  const choices = node('div', 'source-downloads');
   panel.append(choices);
   const message = node('p', '', 'Consultando opções da origem…');
   choices.append(node('h3', '', 'Baixar este conteúdo'), message);
   message.setAttribute('role', 'status');
+  choices.scrollIntoView({ block: 'nearest' });
   trigger.disabled = true;
   try {
     const options = await transferAction('download-options', movie.id);
@@ -206,17 +210,39 @@ async function showSourceDownloads(movie, trigger) {
       const label = option.label + (option.kind === 'torrent' ? ' · qBittorrent' : option.kind === 'link' ? ' ↗' : '');
       choices.append(button(label, 'secondary', async event => {
         const selected = event.currentTarget;
-        if (option.kind === 'torrent') {
-          $('#details').close();
-          changeSection('downloads');
-          $('#torrent-magnet').value = option.url;
-          if (await actOnTransfer('torrent-add', null, selected, option.url)) $('#torrent-magnet').value = '';
-          return;
-        }
         selected.disabled = true;
-        try { await transferAction('download-source', movie.id, option.url); }
-        catch (error) { setText(message, error.message); }
-        finally { selected.disabled = false; }
+        setText(message, '');
+        choices.querySelector('.source-connection')?.remove();
+        try {
+          if (option.kind !== 'torrent') {
+            await transferAction('download-source', movie.id, option.url);
+            return;
+          }
+          await transferAction('torrent-add', null, option.url);
+          if (choices.isConnected && $('#details').open) {
+            $('#details').close();
+            changeSection('downloads');
+            setText($('#torrent-message'), 'Link enviado ao qBittorrent.');
+          }
+        } catch (error) {
+          setText(message, error.message);
+          if (option.kind === 'torrent') {
+            const actions = node('div', 'actions source-connection');
+            const open = button('Abrir qBittorrent', 'secondary', async () => {
+              open.disabled = true;
+              try {
+                await transferAction('torrent-open');
+                setText(message, 'Aguarde o qBittorrent abrir e selecione a opção de download novamente.');
+              } catch (launchError) { setText(message, launchError.message); }
+              finally { open.disabled = false; }
+            });
+            actions.append(open, button('Configurar conexão', 'secondary', async () => {
+              try { await transferAction('torrent-configure'); }
+              catch (setupError) { setText(message, setupError.message); }
+            }));
+            choices.append(actions);
+          }
+        } finally { selected.disabled = false; }
       }));
     }
   } catch (error) {

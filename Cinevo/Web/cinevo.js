@@ -458,7 +458,11 @@ function showDetails(movie) {
   }
   const mainActions = playActions(movie);
   if (movie.importedOnly) mainActions.append(command('+ Adicionar à biblioteca', 'accent', 'add-to-library', movie.id));
+  if (movie.hasDownloadOptions) mainActions.append(button('Opções de download', 'secondary',
+    event => showSourceDownloads(movie, event.currentTarget)));
   introduction.append(mainActions);
+  const downloads = isSameMovie && panel.querySelector('.source-downloads');
+  if (downloads) introduction.append(downloads);
   const artwork = node('div', 'detail-artwork');
   artwork.append(node('span', '', movie.title[0]?.toUpperCase() || 'C'));
   const image = poster(movie, 'detail-poster');
@@ -478,7 +482,6 @@ function showDetails(movie) {
   tools.append(command(movie.favorite ? 'Remover favorito' : 'Favoritar', 'secondary', 'favorite', movie.id),
     command(movie.watched ? 'Marcar como não assistido' : 'Marcar como assistido', 'secondary', 'watched', movie.id),
     command('Editar detalhes', 'secondary', 'details', movie.id));
-  if (movie.hasDownloadOptions) tools.append(button('Opções de download', 'secondary', event => showSourceDownloads(movie, event.currentTarget)));
   if (!movie.importedOnly) tools.append(button('Remover da biblioteca', 'secondary', () => {
     $('#details').close();
     confirmRemoval('Remover da biblioteca?', movie.title + (movie.isOnline
@@ -491,10 +494,8 @@ function showDetails(movie) {
   const trailer = isSameMovie && panel.querySelector('.detail-trailer') || node('section', 'detail-trailer');
   const credits = node('section', 'tmdb-credits');
   if (movie.tmdbConfigured === false) renderTmdbStatus(credits, movie, 'disconnected');
-  const downloads = isSameMovie && panel.querySelector('.source-downloads');
   story.append(synopsis, trailer);
   information.append(story, credits, tools);
-  if (downloads) information.append(downloads);
   panel.replaceChildren(header, information);
   if (!dialog.open) {
     dialog.showModal();
