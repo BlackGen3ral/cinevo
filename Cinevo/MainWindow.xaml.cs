@@ -35,6 +35,7 @@ public partial class MainWindow : Window
     internal async void Start()
     {
         var webStartup = OpenWebAsync();
+        _ = Task.Run(() => PortalCoverCache.TrimAsync(Path.Combine(Library.DataDirectory, "covers")));
         if (Updater.IsInstalled) _ = Task.Run(Updater.CleanInstalledUpdatesAsync);
         var update = library.AutoUpdate && Updater.IsInstalled ? CheckUpdate(false) : Task.CompletedTask;
         await webStartup;

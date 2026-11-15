@@ -216,23 +216,15 @@ public partial class MainWindow
         try
         {
             var cached = await ReadCoverFileAsync(cache);
-            if (cached != null) return cached;
+            if (cached != null)
+            {
+                PortalCoverCache.Touch(cache);
+                return cached;
+            }
             var connection = PortalService.LoadConnection();
             if (connection == null) return null;
             var image = await PortalService.FetchCoverAsync(connection, cover.Item2, lifetime.Token);
-            if (image == null) return null;
-            try
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(cache)!);
-                var temporary = cache + "." + Guid.NewGuid().ToString("N") + ".tmp";
-                try
-                {
-                    await File.WriteAllBytesAsync(temporary, image, lifetime.Token);
-                    File.Move(temporary, cache, true);
-                }
-                finally { File.Delete(temporary); }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            if (image != null) await PortalCoverCache.StoreAsync(cache, image, lifetime.Token);
             return image;
         }
         catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException or OperationCanceledException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)

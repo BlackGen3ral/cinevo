@@ -26,6 +26,18 @@ public static class PortalTests
             "Novidades devem entrar nos importados sem duplicar os títulos existentes ou mudar sua biblioteca");
         Check(library.Movies[1].PortalCoverUrl == newItem.CoverUrl && library.Movies[1].Cover.Length == 0,
             "A sincronização deve disponibilizar a capa antes de baixar a imagem.");
+        var cache = Path.Combine(root, "portal-covers");
+        Directory.CreateDirectory(cache);
+        string Cached(char letter) => Path.Combine(cache, $"portal-{id}-{new string(letter, 64)}.img");
+        var bytes = new byte[20];
+        var selectedCover = Path.Combine(cache, "capa-escolhida.png");
+        File.WriteAllBytes(selectedCover, bytes);
+        await PortalCoverCache.StoreAsync(Cached('a'), bytes, CancellationToken.None, limit: 40);
+        File.SetLastWriteTimeUtc(Cached('a'), DateTime.UtcNow.AddDays(-2));
+        await PortalCoverCache.StoreAsync(Cached('b'), bytes, CancellationToken.None, limit: 40);
+        await PortalCoverCache.StoreAsync(Cached('c'), bytes, CancellationToken.None, limit: 40);
+        Check(!File.Exists(Cached('a')) && File.Exists(Cached('b')) && File.Exists(Cached('c')) && File.Exists(selectedCover),
+            "O cache deve liberar apenas a capa automática mais antiga para respeitar o limite.");
         var legacy = JsonSerializer.Deserialize<Movie>("""{"Title":"Filme de versão anterior","PortalId":"legado"}""");
         Check(legacy is { ImportedOnly: false }, "A biblioteca existente deve continuar visível após atualizar");
         var target=Path.Combine(root,"download.mp4");var payload=new byte[350000];Random.Shared.NextBytes(payload);
