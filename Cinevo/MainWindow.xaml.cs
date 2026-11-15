@@ -182,7 +182,9 @@ public partial class MainWindow : Window
     private async Task FetchCoversAsync(bool retry = false)
     {
         if (coverSearch != null || closed) return;
-        var pending = library.Movies.Where(m => (m.Cover.Length == 0 || !File.Exists(m.Cover)) && (retry || DateTime.UtcNow - m.CoverLastAttempt > TimeSpan.FromDays(7))).ToList();
+        var pending = library.Movies.Where(m => m.PortalCoverUrl.Length == 0 &&
+            (m.Cover.Length == 0 || !File.Exists(m.Cover)) &&
+            (retry || DateTime.UtcNow - m.CoverLastAttempt > TimeSpan.FromDays(7))).ToList();
         if (pending.Count == 0) { if (retry) Status.Text = "Todas as capas disponíveis já estão salvas. Para trocar uma, abra os detalhes do filme."; return; }
         coverSearch = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); CoversButton.Content = "Cancelar capas";
         var found = 0; var attempted = 0; var failed = 0;
