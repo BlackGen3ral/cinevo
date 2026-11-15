@@ -90,8 +90,8 @@ function createTransferCard(hash) {
     const peerStatus = peers === 0 ? 'Nenhum par conectado' : peers === null ? '' :
       peers.toLocaleString('pt-BR') + (peers === 1 ? ' par conectado' : ' pares conectados');
     reannounce.hidden = !waitingForPeers;
-    setText(rates, waitingForPeers ? peerStatus : color === 'done' ? 'Disponível no PC' :
-      (item.speed > 0 ? storageSize(item.speed) + '/s · ' + timeLeft(item.eta) : ''));
+    setText(rates, item.fallback || (waitingForPeers ? peerStatus : color === 'done' ? 'Disponível no PC' :
+      (item.speed > 0 ? storageSize(item.speed) + '/s · ' + timeLeft(item.eta) : '')));
     const nextMode = color === 'done' ? 'torrent-files' : color === 'paused' ? 'torrent-resume' : 'torrent-pause';
     card.dataset.status = color;
     if (mode !== nextMode) {
@@ -228,7 +228,7 @@ async function showSourceDownloads(movie, trigger) {
             await transferAction('download-source', movie.id, option.url);
             return;
           }
-          await transferAction('torrent-add', null, option.url);
+          await transferAction('torrent-add', movie.id, option.url);
           if (choices.isConnected && $('#details').open) {
             $('#details').close();
             changeSection('downloads');

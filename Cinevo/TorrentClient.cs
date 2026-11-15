@@ -59,6 +59,33 @@ internal sealed class TorrentClient : IDisposable
             @"\Amagnet:\?(?:[^&]+&)*xt=urn:(?:btih:(?:[a-f0-9]{40}|[a-z2-7]{32})|btmh:1220[a-f0-9]{64})(?:&|\z)",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
+    internal static string? MagnetHash(string address)
+    {
+        if (!IsMagnet(address)) return null;
+        var match = System.Text.RegularExpressions.Regex.Match(address,
+            @"(?:\?|&)xt=urn:btih:([a-f0-9]{40}|[a-z2-7]{32})(?:&|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            match = System.Text.RegularExpressions.Regex.Match(address,
+                @"(?:\?|&)xt=urn:btmh:1220([a-f0-9]{64})(?:&|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            return match.Success ? match.Groups[1].Value.ToLowerInvariant() : null;
+        }
+        var encoded = match.Groups[1].Value.ToUpperInvariant();
+        if (encoded.Length == 40) return encoded.ToLowerInvariant();
+        const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        var bytes = new byte[20];
+        int buffer = 0, bits = 0, index = 0;
+        foreach (char symbol in encoded)
+        {
+            buffer = (buffer << 5) | alphabet.IndexOf(symbol);
+            bits += 5;
+            if (bits < 8) continue;
+            bits -= 8;
+            bytes[index++] = (byte)(buffer >> bits);
+        }
+        return Convert.ToHexStringLower(bytes);
+    }
+
     private async Task AuthenticateAsync(bool expired, CancellationToken token)
     {
         await login.WaitAsync(token);

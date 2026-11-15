@@ -177,12 +177,16 @@ public partial class MainWindow
             {
                 configured = true,
                 transfers = transfers.Where(item => TorrentClient.IsHash(item.Hash)).Select(item =>
-                    new { item.Hash, item.Name, item.Progress, item.Size, item.Completed, item.Speed, item.Eta, item.State, item.Seeds, item.Leechers })
+                    new { item.Hash, item.Name, item.Progress, item.Size, item.Completed, item.Speed, item.Eta, item.State, item.Seeds, item.Leechers, fallback = torrentFallbackStatus.GetValueOrDefault(item.Hash) })
             };
         }
         if (command.Name == "torrent-add")
         {
-            await GetTorrentClient().AddAsync(command.Address ?? "", lifetime.Token);
+            var address = command.Address ?? "";
+            var client = GetTorrentClient();
+            await client.AddAsync(address, lifetime.Token);
+            if (command.Id != null && webMovies.TryGetValue(command.Id, out var movie) && library.Movies.Contains(movie))
+                TrackTorrentFallback(client, movie, address);
             return null;
         }
         if (!TorrentClient.IsHash(command.Id)) throw new InvalidDataException("Download inválido.");
@@ -193,9 +197,12 @@ public partial class MainWindow
                 await GetTorrentClient().ReannounceAsync(hash, lifetime.Token);
                 return null;
             case "torrent-remove":
+                CancelTorrentFallback(hash);
                 await GetTorrentClient().RemoveAsync(hash, lifetime.Token);
                 return null;
             case "torrent-pause":
+                CancelTorrentFallback(hash);
+                goto case "torrent-resume";
             case "torrent-resume":
                 await GetTorrentClient().SetRunningAsync(hash, command.Name == "torrent-resume", lifetime.Token);
                 return null;
