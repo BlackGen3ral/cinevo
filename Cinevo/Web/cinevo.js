@@ -44,6 +44,7 @@ async function request(path, options = {}) {
 }
 
 async function send(name, id, trigger) {
+  if (name === 'settings' || name === 'tmdb-settings') return openSettings(name === 'tmdb-settings' ? 'tmdb' : 'general');
   if (trigger) trigger.disabled = true;
   try {
     await request('/api/action', {
@@ -716,6 +717,13 @@ $('#remove-dialog').addEventListener('cancel', event => {
   if ($('#confirm-remove').disabled) event.preventDefault();
 });
 
+function updateSize(bytes) {
+  const size = Math.max(0, Number(bytes) || 0);
+  const megabytes = size >= 1024 * 1024;
+  const value = size / (megabytes ? 1024 * 1024 : 1024);
+  return value.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + (megabytes ? ' MB' : ' KB');
+}
+
 function renderUpdate(data) {
   const info = data.update || { stage: 'idle' };
   const active = ['check', 'download', 'verify'].includes(info.stage);
@@ -728,8 +736,7 @@ function renderUpdate(data) {
   else $('#update-progress').removeAttribute('value');
   $('#update-label').textContent = info.stage === 'check' ? 'Verificando atualização…' :
     info.stage === 'verify' ? 'Verificando integridade…' :
-    info.stage === 'download' ? 'Baixando atualização · ' + storageSize(info.received) +
-      (known ? ' de ' + storageSize(info.total) + ' (' + Math.floor($('#update-progress').value) + '%)' : '') : '';
+    info.stage === 'download' ? updateSize(info.received) + (known ? ' / ' + updateSize(info.total) : '') : '';
 }
 
 const importing = { next: '', continuation: false, running: false, paused: false, seen: new Set() };

@@ -9,6 +9,7 @@
   <link rel="apple-touch-icon" href="/cinevo.png">
   <link rel="stylesheet" href="/cinevo.css">
   <script src="/cinevo.js" defer></script>
+  <script src="/settings.js" defer></script>
   <script src="/downloads.js" defer></script>
 </head>
 <body>
@@ -27,6 +28,7 @@
         <div id="update-transfer" hidden><span id="update-label" role="status"></span><progress id="update-progress" aria-label="Progresso da atualização" max="100"></progress></div>
       </div>
       <button data-command="settings" data-icon="settings">Configurações</button>
+      <button id="open-news">Novidades</button>
       <span id="version">Cinevo Beta</span>
     </div>
   </aside>
@@ -69,6 +71,13 @@
       </form>
       <p id="torrent-message" role="status"></p>
       <div id="torrent-summary" class="transfer-summary" hidden></div>
+      <div id="transfer-filters" class="transfer-filters" role="group" aria-label="Filtrar downloads">
+        <button type="button" data-transfer-filter="all" aria-pressed="true">Todos</button>
+        <button type="button" data-transfer-filter="active" aria-pressed="false">Em andamento</button>
+        <button type="button" data-transfer-filter="wait" aria-pressed="false">Aguardando</button>
+        <button type="button" data-transfer-filter="paused" aria-pressed="false">Pausados</button>
+        <button type="button" data-transfer-filter="done" aria-pressed="false">Concluídos</button>
+      </div>
       <div id="torrent-rows"></div>
       <p id="torrent-empty" class="empty" hidden>Nenhuma transferência no qBittorrent.</p>
     </section>
@@ -86,6 +95,36 @@
     <button class="dialog-close" aria-label="Fechar detalhes" data-icon="close"></button>
     <div id="detail-content"></div>
   </dialog>
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <div class="settings-heading"><div><h2 id="settings-title">Configurações</h2><p>Seu Cinevo, do seu jeito.</p></div><button id="settings-close" class="button secondary" aria-label="Fechar configurações">Fechar</button></div>
+    <div class="settings-tabs" role="tablist" aria-label="Configurações">
+      <button id="tab-general" role="tab" data-settings-tab="general" aria-controls="settings-general" aria-selected="true">Geral</button>
+      <button id="tab-connection" role="tab" data-settings-tab="connection" aria-controls="settings-connection" aria-selected="false">Downloads</button>
+      <button id="tab-tmdb" role="tab" data-settings-tab="tmdb" aria-controls="settings-tmdb" aria-selected="false">TMDB</button>
+    </div>
+    <section id="settings-general" role="tabpanel" aria-labelledby="tab-general">
+      <form id="settings-preferences" class="settings-card">
+        <h3>Preferências</h3>
+        <label class="setting-toggle"><span><strong>Atualizações automáticas</strong><small>Baixar novas versões quando estiverem disponíveis.</small></span><input id="setting-auto-update" type="checkbox"></label>
+        <label class="setting-toggle"><span><strong>Buscar informações dos filmes</strong><small>Usar título e ano para encontrar capas, sinopses e trailers.</small></span><input id="setting-auto-covers" type="checkbox"></label>
+        <button class="button primary" type="submit">Salvar preferências</button>
+      </form>
+      <section class="settings-card"><h3>Biblioteca</h3><div class="actions"><button class="button secondary" data-command="add-folder">Adicionar pasta</button><button class="button secondary" data-command="folders">Gerenciar pastas</button><button id="settings-backup" class="button secondary">Exportar cópia</button><button id="settings-data" class="button secondary">Abrir pasta de dados</button></div><button id="settings-clear" class="button secondary danger-action">Limpar biblioteca</button></section>
+      <section class="settings-card"><h3 id="settings-version">Cinevo · Beta</h3><div class="actions"><button class="button primary" data-command="update">Atualizar e reiniciar</button><button id="settings-news" class="button secondary">Ver novidades</button></div><p>Player integrado com LibVLC / VideoLAN. Licenças disponíveis na pasta do aplicativo.</p></section>
+    </section>
+    <section id="settings-connection" role="tabpanel" aria-labelledby="tab-connection" hidden>
+      <form id="settings-torrent-form" class="settings-card"><h3>Conexão com qBittorrent</h3><p>Ative a Interface Web no qBittorrent em 127.0.0.1. Para usar sem senha neste PC, marque “Bypass authentication for clients on localhost”.</p><label for="setting-port">Porta da Interface Web</label><input id="setting-port" type="number" min="1" max="65535" required>
+        <label class="setting-toggle"><span>Conectar sem senha neste PC</span><input id="setting-no-password" type="checkbox"></label>
+        <div id="setting-credentials" hidden><label for="setting-user">Usuário</label><input id="setting-user" maxlength="256" autocomplete="username"><label for="setting-password">Senha</label><input id="setting-password" type="password" maxlength="256" autocomplete="new-password" placeholder="Deixe vazio para manter a senha salva"></div>
+        <div class="actions"><button class="button primary" type="submit">Testar e salvar</button><button id="settings-open-torrent" class="button secondary" type="button">Abrir qBittorrent</button></div>
+      </form>
+    </section>
+    <section id="settings-tmdb" role="tabpanel" aria-labelledby="tab-tmdb" hidden>
+      <form id="settings-tmdb-form" class="settings-card"><h3>Informações do TMDB</h3><p id="setting-tmdb-status"></p><p>Use o token de leitura ou a chave API v3 da sua conta. A credencial é salva protegida neste PC.</p><label for="setting-token">Token ou chave API</label><input id="setting-token" type="password" maxlength="2048" autocomplete="new-password" required><div class="actions"><button class="button primary" type="submit">Testar e salvar</button><button id="settings-tmdb-remove" class="button secondary" type="button">Desconectar</button></div><p><a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">Obter credencial no TMDB ↗</a></p><small>This product uses the TMDB API but is not endorsed or certified by TMDB.</small></form>
+    </section>
+    <p id="settings-status" role="status"></p>
+  </dialog>
+  <dialog id="news-dialog" aria-labelledby="news-title"><div class="settings-heading"><div><h2 id="news-title">Novidades</h2><p>Histórico de atualizações do Cinevo.</p></div><button id="news-close" class="button secondary">Fechar</button></div><section class="settings-card"><h3>Cinevo 0.1.34 · Beta</h3><ul><li>Downloads com filtros por estado e acesso aos filmes concluídos.</li><li>Configurações de preferências, qBittorrent e TMDB dentro da interface web.</li><li>Escolha da pasta de destino antes de adicionar um torrent.</li><li>Histórico das versões em Novidades.</li><li>Tamanho das atualizações exibido em KB ou MB.</li></ul></section><div id="news-history"></div><p id="news-status" role="status"></p><button id="news-more" class="button secondary">Carregar histórico</button></dialog>
   <dialog id="clear-dialog" aria-labelledby="clear-title">
     <h2 id="clear-title">Limpar biblioteca?</h2>
     <p>Todos os filmes saem da biblioteca e as pastas são desvinculadas. Os arquivos continuam no PC. Os títulos online voltam para <strong>Filmes importados</strong>.</p>

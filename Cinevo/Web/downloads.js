@@ -1,12 +1,13 @@
 const transferCards = new Map();
+let transferFilter = 'all';
 let transferRequest;
 let transferRefreshQueued = false;
 
-async function transferAction(name, id, address) {
+async function transferAction(name, id, address, downloadFolder) {
   const response = await request('/api/action', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, id, address })
+    body: JSON.stringify({ name, id, address, downloadFolder })
   });
   return response.status === 204 ? null : response.json();
 }
@@ -143,8 +144,27 @@ function renderTransfers(data) {
     entry.card.remove();
     transferCards.delete(hash);
   }
+  applyTransferFilter();
   rows.classList.remove('stale-transfers');
 }
+
+function applyTransferFilter() {
+  let visible = 0;
+  for (const { card } of transferCards.values()) {
+    card.hidden = transferFilter !== 'all' && card.dataset.status !== transferFilter;
+    if (!card.hidden) visible++;
+  }
+  for (const filter of document.querySelectorAll('[data-transfer-filter]'))
+    filter.setAttribute('aria-pressed', filter.dataset.transferFilter === transferFilter);
+  if (transferCards.size) {
+    $('#torrent-empty').hidden = visible > 0;
+    $('#torrent-empty').textContent = 'Nenhum download neste filtro.';
+  }
+}
+for (const filter of document.querySelectorAll('[data-transfer-filter]')) filter.onclick = () => {
+  transferFilter = filter.dataset.transferFilter;
+  applyTransferFilter();
+};
 
 async function refreshTransfers(force = false) {
   if (state.section !== 'downloads' || (document.hidden && !force)) return;
@@ -168,9 +188,13 @@ async function actOnTransfer(name, hash, trigger, address) {
   trigger.disabled = true;
   setText($('#torrent-message'), '');
   try {
-    const result = await transferAction(name, hash, address);
+    const result = await transferAction(name, hash, address, name === 'torrent-add' ? magnetFolder.value : undefined);
     if (name === 'torrent-files') {
       if (!result.length) throw new Error('Nenhum vídeo compatível foi encontrado na pasta do torrent.');
+      if (result.length === 1) {
+        await transferAction('torrent-play', hash, String(result[0].index));
+        return true;
+      }
       const picker = $('#torrent-file-list');
       picker.replaceChildren(...result.map(file => button(file.name + ' · ' + storageSize(file.size), 'secondary',
         event => actOnTransfer('torrent-play', hash, event.currentTarget, String(file.index)))));
@@ -190,12 +214,15 @@ async function actOnTransfer(name, hash, trigger, address) {
 }
 
 $('#torrent-open').onclick = event => actOnTransfer('torrent-open', null, event.currentTarget);
-$('#torrent-configure').onclick = event => actOnTransfer('torrent-configure', null, event.currentTarget);
+$('#torrent-configure').onclick = () => openSettings('connection');
 $('#close-torrent-files').onclick = () => $('#torrent-files').close();
+const magnetFolder = folderPicker();
+$('#torrent-form').append(magnetFolder.element);
 $('#torrent-form').onsubmit = async event => {
   event.preventDefault();
   const input = $('#torrent-magnet');
-  if (await actOnTransfer('torrent-add', null, event.submitter, input.value.trim())) input.value = '';
+  const submit = event.submitter || $('#torrent-form button[type="submit"]');
+  if (await actOnTransfer('torrent-add', null, submit, input.value.trim())) input.value = '';
 };
 setInterval(() => refreshTransfers(), 1500);
 
@@ -211,6 +238,8 @@ async function showSourceDownloads(movie, trigger) {
   const message = node('p', '', 'Consultando opções da origem…');
   choices.append(node('h3', '', 'Baixar este conteúdo'), message);
   message.setAttribute('role', 'status');
+  const sourceFolder = folderPicker();
+  choices.append(sourceFolder.element);
   choices.scrollIntoView({ block: 'nearest' });
   trigger.disabled = true;
   try {
@@ -228,7 +257,7 @@ async function showSourceDownloads(movie, trigger) {
             await transferAction('download-source', movie.id, option.url);
             return;
           }
-          await transferAction('torrent-add', movie.id, option.url);
+          await transferAction('torrent-add', movie.id, option.url, sourceFolder.value);
           if (choices.isConnected && $('#details').open) {
             $('#details').close();
             changeSection('downloads');
@@ -247,7 +276,7 @@ async function showSourceDownloads(movie, trigger) {
               finally { open.disabled = false; }
             });
             actions.append(open, button('Configurar conexão', 'secondary', async () => {
-              try { await transferAction('torrent-configure'); }
+              try { await openSettings('connection'); }
               catch (setupError) { setText(message, setupError.message); }
             }));
             choices.append(actions);

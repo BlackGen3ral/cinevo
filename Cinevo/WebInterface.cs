@@ -273,6 +273,7 @@ public partial class MainWindow
                 .Where(RemoteFiles.IsPublicHttps).Distinct(StringComparer.Ordinal)
                 .OrderBy(address => address, StringComparer.OrdinalIgnoreCase).ToArray();
         }
+        if (command.Name.StartsWith("settings-", StringComparison.Ordinal)) return await WebSettingsAsync(command);
         if (command.Name.StartsWith("torrent-", StringComparison.Ordinal)) return await TorrentActionAsync(command);
         if (command.Name == "movie-details")
         {

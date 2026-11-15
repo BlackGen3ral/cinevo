@@ -219,6 +219,41 @@ dialog > p { color: var(--muted); line-height: 1.6 }
 .transfer-summary-card { display: grid; gap: 5px; padding: 16px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--muted); font-size: 12px }
 .transfer-summary-card strong { color: var(--accent); font-size: clamp(17px, 2.5vw, 29px); letter-spacing: -.035em; overflow-wrap: anywhere }
 #torrent-rows { display: grid; gap: 11px }
+#torrent-empty { padding: 36px 18px }
+.transfer-filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0 20px }
+.transfer-filters button, .settings-tabs button { padding: 9px 14px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; font: inherit; font-size: 13px }
+.transfer-filters [aria-pressed="true"], .settings-tabs [aria-selected="true"] { background: var(--raised); border-color: var(--accent); color: var(--text) }
+.download-folder { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; color: var(--muted); font-size: 12px }
+.download-folder span { overflow-wrap: anywhere; min-width: 0; flex: 1 }
+.download-folder .button { min-height: 32px; padding: 6px 10px }
+.transfer-card[data-status="active"] { border-left: 3px solid var(--accent) }
+.transfer-card[data-status="done"] .transfer-badge { color: var(--text); background: var(--raised) }
+.transfer-card[data-status="done"] .transfer-actions .button:first-child { background: var(--text); color: var(--background); font-weight: 700 }
+.transfer-card { padding: 22px }
+.transfer-card h2 { max-width: 78ch; line-height: 1.5 }
+.transfer-card-foot { align-items: end; flex-wrap: wrap }
+.transfer-card-foot > span { flex: 1; min-width: 180px; line-height: 1.6 }
+#settings-dialog, #news-dialog { width: min(800px, calc(100vw - 28px)); padding: clamp(18px,4vw,36px) }
+.settings-heading { display: flex; justify-content: space-between; gap: 14px; align-items: start; margin-bottom: 22px }
+.settings-heading h2 { margin: 0; font-size: 30px; letter-spacing: -.04em }
+.settings-heading p, .settings-card p { color: var(--muted); line-height: 1.65; font-size: 13px }
+.settings-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap }
+.settings-card { border: 1px solid var(--line); border-radius: 12px; padding: clamp(16px,3vw,24px); background: var(--background); margin-bottom: 14px }
+.settings-card h3 { margin: 0 0 14px; font-size: 17px }
+.settings-card > label:not(.setting-toggle), #setting-credentials label { display: block; margin: 12px 0 8px; font-size: 13px; color: var(--muted) }
+.settings-card input:not([type="checkbox"]) { width: 100%; min-width: 0; box-sizing: border-box }
+.setting-toggle { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--line); margin-bottom: 14px; cursor: pointer }
+.setting-toggle strong, .setting-toggle small { display: block; line-height: 1.6; font-size: 13px }
+.setting-toggle small { color: var(--muted); max-width: 48ch }
+.setting-toggle input { accent-color: var(--accent); width: 19px; height: 19px; flex-shrink: 0 }
+.settings-card .actions { flex-wrap: wrap }
+.settings-card small { color: var(--muted); line-height: 1.6 }
+.settings-card a { color: var(--accent); overflow-wrap: anywhere }
+.danger-action { margin-top: 18px; color: var(--accent) }
+#settings-status, #news-status { min-height: 22px; color: var(--muted); font-size: 13px; line-height: 1.6 }
+.release-note p { white-space: pre-wrap; overflow-wrap: anywhere }
+.release-note time { font-size: 12px; color: var(--muted) }
+#news-dialog li { margin-bottom: 9px; line-height: 1.6; font-size: 14px }
 .transfer-card { padding: 16px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface) }
 .transfer-card h2 { font-size: 15px; margin: 0; overflow-wrap: anywhere }
 .transfer-badge { flex-shrink: 0; padding: 4px 7px; border-radius: 5px; background: #3b2330; color: var(--accent); font-size: 11px }

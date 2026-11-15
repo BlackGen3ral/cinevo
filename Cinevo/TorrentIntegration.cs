@@ -161,6 +161,10 @@ public partial class MainWindow
         {
             var (title, year) = Scanner.Parse(path);
             movie = new Movie { Title = title, Year = year, Path = path, Bytes = file.Size };
+            library.Movies.Add(movie);
+            try { library.Save(); }
+            catch { library.Movies.Remove(movie); throw; }
+            Refresh();
         }
         await RunWebDialogAsync(() => Play(movie));
     }
@@ -184,9 +188,9 @@ public partial class MainWindow
         {
             var address = command.Address ?? "";
             var client = GetTorrentClient();
-            await client.AddAsync(address, lifetime.Token);
+            await client.AddAsync(address, lifetime.Token, ValidateDownloadFolder(command.DownloadFolder));
             if (command.Id != null && webMovies.TryGetValue(command.Id, out var movie) && library.Movies.Contains(movie))
-                TrackTorrentFallback(client, movie, address);
+                TrackTorrentFallback(client, movie, address, command.DownloadFolder);
             return null;
         }
         if (!TorrentClient.IsHash(command.Id)) throw new InvalidDataException("Download inválido.");

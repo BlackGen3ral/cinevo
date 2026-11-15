@@ -14,7 +14,7 @@ public partial class MainWindow
     private readonly SemaphoreSlim torrentFallbackSwitch = new(1);
     private readonly Dictionary<string, string> torrentFallbackStatus = new(StringComparer.OrdinalIgnoreCase);
 
-    private void TrackTorrentFallback(TorrentClient client, Movie movie, string address)
+    private void TrackTorrentFallback(TorrentClient client, Movie movie, string address, string? folder = null)
     {
         var hash = TorrentClient.MagnetHash(address);
         var identity = FilmIdentity(movie);
@@ -35,7 +35,7 @@ public partial class MainWindow
         torrentFallbackStatus.Remove(hash);
         var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         torrentFallbacks.Add(hash, cancellation);
-        _ = WatchTorrentFallbackAsync(client, hash, alternatives, cancellation);
+        _ = WatchTorrentFallbackAsync(client, hash, alternatives, cancellation, folder);
     }
 
     private void CancelTorrentFallback(string hash)
@@ -44,7 +44,7 @@ public partial class MainWindow
         torrentFallbackStatus.Remove(hash);
     }
 
-    private async Task WatchTorrentFallbackAsync(TorrentClient client, string hash, Movie[] alternatives, CancellationTokenSource cancellation)
+    private async Task WatchTorrentFallbackAsync(TorrentClient client, string hash, Movie[] alternatives, CancellationTokenSource cancellation, string? folder)
     {
         var token = cancellation.Token;
         var wait = Stopwatch.StartNew();
@@ -90,7 +90,7 @@ public partial class MainWindow
                     if (alternative == null) continue;
 
                     await client.SetRunningAsync(hash, false, token);
-                    try { await client.AddAsync(alternative.Url, token); }
+                    try { await client.AddAsync(alternative.Url, token, folder); }
                     catch (Exception ex) when (!token.IsCancellationRequested && ex is InvalidDataException or IOException)
                     {
                         var alternativeHash = TorrentClient.MagnetHash(alternative.Url);

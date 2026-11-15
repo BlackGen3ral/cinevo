@@ -192,13 +192,14 @@ internal sealed class TorrentClient : IDisposable
             ["hashes"] = hash, ["deleteFiles"] = "false"
         }));
 
-    public async Task AddAsync(string address, CancellationToken token)
+    public async Task AddAsync(string address, CancellationToken token, string? folder = null)
     {
         if (!IsMagnet(address)) throw new InvalidDataException("Cole um link magnet válido.");
         var result = await SendAsync("torrents/add", token, () =>
         {
             var form = new MultipartFormDataContent();
             form.Add(new StringContent(address), "urls");
+            if (!string.IsNullOrWhiteSpace(folder)) form.Add(new StringContent(folder), "savepath");
             return form;
         });
         if (result.Trim() == "Fails.") throw new InvalidDataException("O qBittorrent não aceitou este link magnet.");

@@ -62,6 +62,7 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
         MapAsset("/cinevo.css", "cinevo.css", "text/css; charset=utf-8");
         MapAsset("/cinevo.js", "cinevo.js", "application/javascript; charset=utf-8");
         MapAsset("/downloads.js", "downloads.js", "application/javascript; charset=utf-8");
+        MapAsset("/settings.js", "settings.js", "application/javascript; charset=utf-8");
         MapAsset("/tmdb.svg", "tmdb.svg", "image/svg+xml");
         MapAsset("/cinema.jpg", "cinema.jpg", "image/jpeg");
         MapAsset("/instrument-serif.woff2", "instrument-serif.woff2", "font/woff2");
@@ -111,4 +112,4 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
     };
 }
 
-internal sealed record WebAction(string Name, string? Id, string? Address, bool Continuation);
+internal sealed record WebAction(string Name, string? Id, string? Address, bool Continuation, string? DownloadFolder = null);
