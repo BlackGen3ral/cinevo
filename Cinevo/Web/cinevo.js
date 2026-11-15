@@ -333,7 +333,8 @@ function render(data) {
     if (state.section === 'imports') {
       info.append(node('p', '', 'Escolha quais títulos você quer guardar na sua biblioteca.'));
       const actions = node('div', 'actions');
-      actions.append(button('+ Importar endereço', 'accent', openImport), command('Sincronizar portal', 'secondary', 'sync'));
+      actions.append(button('+ Importar endereço', 'accent', openImport),
+        button('Buscar novamente', 'secondary', openImport), command('Sincronizar portal', 'secondary', 'sync'));
       heading.append(info, actions, importFilters());
     } else {
       heading.append(info);
@@ -671,8 +672,27 @@ function renderUpdate(data) {
 }
 
 const importing = { next: '', continuation: false, running: false, paused: false, seen: new Set() };
-function openImport() {
+async function openImport() {
   if (!$('#import-dialog').open) $('#import-dialog').showModal();
+  if (importing.running) return;
+  try {
+    const response = await request('/api/action', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'catalog-sources' })
+    });
+    const sources = await response.json();
+    const select = $('#saved-source');
+    const previous = select.value;
+    select.replaceChildren(...sources.map(address => {
+      const option = node('option', '', address);
+      option.value = address;
+      return option;
+    }));
+    const selected = sources.find(address => state.site && new URL(address).hostname.replace(/^www\./, '') === state.site)
+      || sources.find(address => address === previous) || sources[0];
+    if (selected) select.value = selected;
+    $('#saved-sources').hidden = !sources.length;
+  } catch (error) { $('#import-status').textContent = error.message; }
 }
 
 async function runImport() {
@@ -680,6 +700,7 @@ async function runImport() {
   importing.running = true;
   importing.paused = false;
   $('#start-import').disabled = $('#import-url').disabled = $('#close-import').disabled = true;
+  $('#reimport-source').disabled = $('#saved-source').disabled = true;
   $('#pause-import').hidden = $('#pause-import').disabled = false;
   $('#resume-import').hidden = true;
   const progress = $('#import-status');
@@ -733,6 +754,7 @@ async function runImport() {
     importing.running = false;
     $('#resume-import').hidden = !importing.next;
     $('#start-import').disabled = $('#import-url').disabled = $('#close-import').disabled = false;
+    $('#reimport-source').disabled = $('#saved-source').disabled = false;
   }
 }
 $('#import-form').onsubmit = event => {
@@ -757,6 +779,11 @@ $('#pause-import').onclick = () => {
   $('#import-status').textContent = 'Pausando após as páginas em andamento…';
 };
 $('#resume-import').onclick = runImport;
+$('#reimport-source').onclick = () => {
+  if (importing.running || !$('#saved-source').value) return;
+  $('#import-url').value = $('#saved-source').value;
+  $('#import-form').requestSubmit();
+};
 $('#close-import').onclick = () => $('#import-dialog').close();
 $('#import-dialog').addEventListener('cancel', event => {
   if (importing.running) event.preventDefault();

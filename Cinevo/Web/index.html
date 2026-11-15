@@ -4,13 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cinevo Beta</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/cinevo.png">
   <link rel="stylesheet" href="/cinevo.css">
   <script src="/cinevo.js" defer></script>
   <script src="/downloads.js" defer></script>
 </head>
 <body>
   <header>
-    <button class="brand" data-section="library" aria-label="Cinevo, início">cinevo<span></span></button>
+    <button class="brand" data-section="library" aria-label="Cinevo, início"><img src="/cinevo.png" alt="" width="32" height="32">cinevo<span></span></button>
     <nav aria-label="Coleção">
       <button data-section="library" aria-current="page">Minha biblioteca</button>
       <button data-section="imports">Filmes importados <span id="imports-count" hidden></span></button>
@@ -100,6 +102,13 @@
     <button id="close-import" class="dialog-close" aria-label="Fechar importação">×</button>
     <h2 id="import-title">Importar endereço</h2>
     <p class="description">Cole o endereço HTTPS de um filme ou catálogo. O Cinevo busca novos títulos a cada 30 minutos enquanto estiver aberto.</p>
+    <div id="saved-sources" hidden>
+      <label for="saved-source">Endereços adicionados</label>
+      <div class="saved-source-controls">
+        <select id="saved-source" aria-label="Endereço para buscar novamente"></select>
+        <button id="reimport-source" type="button" class="button secondary">Buscar novamente</button>
+      </div>
+    </div>
     <form id="import-form">
       <input id="import-url" type="url" maxlength="4000" aria-label="Endereço do filme ou catálogo" placeholder="https://…" required autofocus>
       <div class="actions">

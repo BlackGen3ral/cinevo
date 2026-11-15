@@ -63,6 +63,8 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
         MapAsset("/cinevo.js", "cinevo.js", "application/javascript; charset=utf-8");
         MapAsset("/downloads.js", "downloads.js", "application/javascript; charset=utf-8");
         MapAsset("/tmdb.svg", "tmdb.svg", "image/svg+xml");
+        app.MapGet("/favicon.ico", () => Results.Stream(typeof(LocalWeb).Assembly.GetManifestResourceStream("Cinevo.Assets.cinevo.ico")!, "image/x-icon"));
+        app.MapGet("/cinevo.png", () => Results.Stream(typeof(LocalWeb).Assembly.GetManifestResourceStream("Cinevo.Assets.cinevo.png")!, "image/png"));
         app.MapGet("/api/status", async () =>
         {
             var data = await status();

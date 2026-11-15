@@ -220,6 +220,16 @@ public partial class MainWindow
     private bool webImporting;
     private async Task<object?> DispatchWebActionAsync(WebAction command)
     {
+        if (command.Name == "catalog-sources")
+        {
+            CatalogWatch.Discover(library);
+            return library.CatalogSources.Select(source => source.Address)
+                .Concat(library.Movies.Where(movie => movie.IsOnline &&
+                    (movie.IsTmdbImport || movie.ImportedFrom.Length == 0 || movie.ImportedFrom == movie.SourceUrl))
+                    .Select(movie => movie.ImportedFrom.Length > 0 ? movie.ImportedFrom : movie.SourceUrl))
+                .Where(RemoteFiles.IsPublicHttps).Distinct(StringComparer.Ordinal)
+                .OrderBy(address => address, StringComparer.OrdinalIgnoreCase).ToArray();
+        }
         if (command.Name.StartsWith("torrent-", StringComparison.Ordinal)) return await TorrentActionAsync(command);
         if (command.Name == "movie-details")
         {
