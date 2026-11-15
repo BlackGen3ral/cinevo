@@ -196,14 +196,54 @@ public partial class MainWindow
             tmdbRevision,
             movie.IsOnline, movie.ImportedOnly, movie.Progress, movie.Rating, movie.PlayLabel, movie.Available,
             hasDownloadOptions = movie.PortalId.Length > 0,
-            hasCover = movie.Cover.Length > 0,
-            coverVersion = movie.Cover.GetHashCode(StringComparison.Ordinal)
+            hasCover = movie.Cover.Length > 0 || movie.PortalCoverUrl.Length > 0,
+            coverVersion = HashCode.Combine(movie.Cover, movie.PortalCoverUrl)
         };
     }
 
+    private readonly SemaphoreSlim portalCoverSlots = new(6);
+
     private async Task<byte[]?> ReadWebCoverAsync(string id)
     {
-        var path = await Dispatcher.InvokeAsync(() => webMovies.TryGetValue(id, out var movie) && library.Movies.Contains(movie) ? movie.Cover : null);
+        var cover = await Dispatcher.InvokeAsync(() => webMovies.TryGetValue(id, out var movie) && library.Movies.Contains(movie)
+            ? (movie.Cover, movie.PortalId, movie.PortalCoverUrl) : ("", "", ""));
+        var local = await ReadCoverFileAsync(cover.Item1);
+        if (local != null || cover.Item3.Length == 0 || cover.Item2.Length != 64 || !cover.Item2.All(Uri.IsHexDigit)) return local;
+
+        var fingerprint = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(cover.Item3)));
+        var cache = Path.Combine(Library.DataDirectory, "covers", $"portal-{cover.Item2}-{fingerprint}.img");
+        await portalCoverSlots.WaitAsync(lifetime.Token);
+        try
+        {
+            var cached = await ReadCoverFileAsync(cache);
+            if (cached != null) return cached;
+            var connection = PortalService.LoadConnection();
+            if (connection == null) return null;
+            var image = await PortalService.FetchCoverAsync(connection, cover.Item2, lifetime.Token);
+            if (image == null) return null;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(cache)!);
+                var temporary = cache + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                try
+                {
+                    await File.WriteAllBytesAsync(temporary, image, lifetime.Token);
+                    File.Move(temporary, cache, true);
+                }
+                finally { File.Delete(temporary); }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            return image;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException or OperationCanceledException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+        finally { portalCoverSlots.Release(); }
+    }
+
+    private async Task<byte[]?> ReadCoverFileAsync(string path)
+    {
         if (string.IsNullOrEmpty(path)) return null;
         try
         {

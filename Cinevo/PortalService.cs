@@ -111,7 +111,23 @@ public static class PortalService
         var bytes = await RemoteFiles.ReadBoundedAsync(response, 128 * 1024, token);
         return JsonSerializer.Deserialize<PortalDownloads>(bytes, JsonOptions)?.Options ?? [];
     }
-    public static async Task<PortalSyncResult> SyncAsync(Library library, PortalConnection connection, CancellationToken token, HttpMessageHandler? handler = null, Action? onTitlesReady = null)
+    private static readonly HttpClient PortalCovers = new(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
+
+    internal static async Task<byte[]?> FetchCoverAsync(PortalConnection connection, string itemId, CancellationToken token)
+    {
+        ValidateConnection(connection);
+        if (itemId.Length != 64 || !itemId.All(Uri.IsHexDigit)) return null;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(18));
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(new Uri(connection.Endpoint), $"/api/items/{itemId}/cover"));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", connection.Key);
+        using var response = await PortalCovers.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+        if (!response.IsSuccessStatusCode) return null;
+        var bytes = await RemoteFiles.ReadBoundedAsync(response, 5 * 1024 * 1024, timeout.Token);
+        return RemoteFiles.IsImage(bytes) ? bytes : null;
+    }
+
+    public static async Task<PortalSyncResult> SyncAsync(Library library, PortalConnection connection, CancellationToken token, HttpMessageHandler? handler = null)
     {
         using var http = Client(connection,handler);
         var items = new Dictionary<string, PortalItem>(StringComparer.Ordinal);
@@ -129,7 +145,6 @@ public static class PortalService
         }
         var imported = 0;
         var total = 0;
-        var missingCovers = new List<(Movie Movie, PortalItem Item)>();
         var existing = library.Movies.Where(movie => movie.IsOnline).ToLookup(movie => movie.PortalId, StringComparer.Ordinal);
         foreach (var item in items.Values)
         {
@@ -152,26 +167,7 @@ public static class PortalService
             movie.Season = item.Season ?? movie.Season;
             movie.Episode = item.Episode ?? movie.Episode;
             if (RemoteFiles.IsPublicHttps(item.ImportedFrom)) movie.ImportedFrom = item.ImportedFrom;
-            if (item.CoverUrl.Length > 0 && (movie.Cover.Length == 0 || !File.Exists(movie.Cover)))
-                missingCovers.Add((movie, item));
-        }
-        onTitlesReady?.Invoke();
-        foreach (var group in missingCovers.Chunk(6))
-        {
-            await Task.WhenAll(group.Select(async entry =>
-            {
-                var (movie, item) = entry;
-                try
-                {
-                    using var cover = await http.GetAsync("/api/items/" + item.Id + "/cover", HttpCompletionOption.ResponseHeadersRead, token);
-                    if (!cover.IsSuccessStatusCode) return;
-                    var image = await RemoteFiles.ReadBoundedAsync(cover, 5 * 1024 * 1024, token);
-                    if (!RemoteFiles.IsImage(image) || File.Exists(movie.Cover) || !library.Movies.Contains(movie)) return;
-                    var dir = System.IO.Path.Combine(Library.DataDirectory, "covers"); Directory.CreateDirectory(dir); var path = System.IO.Path.Combine(dir, "portal-" + item.Id + ".img"); await File.WriteAllBytesAsync(path, image, token);
-                    if (!File.Exists(movie.Cover)) { movie.Cover = path; movie.CoverSource = item.SourceUrl; }
-                }
-                catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException && !token.IsCancellationRequested) { }
-            }));
+            if (RemoteFiles.IsPublicHttps(item.CoverUrl)) movie.PortalCoverUrl = item.CoverUrl;
         }
         return new PortalSyncResult(imported, total);
     }

@@ -20,10 +20,12 @@ public static class PortalTests
         await PortalService.SyncAsync(library,connection,CancellationToken.None,new FeedHandler(item));
         Check(library.Movies.Count==1&&movie.Favorite&&movie.Watched&&movie.Notes=="Minha anotação"&&!movie.ImportedOnly,"Sincronização duplicou ou perdeu preferências");
         var newItem = new PortalItem { Id = new string('b', 64), Title = "Lançamento da origem",
-            SourceUrl = "https://media.w3.org/novo", ImportedFrom = "https://media.w3.org/catalogo" };
+            SourceUrl = "https://media.w3.org/novo", ImportedFrom = "https://media.w3.org/catalogo", CoverUrl = "https://media.w3.org/capa.jpg" };
         await PortalService.SyncAsync(library, connection, CancellationToken.None, new FeedHandler(item, newItem));
         Check(library.Movies.Count == 2 && library.Movies[1].ImportedOnly && movie.Favorite && !movie.ImportedOnly,
             "Novidades devem entrar nos importados sem duplicar os títulos existentes ou mudar sua biblioteca");
+        Check(library.Movies[1].PortalCoverUrl == newItem.CoverUrl && library.Movies[1].Cover.Length == 0,
+            "A sincronização deve disponibilizar a capa antes de baixar a imagem.");
         var legacy = JsonSerializer.Deserialize<Movie>("""{"Title":"Filme de versão anterior","PortalId":"legado"}""");
         Check(legacy is { ImportedOnly: false }, "A biblioteca existente deve continuar visível após atualizar");
         var target=Path.Combine(root,"download.mp4");var payload=new byte[350000];Random.Shared.NextBytes(payload);
@@ -47,7 +49,7 @@ public static class PortalTests
     private sealed class ImmediateProgress:IProgress<(long Received,long? Total)>{public long Received;public void Report((long Received,long? Total) p)=>Received=p.Received;}
     private sealed class FeedHandler(params PortalItem[] items):HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken token){Check(request.Headers.Authorization?.Scheme=="Bearer","Token de autenticação ausente");return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent(JsonSerializer.Serialize(new{items}))});}
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken token){Check(request.Headers.Authorization?.Scheme=="Bearer","Token de autenticação ausente");Check(request.RequestUri?.AbsolutePath=="/api/items","A sincronização não deve baixar todas as capas");return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent(JsonSerializer.Serialize(new{items}))});}
     }
     private sealed class DownloadHandler(byte[] payload,string type="video/mp4"):HttpMessageHandler
     {

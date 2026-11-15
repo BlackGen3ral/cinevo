@@ -85,7 +85,10 @@ async function loadImage(image) {
     image.src = url;
   } catch {
     images.delete(identity);
-    image.remove();
+    if (image.isConnected && !image.dataset.coverRetried) {
+      image.dataset.coverRetried = 'true';
+      setTimeout(() => { if (image.isConnected) imageObserver.observe(image); }, 12000);
+    } else image.remove();
   }
 }
 

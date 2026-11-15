@@ -14,6 +14,7 @@ public sealed class Movie : INotifyPropertyChanged
     public string Genre { get; set; } = "";
     public string Notes { get; set; } = "";
     public string PortalId { get; set; } = "";
+    public string PortalCoverUrl { get; set; } = "";
     public string SourceUrl { get; set; } = "";
     public string ImportedFrom { get; set; } = "";
     public string MediaType { get; set; } = "";

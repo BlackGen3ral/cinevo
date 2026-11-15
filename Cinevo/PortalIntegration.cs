@@ -153,15 +153,11 @@ public partial class MainWindow
             var connection=PortalService.LoadConnection();
             if(connection==null){if(manual)Status.Text="Abra Portal online e importe o arquivo de conexão uma vez.";return;}
             if(manual)Status.Text="Sincronizando sua coleção online…";
-            var result = await PortalService.SyncAsync(library, connection, lifetime.Token, onTitlesReady: () =>
-            {
-                library.Save();
-                Refresh();
-                titlesReady?.TrySetResult(true);
-            });
+            var result = await PortalService.SyncAsync(library, connection, lifetime.Token);
             if (closed) return;
             library.Save();
             Refresh();
+            titlesReady?.TrySetResult(true);
             if (manual || showResult || result.Added > 0)
                 Status.Text = result.Total == 0
                     ? "A coleção conectada está vazia. Use Abrir meu portal no Cinevo e importe os filmes nessa coleção."
