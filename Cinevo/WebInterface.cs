@@ -293,10 +293,13 @@ public partial class MainWindow
             if (command.Id == null || !webMovies.TryGetValue(command.Id, out var movie) || !library.Movies.Contains(movie) || !movie.IsOnline)
                 throw new InvalidDataException("Título indisponível.");
             List<PortalDownload> options;
-            try { options = await PortalService.GetDownloadsAsync(movie.PortalId, lifetime.Token); }
+            try { options = await PortalService.GetDownloadsAsync(movie.PortalId, movie.SourceUrl, lifetime.Token); }
             catch (Exception ex) when (ex is IOException or System.Net.Http.HttpRequestException or System.Text.Json.JsonException)
             {
-                if (!RemoteFiles.IsPublicHttps(movie.DownloadUrl)) throw new InvalidDataException("Não foi possível consultar as opções da origem.");
+                if (!RemoteFiles.IsPublicHttps(movie.DownloadUrl))
+                    throw new InvalidDataException(ex is System.Net.Http.HttpRequestException { StatusCode: System.Net.HttpStatusCode.NotFound }
+                        ? "O título não está mais na coleção do portal. Importe o endereço novamente ou abra a página original."
+                        : "A consulta de downloads falhou. Tente novamente ou abra a página original.");
                 options = [];
             }
             if (RemoteFiles.IsPublicHttps(movie.DownloadUrl) && !options.Any(option => option.Url == movie.DownloadUrl))

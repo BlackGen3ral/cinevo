@@ -316,7 +316,11 @@ export async function importCatalog(value, options = {}) {
 export async function loadDownloads(value,options = {}) {
  const {response,url} = await fetchPublic(value,options);
  const type = response.headers.get('content-type') || '';
- if (!response.ok || !/text\/html|application\/xhtml/.test(type)) {
+ if (!response.ok) {
+  await response.body?.cancel();
+  throw new ImportError('A página de origem recusou a consulta de downloads.',502);
+ }
+ if (!/text\/html|application\/xhtml/.test(type)) {
   await response.body?.cancel();
   return [];
  }

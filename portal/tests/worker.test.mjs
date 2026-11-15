@@ -3,6 +3,7 @@ const key='b'.repeat(64);const html=await readFile(new URL('../index.html',impor
 const fixture=`
 export async function fixtureFetch(address) {
  const url=new URL(address);
+ if(url.pathname==='/licensed-film') return new Response('<a download href="/example.mp4">Baixar vídeo</a>',{headers:{'content-type':'text/html'}});
  if(url.pathname==='/') return new Response('<link rel="https://api.w.org/" href="/wp-json/"><title>Catalog</title>',{headers:{'content-type':'text/html'}});
  const page=Number(url.searchParams.get('page')||1);
  return Response.json([0,1].map(index=>({id:page*10+index,link:'https://wp.example.org/film-'+(page*10+index),
@@ -12,7 +13,8 @@ export async function fixtureFetch(address) {
 `;
 const entry=(await readFile(new URL('../worker.mjs',import.meta.url),'utf8'))
  .replace("import html from './index.html';",'const html='+JSON.stringify(html)+';')
- .replace('await importCatalog(data.url,{catalogPage:data.continuation===true})','await importCatalog(data.url,{catalogPage:data.continuation===true,validate:async()=>{},fetcher:fixtureFetch})')+fixture;
+ .replace('await importCatalog(data.url,{catalogPage:data.continuation===true})','await importCatalog(data.url,{catalogPage:data.continuation===true,validate:async()=>{},fetcher:fixtureFetch})')
+ .replace('await loadDownloads(data.url)','await loadDownloads(data.url,{validate:async()=>{},fetcher:fixtureFetch})')+fixture;
 const harness=`import worker,{fixtureFetch} from './worker.mjs';import {parsePage,importAddress,publicUrl,publicIp,fetchPublic,importCatalog,downloadOptions} from './importer.mjs';
 const card=(n)=>'<a href="/filmes/'+n+'"><img src="/'+n+'.jpg" alt="Filme '+n+'"></a>';
 const catalog=async address=>{const page=Number(new URL(address).searchParams.get('page')||1);const html='<title>Catálogo</title>'+card(page)+(page<6?'<a rel="next" href="?page='+(page+1)+'">Próximo</a>':'');return new Response(html,{headers:{'content-type':'text/html'}});};
@@ -31,7 +33,7 @@ if(u.pathname==='/__numbered')return Response.json(await importCatalog(base,{val
 }}));
 if(u.pathname==='/__options')return Response.json(await downloadOptions('<a href="magnet:?xt=urn:btih:'+'a'.repeat(40)+'&amp;dn=Demo">1080p | 4.50 GB | Dual Áudio</a><a href="/demo.mp4" download>720p</a><a href="/filmes/other">Outro filme</a>',base));
 `;
-const mf=new Miniflare({compatibilityDate:'2026-07-30',modules:[{type:'ESModule',path:'harness.mjs',contents:harness+handler.replace('return worker.fetch(request,env);',checks+'return worker.fetch(request,env);')},{type:'ESModule',path:'worker.mjs',contents:entry},{type:'ESModule',path:'importer.mjs',contents:await readFile(new URL('../importer.mjs',import.meta.url),'utf8')}],bindings:{AUTH_HASH:createHash('sha256').update(key).digest('hex')},d1Databases:{DB:'test-db'}});
+const mf=new Miniflare({compatibilityDate:'2026-07-30',modules:[{type:'ESModule',path:'harness.mjs',contents:harness+handler.replace('return worker.fetch(request,env);',checks+'return worker.fetch(request,u.pathname==="/api/downloads"?{}:env);')},{type:'ESModule',path:'worker.mjs',contents:entry},{type:'ESModule',path:'importer.mjs',contents:await readFile(new URL('../importer.mjs',import.meta.url),'utf8')}],bindings:{AUTH_HASH:createHash('sha256').update(key).digest('hex')},d1Databases:{DB:'test-db'}});
 after(()=>mf.dispose());const db=await mf.getD1Database('DB');await db.exec(await readFile(new URL('../schema.sql',import.meta.url),'utf8'));const headers={Authorization:'Bearer '+key,'Content-Type':'application/json'};
 async function parse(markup){const response=await mf.dispatchFetch('https://portal.test/__parse',{method:'POST',body:JSON.stringify({html:markup,url:'https://movies.public-domain.org/film/demo'})});assert.equal(response.status,200);return response.json();}
 test('OpenGraph, HTML video and explicitly offered download',async()=>{const [item]=await parse('<title>Demo film</title><meta property="og:image" content="/poster.jpg"><meta name="description" content="A description"><video><source src="https://media.w3.org/demo.mp4"></video><a download href="https://media.w3.org/demo.mp4">Download</a>');assert.equal(item.title,'Demo film');assert.equal(item.coverUrl,'https://movies.public-domain.org/poster.jpg');assert.equal(item.streamUrl,'https://media.w3.org/demo.mp4');assert.equal(item.downloadUrl,item.streamUrl);});
@@ -116,4 +118,15 @@ test('switching legacy catalog to WordPress preserves IDs and concurrent imports
  assert.ok(record);
  assert.equal(JSON.parse(record.data).downloadUrl,'https://wp.example.org/a.mp4');
  assert.equal(JSON.parse(record.data).catalogSource,'wordpress');
+});
+
+test('download lookup works with no database binding and requires a session',async()=>{
+ const request={method:'POST',body:JSON.stringify({url:'https://media.example.org/licensed-film'})};
+ const url='https://portal.test/api/downloads';
+ assert.equal((await mf.dispatchFetch(url,request)).status,401);
+ const response=await mf.dispatchFetch(url,{...request,headers});
+ assert.equal(response.status,200);
+ assert.deepEqual((await response.json()).options,[{url:'https://media.example.org/example.mp4',label:'Baixar vídeo',kind:'file'}]);
+ const privateUrl=await mf.dispatchFetch(url,{...request,headers,body:JSON.stringify({url:'https://127.0.0.1/'})});
+ assert.equal(privateUrl.status,400);
 });

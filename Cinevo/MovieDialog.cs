@@ -117,7 +117,7 @@ public sealed class MovieDialog : Window
         {
             var options = new List<PortalDownload>();
             var unavailable = false;
-            try { options = await PortalService.GetDownloadsAsync(movie.PortalId, token); }
+            try { options = await PortalService.GetDownloadsAsync(movie.PortalId, movie.SourceUrl, token); }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
             catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or IOException or System.Text.Json.JsonException or OperationCanceledException)
             { unavailable = true; }

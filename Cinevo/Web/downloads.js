@@ -197,6 +197,7 @@ async function showSourceDownloads(movie, trigger) {
   panel.append(choices);
   const message = node('p', '', 'Consultando opções da origem…');
   choices.append(node('h3', '', 'Baixar este conteúdo'), message);
+  message.setAttribute('role', 'status');
   trigger.disabled = true;
   try {
     const options = await transferAction('download-options', movie.id);
@@ -218,6 +219,11 @@ async function showSourceDownloads(movie, trigger) {
         finally { selected.disabled = false; }
       }));
     }
-  } catch (error) { setText(message, error.message); }
-  finally { trigger.disabled = false; }
+  } catch (error) {
+    setText(message, error.message || 'A consulta falhou. Tente novamente.');
+    choices.append(button('Tentar novamente', 'secondary', () => {
+      choices.remove();
+      return showSourceDownloads(movie, trigger);
+    }));
+  } finally { trigger.disabled = false; }
 }

@@ -21,6 +21,11 @@ export default {async fetch(request,env){
   }
   const key=sessionKey(request);if(!key)return json({error:'Abra o portal no navegador para iniciar sua coleção.'},401);const owner=await ownerHash(key);
   if(url.pathname==='/api/connection'&&request.method==='GET')return json({endpoint:url.origin,key});
+  if(url.pathname==='/api/downloads'&&request.method==='POST'){
+   let data;try{data=JSON.parse(await boundedText(request,8192));}catch{throw new ImportError('Endereço inválido.');}
+   if(typeof data?.url!=='string'||data.url.length>4000)throw new ImportError('Informe o endereço da origem.');
+   return json({options:await loadDownloads(data.url)});
+  }
   if(url.pathname==='/api/items'&&request.method==='GET'){
    const paged = url.searchParams.has('offset');
    const offset = Number(url.searchParams.get('offset') || 0);
@@ -58,7 +63,7 @@ export default {async fetch(request,env){
    const row=await env.DB.prepare('SELECT data FROM catalog_items WHERE id=? AND owner_hash=?').bind(match[1],owner).first();
    if(!row)return json({error:'Título não encontrado na coleção do portal.'},404);
    const item=JSON.parse(row.data);
-   const options=await loadDownloads(item.sourceUrl);
+   const options=item.downloadUrl===item.sourceUrl ? [] : await loadDownloads(item.sourceUrl);
    if(item.downloadUrl&&!options.some(option=>option.url===item.downloadUrl))
     options.unshift({url:item.downloadUrl,label:'Baixar arquivo',kind:'file'});
    return json({options});
@@ -70,6 +75,6 @@ export default {async fetch(request,env){
    const data=await boundedTextBytes(response,5*1024*1024);return new Response(data,{headers:{...security,'Content-Type':response.headers.get('content-type'),'Cache-Control':'private, max-age=86400'}});
   }
   return json({error:'Operação não encontrada.'},404);
- }catch(e){if(e instanceof ImportError)return json({error:e.message},e.status);console.error(JSON.stringify({event:'request_failed',type:e?.name||'Error'}));return json({error:'Não foi possível concluir agora. Tente novamente.'},502);}
+ }catch(e){if(e instanceof ImportError)return json({error:e.message},e.status);const details=String(e?.cause?.message||e?.message||'');const reason=/quota|daily|exceeded.*limit|too many/i.test(details)?'quota':/schema|column|table|syntax/i.test(details)?'sql':/timeout|timed out/i.test(details)?'timeout':/overload|reset|unavailable|internal|network/i.test(details)?'backend':/D1_/i.test(details)?'database':'runtime';console.error(JSON.stringify({event:'request_failed',type:e?.name||'Error',reason}));return reason==='quota' ? json({error:'O portal atingiu um limite temporário do banco de dados.'},503) : json({error:'Não foi possível concluir agora. Tente novamente.'},502);}
 }};
 async function boundedTextBytes(response,max){const reader=response.body.getReader();const chunks=[];let total=0;try{while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;if(total>max)throw new ImportError('Imagem grande demais.',413);chunks.push(value);}}finally{await reader.cancel();}const bytes=new Uint8Array(total);let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length;}return bytes;}

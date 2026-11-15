@@ -100,13 +100,18 @@ public static class PortalService
         return JsonSerializer.Deserialize<PortalImportBatch>(bytes, JsonOptions)
             ?? throw new InvalidDataException("O portal retornou uma importação inválida.");
     }
-    public static async Task<List<PortalDownload>> GetDownloadsAsync(string itemId, CancellationToken token)
+    public static async Task<List<PortalDownload>> GetDownloadsAsync(string itemId, string sourceUrl, CancellationToken token)
     {
         if (itemId.Length != 64 || !itemId.All(Uri.IsHexDigit)) return [];
-        var connection = LoadConnection();
-        if (connection == null) throw new InvalidDataException("Conecte o portal para consultar os downloads.");
+        var connection = await GetOrCreateConnectionAsync(token);
         using var http = Client(connection);
-        using var response = await http.GetAsync($"/api/items/{itemId}/downloads", HttpCompletionOption.ResponseHeadersRead, token);
+        using var request = RemoteFiles.IsPublicHttps(sourceUrl)
+            ? new HttpRequestMessage(HttpMethod.Post, "/api/downloads")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new { url = sourceUrl }), Encoding.UTF8, "application/json")
+            }
+            : new HttpRequestMessage(HttpMethod.Get, $"/api/items/{itemId}/downloads");
+        using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
         response.EnsureSuccessStatusCode();
         var bytes = await RemoteFiles.ReadBoundedAsync(response, 128 * 1024, token);
         return JsonSerializer.Deserialize<PortalDownloads>(bytes, JsonOptions)?.Options ?? [];
