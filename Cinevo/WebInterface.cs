@@ -39,6 +39,13 @@ public partial class MainWindow
                 if (closed) { server.Stop(); return; }
                 web = server;
             }
+            if (Environment.GetEnvironmentVariable("CINEVO_TEST_DATA") is { Length: > 0 } &&
+                Environment.GetEnvironmentVariable("CINEVO_TEST_HEADLESS") == "1")
+            {
+                await File.WriteAllTextAsync(Path.Combine(Library.DataDirectory, "web-test-url"), web.Address, lifetime.Token);
+                webShown = true;
+                return;
+            }
             var roots = new[] { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) };
             var browser = new[] { Path.Combine("Google", "Chrome", "Application", "chrome.exe"), Path.Combine("Microsoft", "Edge", "Application", "msedge.exe") }
                 .SelectMany(relative => roots.Select(root => Path.Combine(root, relative)))
@@ -142,17 +149,17 @@ public partial class MainWindow
             _ => saved.OrderByDescending(movie => movie.Added)
         };
         var offset = (page - 1) * limit;
-        var list = collection.Where(movie => search.Length == 0 ||
-            $"{movie.Title} {movie.Year} {movie.Genre}".Contains(search, StringComparison.CurrentCultureIgnoreCase))
-            .Skip(offset).Take(limit + 1).ToList();
+        var matches = collection.Where(movie => search.Length == 0 ||
+            $"{movie.Title} {movie.Year} {movie.Genre}".Contains(search, StringComparison.CurrentCultureIgnoreCase)).ToList();
         var returning = saved.Where(movie => !movie.Watched && movie.ResumeMilliseconds > 30000).OrderByDescending(movie => movie.Added).Take(12);
         var favorites = saved.Where(movie => movie.Favorite).OrderByDescending(movie => movie.Added).Take(12);
         var spotlight = page == 1 && section == "library" && search.Length == 0
             ? returning.FirstOrDefault() ?? saved.OrderByDescending(movie => movie.Added).FirstOrDefault() : null;
         return new
         {
-            movies = list.Take(limit).Select(WebMovie).ToArray(),
-            more = list.Count > limit,
+            movies = matches.Skip(offset).Take(limit).Select(WebMovie).ToArray(),
+            more = matches.Count > offset + limit,
+            resultCount = matches.Count,
             spotlight = spotlight == null ? null : WebMovie(spotlight),
             returning = spotlight == null ? null : returning.Select(WebMovie).ToArray(),
             favorites = spotlight == null ? null : favorites.Select(WebMovie).ToArray(),

@@ -6,6 +6,7 @@ if (location.hash && key) {
 }
 const headers = { Authorization: 'Bearer ' + key };
 const state = { section: 'library', search: '', site: '', type: '', page: 1, movies: [], revision: null, busy: false };
+const sectionNames = { library: 'Minha biblioteca', imports: 'Filmes importados', favorites: 'Favoritos', downloads: 'Downloads' };
 const images = new Map();
 const imageObserver = new IntersectionObserver(entries => {
   for (const { target, isIntersecting } of entries) {
@@ -94,7 +95,9 @@ async function loadImage(image) {
 
 function playActions(movie) {
   const actions = node('div', 'actions');
-  actions.append(command(movie.playLabel, 'primary', 'play', movie.id));
+  const play = command(movie.playLabel.replace(/^[↗▶]\s*/, ''), 'primary', 'play', movie.id);
+  play.dataset.icon = movie.playLabel.startsWith('↗') ? 'external' : 'play';
+  actions.append(play);
   return actions;
 }
 
@@ -103,46 +106,59 @@ function renderHero(movie, home) {
   target.hidden = !home;
   if (!home) return;
   target.classList.toggle('hero-empty', !movie?.hasCover);
+  target.dataset.art = 'poster';
   const shade = node('div', 'hero-shade');
   const content = node('div', 'hero-content');
-  target.replaceChildren(shade, content);
+  const footer = node('div', 'hero-footer');
+  target.replaceChildren(shade, content, footer);
   if (movie) {
     const art = poster(movie, 'hero-art');
     if (art) {
       target.prepend(art);
-      loadImage(art);
       art.addEventListener('load', () => {
-        if (art.naturalWidth < art.naturalHeight || art.naturalWidth < 1000) {
-          art.classList.add('hero-poster');
-          art.style.maxWidth = art.naturalWidth + 'px';
-          art.style.maxHeight = art.naturalHeight + 'px';
-        }
+        if (art.isConnected) target.dataset.art = art.naturalWidth > art.naturalHeight * 1.25 ? 'wide' : 'poster';
       }, { once: true });
+      loadImage(art);
     }
     content.append(node('p', 'eyebrow', movie.progress > 0 && !movie.watched ? 'Continue assistindo' : 'Em destaque'),
       node('h1', '', movie.title));
-    const metadata = [movie.year, movie.genre, movie.isOnline ? 'Coleção online' : 'Sua biblioteca'].filter(Boolean).join(' · ');
-    content.append(node('p', 'meta', metadata));
+    const metadata = [movie.year, movie.genre, mediaLabel(movie), movie.isOnline ? movie.site : 'Arquivo local'].filter(Boolean);
+    if (metadata.length) {
+      const tags = node('div', 'metadata');
+      tags.append(...metadata.map(value => node('span', '', value)));
+      content.append(tags);
+    }
     if (movie.description) content.append(node('p', 'description', movie.description));
     const actions = playActions(movie);
-    actions.append(button('Mais informações', 'secondary', () => showDetails(movie)));
+    const details = button('Mais informações', 'secondary', () => showDetails(movie));
+    details.dataset.icon = 'info';
+    actions.append(details);
     content.append(actions);
     if (heroTotal > 1) {
       const controls = node('div', 'hero-controls');
-      const previous = button('‹', 'secondary', () => stepHero(-1));
-      const next = button('›', 'secondary', () => stepHero(1));
+      const previous = button('', 'secondary', () => stepHero(-1));
+      const next = button('', 'secondary', () => stepHero(1));
+      previous.dataset.icon = 'previous';
+      next.dataset.icon = 'next';
       previous.setAttribute('aria-label', 'Destaque anterior');
       next.setAttribute('aria-label', 'Próximo destaque');
-      const pause = button(heroPaused ? 'Retomar' : 'Pausar', 'secondary', () => {
+      const pause = button('', 'secondary', () => {
         heroPaused = !heroPaused;
-        pause.textContent = heroPaused ? 'Retomar' : 'Pausar';
+        updatePause();
       });
+      function updatePause() {
+        const label = heroPaused ? 'Retomar destaques' : 'Pausar destaques';
+        pause.title = label;
+        pause.setAttribute('aria-label', label);
+        pause.dataset.icon = heroPaused ? 'play' : 'pause';
+      }
+      updatePause();
       controls.append(previous, node('span', '', (heroIndex + 1) + ' / ' + heroTotal), next, pause);
-      content.append(controls);
+      footer.append(controls);
     }
   } else {
-    content.append(node('h1', '', 'Seu cinema, em casa.'),
-      node('p', 'description', 'Adicione uma pasta do seu PC ou importe títulos de um catálogo online.'));
+    content.append(node('h1', '', 'Monte sua biblioteca'),
+      node('p', 'description', 'Adicione uma pasta de filmes do seu PC ou importe um catálogo online.'));
     const actions = node('div', 'actions');
     actions.append(command('Adicionar pasta', 'primary', 'add-folder'),
       button('Importar endereço', 'secondary', () => { changeSection('imports'); openImport(); }));
@@ -154,11 +170,16 @@ function movieCard(movie) {
   const card = node('article', 'card');
   card.dataset.movie = movie.id;
   const open = node('button', 'poster-button');
+  open.type = 'button';
   open.title = movie.title;
   open.onclick = () => showDetails(movie);
   const art = node('span', 'poster', movie.title[0]?.toUpperCase() || 'C');
   const image = poster(movie);
   if (image) { art.append(image); imageObserver.observe(image); }
+  const detail = node('span', 'poster-action');
+  detail.dataset.icon = 'info';
+  detail.setAttribute('aria-hidden', 'true');
+  art.append(detail);
   if (state.section === 'imports' && !movie.importedOnly) art.append(node('span', 'label', 'Na biblioteca'));
   if (!movie.watched && movie.progress > 0) {
     const progress = node('progress');
@@ -167,10 +188,13 @@ function movieCard(movie) {
     progress.setAttribute('aria-label', 'Progresso assistido');
     art.append(progress);
   }
-  open.append(art, node('strong', '', movie.title), node('small', '', [mediaLabel(movie), movie.year, movie.genre].filter(Boolean).join(' · ')));
+  const text = node('div', 'card-text');
+  text.append(node('strong', '', movie.title), node('small', '', [mediaLabel(movie), movie.year, movie.genre].filter(Boolean).join(' · ')));
+  open.append(art, text);
   card.append(open);
   if (movie.importedOnly) {
-    const add = command('+ Adicionar à biblioteca', 'secondary', 'add-to-library', movie.id);
+    const add = command('Adicionar à biblioteca', 'secondary', 'add-to-library', movie.id);
+    add.dataset.icon = 'add';
     add.setAttribute('aria-label', 'Adicionar à biblioteca: ' + movie.title);
     card.append(add);
   }
@@ -218,22 +242,34 @@ function updateImportFilters(sites) {
   options(type, [['', 'Filmes e séries'], ['movie', 'Só filmes'], ['series', 'Só séries']], state.type);
 }
 
+function updateShelfControls(cards) {
+  const controls = cards.previousElementSibling?.querySelector('.shelf-controls');
+  if (controls) controls.hidden = cards.scrollWidth <= cards.clientWidth + 1;
+}
+
+const shelfSize = new ResizeObserver(entries => entries.forEach(({ target }) => updateShelfControls(target)));
+
 function shelf(title, rail = false) {
   const section = node('section', 'shelf');
   const cards = node('div', rail ? 'rail' : 'grid');
+  const header = node('div', 'shelf-heading');
+  if (title) header.append(node('h2', '', title));
   if (rail) {
     const controls = node('div', 'shelf-controls');
+    controls.hidden = true;
     for (const [direction, label] of [[-1, 'Voltar na fileira'], [1, 'Avançar na fileira']]) {
-      const arrow = button(direction < 0 ? '‹' : '›', '', () => cards.scrollBy({
+      const arrow = button('', '', () => cards.scrollBy({
         left: direction * cards.clientWidth * .85,
         behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
       }));
+      arrow.dataset.icon = direction < 0 ? 'previous' : 'next';
       arrow.setAttribute('aria-label', label);
       controls.append(arrow);
     }
-    section.append(controls);
+    header.append(controls);
+    shelfSize.observe(cards);
   }
-  if (title) section.append(node('h2', '', title));
+  if (header.childElementCount) section.append(header);
   section.append(cards);
   return section;
 }
@@ -305,6 +341,7 @@ function renderShelf(id, title, movies, rail, index) {
     if (image) imageObserver.unobserve(image);
     old.remove();
   }
+  if (rail) requestAnimationFrame(() => updateShelfControls(cards));
 }
 
 function render(data) {
@@ -322,6 +359,7 @@ function render(data) {
     if (home && oldImage?.src && oldImage.dataset.cover === newImage?.dataset.cover) {
       imageObserver.unobserve(newImage);
       newImage.replaceWith(oldImage);
+      $('#hero').dataset.art = oldImage.naturalWidth > oldImage.naturalHeight * 1.25 ? 'wide' : 'poster';
     }
     heroKey = nextHero;
   }
@@ -331,17 +369,25 @@ function render(data) {
     headingKey = state.section;
     heading.replaceChildren();
     const info = node('div');
-    const title = state.section === 'imports' ? 'Filmes importados' : state.section === 'favorites' ? 'Favoritos' : 'Minha biblioteca';
-    info.append(node('h1', '', title));
+    info.append(node('h1', '', sectionNames[state.section]));
+    const count = node('p', 'page-count');
+    count.id = 'results-count';
+    info.append(count);
     if (state.section === 'imports') {
-      info.append(node('p', '', 'Escolha quais títulos você quer guardar na sua biblioteca.'));
       const actions = node('div', 'actions');
-      actions.append(button('+ Importar endereço', 'accent', openImport),
-        button('Buscar novamente', 'secondary', openImport), command('Sincronizar portal', 'secondary', 'sync'));
+      const add = button('Importar endereço', 'accent', openImport);
+      const reimport = button('Buscar novamente', 'secondary', openImport);
+      add.dataset.icon = 'add';
+      reimport.dataset.icon = 'refresh';
+      actions.append(add, reimport, command('Sincronizar portal', 'secondary', 'sync'));
       heading.append(info, actions, importFilters());
     } else {
       heading.append(info);
     }
+  }
+  if (!home && $('#results-count')) {
+    const count = data.resultCount ?? data.movies.length;
+    $('#results-count').textContent = count.toLocaleString('pt-BR') + (count === 1 ? ' título' : ' títulos');
   }
   if (state.section === 'imports') updateImportFilters(data.sites || []);
   const rows = $('#rows');
@@ -378,13 +424,15 @@ function render(data) {
   }
   for (const [id, section] of shelves) {
     if (visibleShelves.has(id)) continue;
+    const rail = section.querySelector('.rail');
+    if (rail) shelfSize.unobserve(rail);
     for (const image of section.querySelectorAll('img')) imageObserver.unobserve(image);
     section.remove();
     shelves.delete(id);
   }
   $('#more').hidden = !data.more;
   $('#imports-count').hidden = !data.imported;
-  $('#imports-count').textContent = data.imported;
+  $('#imports-count').textContent = data.imported.toLocaleString('pt-BR');
   $('#version').textContent = 'Cinevo ' + data.version + ' · Beta';
   $('#clear-library').disabled = !data.total && !data.folderCount;
 }
@@ -403,7 +451,11 @@ function showDetails(movie) {
   const introduction = node('div', 'detail-intro');
   introduction.append(title);
   const tags = [mediaLabel(movie), movie.year, movie.genre, movie.watched ? 'Assistido' : '', movie.rating ? '★ ' + movie.rating + '/5' : ''].filter(Boolean);
-  if (tags.length) introduction.append(node('p', 'detail-tags', tags.join('  ·  ')));
+  if (tags.length) {
+    const metadata = node('div', 'metadata detail-tags');
+    metadata.append(...tags.map(tag => node('span', '', tag)));
+    introduction.append(metadata);
+  }
   const mainActions = playActions(movie);
   if (movie.importedOnly) mainActions.append(command('+ Adicionar à biblioteca', 'accent', 'add-to-library', movie.id));
   introduction.append(mainActions);
@@ -417,6 +469,7 @@ function showDetails(movie) {
   const header = node('div', 'detail-header');
   header.append(artwork, introduction);
   const information = node('div', 'detail-information');
+  const story = node('div', 'detail-story');
   const synopsis = node('section', 'detail-synopsis');
   synopsis.append(node('h3', '', 'Sinopse'));
   const summary = node('p', '', movie.description || 'Buscando sinopse…');
@@ -439,7 +492,8 @@ function showDetails(movie) {
   const credits = node('section', 'tmdb-credits');
   if (movie.tmdbConfigured === false) renderTmdbStatus(credits, movie, 'disconnected');
   const downloads = isSameMovie && panel.querySelector('.source-downloads');
-  information.append(synopsis, trailer, credits, tools);
+  story.append(synopsis, trailer);
+  information.append(story, credits, tools);
   if (downloads) information.append(downloads);
   panel.replaceChildren(header, information);
   if (!dialog.open) {
@@ -493,6 +547,7 @@ function renderTmdbStatus(section, movie, status, error) {
 }
 
 function renderTmdb(section, introduction, synopsis, tmdb, usesSynopsis, movie) {
+  section.replaceChildren();
   const link = node('a', 'detail-source', 'Ver ficha no TMDB ↗');
   link.href = tmdb.url;
   link.target = '_blank';
@@ -613,6 +668,7 @@ async function refresh(append = false, keepPages = false) {
 function changeSection(section) {
   fetchCatalog?.abort();
   state.section = section;
+  $('#current-section').textContent = sectionNames[section];
   state.search = '';
   state.site = state.type = '';
   $('#search').value = '';
@@ -625,6 +681,7 @@ function changeSection(section) {
   $('#downloads').hidden = downloads === false;
   $('#collection').hidden = downloads;
   $('.search').hidden = downloads;
+  $('#view-controls').hidden = downloads;
   if (downloads) {
     $('#hero').hidden = true;
     heroKey = undefined;
@@ -833,6 +890,24 @@ $('#clear-dialog').addEventListener('cancel', event => {
 });
 $('#more').onclick = () => { if (!state.busy) refresh(true); };
 let searchTimer;
+function setCatalogView(view) {
+  $('#rows').dataset.view = view;
+  $('#view-controls').querySelectorAll('button').forEach(control =>
+    control.setAttribute('aria-pressed', String(control.dataset.view === view)));
+}
+setCatalogView('grid');
+$('#view-controls').addEventListener('click', event => {
+  const control = event.target.closest('button[data-view]');
+  if (!control) return;
+  setCatalogView(control.dataset.view);
+});
+document.addEventListener('keydown', event => {
+  if (!event.ctrlKey || event.altKey || event.key.toLowerCase() !== 'k' ||
+    $('.search').hidden || document.querySelector('dialog[open]')) return;
+  event.preventDefault();
+  $('#search').focus();
+  $('#search').select();
+});
 $('#search').oninput = event => {
   state.search = event.target.value.trim();
   clearTimeout(searchTimer);

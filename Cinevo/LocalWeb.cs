@@ -50,7 +50,7 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
             context.Response.Headers.CacheControl = "no-store";
             context.Response.Headers.XContentTypeOptions = "nosniff";
             context.Response.Headers["Referrer-Policy"] = "no-referrer";
-            context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; frame-src https://www.youtube-nocookie.com; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'";
+            context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; font-src 'self'; frame-src https://www.youtube-nocookie.com; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'";
             if (context.Request.Path.StartsWithSegments("/api") && !Authorized(context.Request.Headers.Authorization))
             {
                 context.Response.StatusCode = 401;
@@ -63,6 +63,8 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
         MapAsset("/cinevo.js", "cinevo.js", "application/javascript; charset=utf-8");
         MapAsset("/downloads.js", "downloads.js", "application/javascript; charset=utf-8");
         MapAsset("/tmdb.svg", "tmdb.svg", "image/svg+xml");
+        MapAsset("/cinema.jpg", "cinema.jpg", "image/jpeg");
+        MapAsset("/instrument-serif.woff2", "instrument-serif.woff2", "font/woff2");
         app.MapGet("/favicon.ico", () => Results.Stream(typeof(LocalWeb).Assembly.GetManifestResourceStream("Cinevo.Assets.cinevo.ico")!, "image/x-icon"));
         app.MapGet("/cinevo.png", () => Results.Stream(typeof(LocalWeb).Assembly.GetManifestResourceStream("Cinevo.Assets.cinevo.png")!, "image/png"));
         app.MapGet("/api/status", async () =>

@@ -12,24 +12,39 @@
   <script src="/downloads.js" defer></script>
 </head>
 <body>
-  <header>
-    <button class="brand" data-section="library" aria-label="Cinevo, início"><img src="/cinevo.png" alt="" width="32" height="32">cinevo<span></span></button>
+  <a class="skip-link" href="#main">Ir para o conteúdo</a>
+  <aside class="sidebar" aria-label="Navegação do Cinevo">
+    <button class="brand" data-section="library" aria-label="Cinevo, início"><img src="/cinevo.png" alt="" width="34" height="34"><span>Cinevo</span></button>
     <nav aria-label="Coleção">
-      <button data-section="library" aria-current="page">Minha biblioteca</button>
-      <button data-section="imports">Filmes importados <span id="imports-count" hidden></span></button>
-      <button data-section="favorites">Favoritos</button>
-      <button data-section="downloads">Downloads</button>
+      <button data-section="library" data-icon="library" aria-current="page"><span>Minha biblioteca</span></button>
+      <button data-section="imports" data-icon="catalog"><span>Filmes importados</span> <span id="imports-count" hidden></span></button>
+      <button data-section="favorites" data-icon="favorite"><span>Favoritos</span></button>
+      <button data-section="downloads" data-icon="download"><span>Downloads</span></button>
     </nav>
+    <div class="sidebar-support">
+      <div id="update-controls">
+        <button id="update" class="button secondary" data-command="update" hidden>Atualizar Cinevo</button>
+        <div id="update-transfer" hidden><span id="update-label" role="status"></span><progress id="update-progress" aria-label="Progresso da atualização" max="100"></progress></div>
+      </div>
+      <button data-command="settings" data-icon="settings">Configurações</button>
+      <span id="version">Cinevo Beta</span>
+    </div>
+  </aside>
+  <header class="topbar">
+    <span id="current-section">Minha biblioteca</span>
     <div class="tools">
-      <label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Buscar na coleção" aria-label="Buscar na coleção"></label>
-      <details class="menu"><summary aria-label="Opções do Cinevo">···</summary>
+      <label class="search" data-icon="search"><input id="search" type="search" placeholder="Buscar na coleção" aria-label="Buscar na coleção" aria-keyshortcuts="Control+K"><kbd aria-hidden="true">Ctrl K</kbd></label>
+      <div id="view-controls" class="view-controls" role="group" aria-label="Exibição dos títulos">
+        <button type="button" data-view="grid" data-icon="grid" aria-pressed="true" aria-label="Grade de capas" title="Grade de capas"></button>
+        <button type="button" data-view="list" data-icon="list" aria-pressed="false" aria-label="Lista de títulos" title="Lista de títulos"></button>
+      </div>
+      <details class="menu"><summary aria-label="Opções do Cinevo" data-icon="more"></summary>
         <div>
           <button data-command="add-folder">Adicionar pasta</button>
           <button data-command="folders">Gerenciar pastas</button>
           <button id="scan" data-command="scan">Atualizar arquivos</button>
           <button data-command="covers">Buscar ou pausar capas</button>
           <button data-command="portal">Portal online</button>
-          <button data-command="settings">Configurações</button>
           <button data-command="tmdb-settings">Configurar TMDB</button>
           <button id="clear-library">Limpar biblioteca</button>
           <button data-command="classic">Interface clássica</button>
@@ -38,7 +53,7 @@
       </details>
     </div>
   </header>
-  <main id="main" aria-busy="true">
+  <main id="main" tabindex="-1" aria-busy="true">
     <section id="downloads" hidden aria-labelledby="downloads-title">
       <div class="transfer-header">
         <div><h1 id="downloads-title">Downloads</h1><p>Transferências do qBittorrent neste PC.</p></div>
@@ -64,16 +79,11 @@
       <button id="more" class="button secondary" hidden>Carregar mais filmes</button>
     </div>
   </main>
-  <footer>
-    <span id="version">Cinevo Beta</span>
+  <footer class="statusbar">
     <span id="status" role="status"></span>
-    <div id="update-controls">
-      <button id="update" class="button secondary" data-command="update" hidden>Atualizar Cinevo</button>
-      <div id="update-transfer" hidden><span id="update-label" role="status"></span><progress id="update-progress" aria-label="Progresso da atualização" max="100"></progress></div>
-    </div>
   </footer>
   <dialog id="details" aria-labelledby="detail-title">
-    <button class="dialog-close" aria-label="Fechar detalhes">×</button>
+    <button class="dialog-close" aria-label="Fechar detalhes" data-icon="close"></button>
     <div id="detail-content"></div>
   </dialog>
   <dialog id="clear-dialog" aria-labelledby="clear-title">
@@ -100,7 +110,7 @@
     <button id="close-torrent-files" type="button" class="button secondary">Fechar</button>
   </dialog>
   <dialog id="import-dialog" aria-labelledby="import-title">
-    <button id="close-import" class="dialog-close" aria-label="Fechar importação">×</button>
+    <button id="close-import" class="dialog-close" aria-label="Fechar importação" data-icon="close"></button>
     <h2 id="import-title">Importar endereço</h2>
     <p class="description">Cole o endereço HTTPS de um filme ou catálogo. O Cinevo busca novos títulos a cada 30 minutos enquanto estiver aberto.</p>
     <div id="saved-sources" hidden>
