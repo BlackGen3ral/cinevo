@@ -26,7 +26,7 @@ public partial class PlayerWindow : Window
     private WindowState previousState;
     public PlayerWindow(Movie movie, Action save, bool hasNext = false, bool startFullscreen=false, double startVolume=80)
     {
-        this.movie = movie; this.save = save; this.hasNext=hasNext; InitializeComponent();
+        this.movie = movie; this.save = save; this.hasNext=hasNext; InitializeComponent();SetupPreviews();
         Volume.Value=Math.Clamp(startVolume,0,100);
         NextEpisodeButton.Visibility = hasNext ? Visibility.Visible : Visibility.Collapsed;
         SubtitleDelayInput.Text = (movie.SubtitleDelayMilliseconds / 1000d).ToString("0.0", System.Globalization.CultureInfo.CurrentCulture);
@@ -42,7 +42,7 @@ public partial class PlayerWindow : Window
         if (teardownFinished) return;
         e.Cancel = true;
         if (teardownStarted) return;
-        teardownStarted = true; timer.Stop(); PlayerStatus.Text = "Encerrando a sessão…";
+        teardownStarted = true; timer.Stop();HideTimelinePreview(); PlayerStatus.Text = "Encerrando a sessão…";
         try { CaptureProgress(); save(); }
         catch (Exception ex) { MessageBox.Show("Não foi possível salvar o progresso: " + ex.Message, "Cinevo"); }
         var releasing = engine; engine = null;
@@ -108,11 +108,11 @@ public partial class PlayerWindow : Window
     private void Back_Click(object sender, RoutedEventArgs e) => Close();
     private void BackTen_Click(object sender, RoutedEventArgs e) => Seek(-10000);
     private void ForwardTen_Click(object sender, RoutedEventArgs e) => Seek(10000);
-    private void Seek(long delta) { if (engine != null && engine.Length > 0) engine.Time = Math.Clamp(engine.Time + delta, 0, Math.Max(0, engine.Length - 1000)); }
+    private void Seek(long delta) { if (engine != null && engine.Length > 0) {engine.Time = Math.Clamp(engine.Time + delta, 0, Math.Max(0, engine.Length - 1000));ShowTimelinePreview(engine.Time);} }
     private void Volume_Changed(object sender, RoutedPropertyChangedEventArgs<double> e) { if (engine != null) engine.Volume = (int)e.NewValue; }
     private void Seek_Start(object sender, MouseButtonEventArgs e) => seeking = true;
     private void Seek_End(object sender, MouseButtonEventArgs e) { seeking = false; if (engine != null) engine.Time = (long)Timeline.Value; }
-    private void Timeline_Changed(object sender, RoutedPropertyChangedEventArgs<double> e) { if (!updating && !seeking && engine != null) engine.Time = (long)e.NewValue; }
+    private void Timeline_Changed(object sender, RoutedPropertyChangedEventArgs<double> e) { if (!updating && !seeking && engine != null){engine.Time = (long)e.NewValue;ShowTimelinePreview(engine.Time);} }
     private void Audio_Changed(object sender, SelectionChangedEventArgs e) { if (!updating && AudioTracks.SelectedItem is MediaTrack track) { engine?.AudioTrack(track.Id); movie.PreferredAudioTrack = track.Id; } }
     private void Subtitle_Changed(object sender, SelectionChangedEventArgs e) { if (!updating && SubtitleTracks.SelectedItem is MediaTrack track) { engine?.SubtitleTrack(track.Id); movie.PreferredSubtitleTrack = track.Id; } }
     private void CancelNext_Click(object sender,RoutedEventArgs e){countdown.Cancel();AutoNextPanel.Visibility=Visibility.Collapsed;PlayerStatus.Text="Reprodução automática cancelada.";}

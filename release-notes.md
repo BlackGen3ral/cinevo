@@ -1,5 +1,5 @@
-- Downloads com capa associada ao catálogo, progresso, velocidade real e previsão de término no mesmo cartão.
-- Duração, resolução e disponibilidade ao focar ou passar o mouse em uma capa, quando os dados estão disponíveis.
-- Aparência e sons nas configurações: tamanho das capas, intensidade do brilho, volume dos cliques e densidade, salvos por perfil neste PC.
-- Controles do player recolhidos após inatividade durante a reprodução e revelados por mouse, teclado ou controle. Em pausa e ao terminar, os botões ficam visíveis.
-- Busca separada em filmes, séries, episódios e elenco identificado na coleção; pesquisa opcional de pessoas pelo TMDB conectado.
+- Downloads solicitados na TV: escolha entre as opções publicadas pela origem e envie ao PC, com acompanhamento da fila. Torrents usam o qBittorrent do computador; arquivos diretos são gravados em streaming.
+- Vídeos concluídos são disponibilizados na biblioteca da central. Solicitações diretas podem ser canceladas pela TV, com remoção do arquivo parcial; torrents podem ser pausados e retomados.
+- Prévias reais ao navegar pela linha do tempo e usar os saltos do player no PC e na TV, para vídeos locais. Extração silenciosa e cache de até 8 MiB apenas em memória, sem miniaturas gravadas no disco.
+- Diagnóstico da central com contato recente da TV, disponibilidade do PC pela rede e explicações para arquivo ausente, perda de conexão e falha de formato ou decodificação.
+- Opções de download vinculadas à sessão pareada e ao título, com expiração, revalidação da origem e proteção contra solicitações duplicadas.

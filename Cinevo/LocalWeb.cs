@@ -83,7 +83,6 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
         app.MapGet("/api/catalog", async (string? section, string? search, int? page, int? limit, string? site, string? type) =>
             Results.Json(await catalog(section ?? "library", search ?? "", Math.Clamp(page ?? 1, 1, 100000), Math.Clamp(limit ?? 30, 1, 60), site, type)));
         app.MapGet("/api/backdrop/{id}",async(string id)=>backdrop!=null&&await backdrop(id) is {} bytes?Results.Bytes(bytes,ImageType(bytes)):Results.NotFound());
-        app.MapGet("/api/backdrop/{id}",async(string id)=>backdrop!=null&&await backdrop(id) is {} bytes?Results.Bytes(bytes,ImageType(bytes)):Results.NotFound());
         app.MapGet("/api/season-cover/{id}",async(string id)=>seasonCover!=null&&await seasonCover(id) is {} bytes?Results.Bytes(bytes,ImageType(bytes)):Results.NotFound());
         app.MapGet("/api/cover/{id}", async (string id) =>
             await cover(id) is { } data ? Results.Bytes(data, ImageType(data)) : Results.NotFound());

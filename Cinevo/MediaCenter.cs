@@ -8,9 +8,9 @@ public partial class MainWindow
     private string mediaStatus="Vídeos concluídos aparecem automaticamente na biblioteca e na TV.";
     private int mediaCursor;
     private void StartMediaCenter(){mediaTimer.Tick+=async(_,_)=>{if(closed){mediaTimer.Stop();return;}await IndexDownloadsAsync();};mediaTimer.Start();_ = IndexDownloadsAsync();}
-    private async Task IndexDownloadsAsync()
+    private async Task IndexDownloadsAsync(bool force=false)
     {
-        if(mediaBusy||closed||!library.AutoImportDownloads||TorrentConnection.Load()==null)return;
+        if(mediaBusy||closed||!force&&!library.AutoImportDownloads||TorrentConnection.Load()==null)return;
         mediaBusy=true;
         try{
             var all=(await GetTorrentClient().TransfersAsync(lifetime.Token)).Where(t=>TorrentClient.IsHash(t.Hash)&&t.Completed>0&&(!mediaChecked.TryGetValue(t.Hash,out var size)||size!=t.Completed)).ToArray();

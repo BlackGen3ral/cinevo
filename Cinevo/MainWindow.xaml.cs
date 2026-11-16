@@ -318,8 +318,10 @@ public partial class MainWindow : Window
             return false;
         }
     }
-    private void OnClosing(object? sender, CancelEventArgs e)
+    private bool waitingTvDownloads;
+    private async void OnClosing(object? sender, CancelEventArgs e)
     {
+        if(tvDirectTasks.Count>0){e.Cancel=true;if(waitingTvDownloads)return;waitingTvDownloads=true;foreach(var job in tvJobs.Values)job.Cancel?.Cancel();await Task.WhenAll(tvDirectTasks.ToArray());await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);waitingTvDownloads=false;Close();return;}
         scan?.Cancel();
         closed = true; lifetime.Cancel();
         web?.Stop(); tv?.Stop();

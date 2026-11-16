@@ -33,6 +33,7 @@ try {
  ViewerTests.Run(root);
  ExperienceTests.Run(root);
  InterfaceTests.Run();
+ CentralTests.Run();
  await TvWebTests.Run(root);
  await PortalTests.Run(root);
  await CatalogWatchTests.Run();

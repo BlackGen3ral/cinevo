@@ -13,6 +13,9 @@ try
     player.Pause(true); Thread.Sleep(300); if (player.State != 4) throw new Exception("Pausa não funcionou");
     player.Time = 4000; player.Pause(false); Thread.Sleep(700); if (player.Time < 3900) throw new Exception("Busca na linha do tempo não funcionou");
     Console.WriteLine($"PASS: LibVLC real decodificou AVI em caminho Unicode, reproduziu, pausou e avançou para {player.Time}ms.");
+    var preview=VlcEngine.ReadPreview(args[0],video,5000,CancellationToken.None);
+    if(preview==null||preview.Pixels.Length!=256*144*4||preview.Milliseconds<4400||(preview.Pixels[0]<80||preview.Pixels[0]>140))throw new Exception("Prévia real após seek não foi decodificada");
+    Console.WriteLine("PASS: prévia real em memória, sem áudio, após seek para "+preview.Milliseconds+"ms.");
     var subtitle = Path.Combine(root, "Legenda de teste.srt"); File.WriteAllText(subtitle,"1\n00:00:01,000 --> 00:00:09,000\nCinevo - teste de legenda\n");
     if (player.AddSubtitle(subtitle) != 0) throw new Exception("Legenda externa não foi aceita");
     for (var i=0;i<20 && player.Tracks(false).Count<2;i++) Thread.Sleep(100);

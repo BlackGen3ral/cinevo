@@ -1,8 +1,8 @@
-# Cinevo 0.1.46 · Beta
+# Cinevo 0.1.47 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.46-beta.47/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.47-beta.48/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -42,6 +42,16 @@ Requisitos: Windows 10/11 x64. O motor LibVLC e seus módulos já vêm no instal
 O Cinevo não move, apaga ou envia seus vídeos. A busca de capas envia somente o título e ano à Wikipédia; pode ser desativada em **Configurações**. Seus caminhos e anotações ficam no computador. As capas e seus direitos pertencem aos respectivos titulares; a origem fica acessível nos detalhes. Correspondências são aproximadas e nem todos os filmes terão um pôster disponível. Capas manuais são preservadas. Filmes divididos em arquivos separados aparecem como registros separados.
 
 No player: **Espaço** pausa/continua; **← / →** recuam/avançam 10 segundos; **F** alterna tela cheia; **Esc** sai da tela cheia ou volta à biblioteca; **M** ativa/desativa o som. O progresso é salvo a cada dez segundos e ao fechar o player. A continuação começa após 30 segundos de progresso salvo. No final, o filme é marcado como assistido automaticamente; você pode alterar isso nos detalhes.
+
+## Central TV, downloads e prévias
+
+Na TV pareada, abra **Filmes importados**, escolha um título ou episódio e selecione **Baixar no PC**. O computador consulta novamente a origem e usa sua pasta padrão. Torrents exigem o qBittorrent conectado no PC; para arquivos diretos, sem pasta definida, o destino é Vídeos/Cinevo. Os pedidos são acompanhados em **Downloads no PC** na TV durante a sessão. Não há garantia de disponibilidade de pares ou de arquivos externos. Páginas sem arquivo direto reconhecido não são baixadas automaticamente.
+
+Mantenha o Cinevo aberto no computador para concluir arquivos diretos e disponibilizar os vídeos à TV. Arquivos diretos cancelados removem o parcial; pausar um torrent preserva os dados dele. O app espera a remoção dos parciais ao encerrar normalmente. As solicitações da TV ficam nesta execução do PC; os vídeos concluídos e a biblioteca são preservados em disco.
+
+A linha do tempo e os botões de salto mostram prévias de vídeos locais a cada dez segundos, geradas sob demanda por um decodificador silencioso separado. O cache é global, limitado a **96 imagens / 8 MiB de memória**, sem gravação de miniaturas no disco. Vídeos incompatíveis ou indisponíveis podem ficar sem prévia. A função usa os callbacks de vídeo do [LibVLC 3](https://videolan.videolan.me/vlc-3.0/group__libvlc__media__player.html).
+
+Abra **Diagnóstico da central** no PC ou **Diagnóstico** na TV, inclusive nos controles do player. O PC informa o contato das TVs nos últimos 45 segundos. A TV testa se o PC responde pela rede e informa erros recebidos pelo navegador. Sem resposta, pode haver falha de rede, suspensão, Cinevo fechado ou central desativada. O diagnóstico não presume que o PC está desligado e não garante compatibilidade de codecs com qualquer modelo de TV.
 
 ## Atualizações
 
@@ -111,7 +121,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.46-beta.47
+./scripts/build.ps1 -Version 0.1.47-beta.48
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.
