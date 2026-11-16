@@ -1,8 +1,8 @@
-# Cinevo 0.1.43 · Beta
+# Cinevo 0.1.44 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.43-beta.44/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.44-beta.45/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -106,7 +106,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.43-beta.44
+./scripts/build.ps1 -Version 0.1.44-beta.45
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.
@@ -138,3 +138,11 @@ Para usar a TV, ative a central e abra o endereço mostrado no navegador da TV, 
 O modo TV tem botões grandes, foco visível, navegação por setas/OK e controle remoto. No PC, o link **Abrir modo TV neste PC** permite usar controles padrão reconhecidos pelo navegador: direcional ou analógico esquerdo, A para selecionar, B para voltar e Start para pausar/continuar. Sons suaves podem ser desligados e não tocam automaticamente antes de interação. Não há downloads de pacotes de sons.
 
 Os vídeos locais são enviados diretamente pelo PC à TV com suporte a HTTP Range; vídeos online diretos continuam na origem. O player salva o progresso a cada 5 segundos e ao pausar/sair. Esta versão não converte formatos; codecs, faixas de áudio e legendas dependem do navegador da TV. A validação automatizada usa navegador no PC e controle simulado; não substitui o teste na TV física.
+
+### Perfis, séries e central de mídia
+
+**Perfis** no topo permite criar até oito pessoas e trocar o perfil do PC. Assistidos, favoritos e ponto de reprodução são individuais; os arquivos são compartilhados. O perfil Principal preserva os dados anteriores. A TV escolhe o próprio perfil no cabeçalho, sem alterar o PC. Os perfis também sincronizam pela conta. Perfis não são controles de acesso nem têm senha individual.
+
+**Mídia no PC** gerencia a inclusão automática de vídeos concluídos do qBittorrent, verifica novos arquivos e escolhe a pasta padrão dos torrents. A verificação ocorre a cada 30 segundos, em lotes, fora da thread da interface para indexação dos arquivos. Vídeos ainda incompletos, arquivos fora da pasta do torrent e caminhos removidos da biblioteca não são incluídos.
+
+Clicar em uma série abre sua central: uma ficha com temporadas em ordem, episódios disponíveis e continuação para o perfil escolhido. Capas de temporadas são consultadas sob demanda no TMDB quando configurado; na ausência delas, usa-se a capa disponível. O modo controle destaca a seleção com brilho animado, respeitando a preferência de movimento reduzido. Os controles adicionais ficam em **Ferramentas**, e os títulos grandes das páginas foram removidos.

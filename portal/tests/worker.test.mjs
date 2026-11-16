@@ -164,6 +164,13 @@ test('account synchronization isolates owners, rejects stale writes and excludes
  assert.equal(changes.filter(r=>r.items[0].conflict).length,1);
  const final=await(await accountRequest('titles',null,a.token)).json();assert.equal(final.items[0].version,2);
  assert.equal((await accountRequest('titles',{items:[{id,data:{...title,streamUrl:'https://192.168.1.1/video.mp4'},version:2}]},a.token)).status,400);
+ const profile='c'.repeat(32);
+ assert.equal((await accountRequest('profiles',{profiles:[{id:profile,name:'Pessoa B'}]},a.token)).status,200);
+ const profiles=await(await accountRequest('profiles',null,a.token)).json();assert.equal(profiles.profiles.length,2);
+ const empty=await(await accountRequest('titles?profile='+profile,null,a.token)).json();assert.equal(empty.items.length,0);
+ const isolated=await(await accountRequest('titles?profile='+profile,{items:[{id,data:{...title,resume:90000,favorite:true},version:0}]},a.token)).json();assert.equal(isolated.items[0].version,1);
+ const unchanged=await(await accountRequest('titles',null,a.token)).json();assert.equal(unchanged.items[0].data.resume,45000);
+ assert.equal((await accountRequest('titles?profile='+profile,null,b.token)).status,400);
  assert.equal((await accountRequest('delete',{password:'Senha-de-teste-12345'},a.token)).status,200);assert.equal((await accountRequest('me',null,a.token)).status,401);
  const anonymous=await mf.dispatchFetch('https://portal.test/api/account/titles',{headers});assert.equal(anonymous.status,401);
 });

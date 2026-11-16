@@ -33,7 +33,7 @@ public partial class MainWindow
                     {
                         revision = webRevision, status = Status.Text, scanning = scan != null,
                         canUpdate = Updater.IsInstalled, update = updateProgress, updateRequested = installRequested
-                    }).Task);
+                    }).Task,ReadSeasonPosterAsync);
                 try { await server.StartAsync(lifetime.Token); }
                 catch { server.Stop(); throw; }
                 if (closed) { server.Stop(); return; }
@@ -131,8 +131,9 @@ public partial class MainWindow
         }
     }
 
-    private object WebCatalog(string section, string search, int page, int limit, string? site, string? type)
+    private object WebCatalog(string section, string search, int page, int limit, string? site, string? type, string? viewer=null)
     {
+        var profile=CheckViewer(viewer??library.ActiveViewer);
         var saved = library.Movies.Where(movie => !movie.ImportedOnly).ToList();
         var imports = library.Movies.Where(movie => movie.IsOnline).ToList();
         var importGroups = section == "imports" ? imports.Select(movie => (Movie: movie, Site: SourceSite(movie), Info: ImportedTitle.Describe(movie))).ToArray() : [];
@@ -150,6 +151,7 @@ public partial class MainWindow
         };
         var smart = SmartFilter.Parse(ref search);
         collection = smart.Apply(collection);
+        if(section!="imports")collection=collection.GroupBy(m=>ImportedTitle.Describe(m).Type=="series"?"series:"+SeriesCenter.Key(m):(object)m).Select(g=>g.First());
         var offset = (page - 1) * limit;
         var matches = collection.Where(movie => search.Length == 0 ||
             $"{movie.Title} {movie.Year} {movie.Genre}".Contains(search, StringComparison.CurrentCultureIgnoreCase)).ToList();
@@ -159,7 +161,7 @@ public partial class MainWindow
             ? returning.FirstOrDefault() ?? saved.OrderByDescending(movie => movie.Added).FirstOrDefault() : null;
         return new
         {
-            movies = matches.Skip(offset).Take(limit).Select(WebMovie).ToArray(),
+            movies = matches.Skip(offset).Take(limit).Select(m=>WebMovieFor(m,profile)).ToArray(),
             more = matches.Count > offset + limit,
             resultCount = matches.Count,
             spotlight = spotlight == null ? null : WebMovie(spotlight),
@@ -177,8 +179,11 @@ public partial class MainWindow
     private static string SourceSite(Movie movie) => Uri.TryCreate(movie.ImportedFrom.Length > 0 ? movie.ImportedFrom : movie.SourceUrl, UriKind.Absolute, out var uri)
         ? uri.IdnHost.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? uri.IdnHost[4..] : uri.IdnHost : "Origem desconhecida";
 
-    private object WebMovie(Movie movie)
+    private string WebId(Movie movie){WebMovie(movie);return webIds[movie];}
+    private object WebMovie(Movie movie)=>WebMovieFor(movie,library.ActiveViewer);
+    private object WebMovieFor(Movie movie,string profile)
     {
+        var viewing=Viewers.Get(movie,profile,library.ActiveViewer);
         var kind = ImportedTitle.Describe(movie);
         if (!webIds.TryGetValue(movie, out var id))
         {
@@ -197,7 +202,7 @@ public partial class MainWindow
         }
         return new
         {
-            id, movie.Title, movie.Year, movie.Genre, movie.Resolution, movie.Language, movie.Collections, movie.DurationMilliseconds, movie.ResumeMilliseconds, movie.UserScore, description = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description, movie.Favorite, movie.Watched,
+            id, movie.Title, movie.Year, movie.Genre, movie.Resolution, movie.Language, movie.Collections, movie.DurationMilliseconds, resumeMilliseconds=viewing.Resume, movie.UserScore, description = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description, favorite=viewing.Favorite, watched=viewing.Watched,
             site = movie.IsOnline ? SourceSite(movie) : "",
             mediaType = kind.Type,
             seriesTitle = kind.Series,
@@ -207,7 +212,7 @@ public partial class MainWindow
             tmdbLink = movie.TmdbUrl,
             tmdbConfigured = File.Exists(TmdbClient.CredentialPath),
             tmdbRevision,
-            movie.IsOnline, movie.ImportedOnly, movie.Progress, movie.Rating, movie.PlayLabel, movie.Available,
+            movie.IsOnline, movie.ImportedOnly, progress=movie.DurationMilliseconds>0?Math.Clamp(viewing.Resume*100d/movie.DurationMilliseconds,0,100):0, movie.Rating, playLabel=viewing.Resume>1000&&!viewing.Watched?"▶ Continuar":movie.PlayLabel, movie.Available, hasLocalFile=movie.HasLocalFile, canPlay=movie.HasLocalFile||RemoteFiles.IsPublicHttps(movie.StreamUrl),
             hasDownloadOptions = movie.PortalId.Length > 0,
             hasCover = movie.Cover.Length > 0 || movie.PortalCoverUrl.Length > 0,
             coverVersion = HashCode.Combine(movie.Cover, movie.PortalCoverUrl)
@@ -296,6 +301,9 @@ public partial class MainWindow
                 .Where(RemoteFiles.IsPublicHttps).Distinct(StringComparer.Ordinal)
                 .OrderBy(address => address, StringComparer.OrdinalIgnoreCase).ToArray();
         }
+        if (command.Name.StartsWith("profile-", StringComparison.Ordinal)) return await ProfileActionAsync(command);
+        if (command.Name.StartsWith("media-", StringComparison.Ordinal)) return await MediaActionAsync(command);
+        if (command.Name.StartsWith("series-", StringComparison.Ordinal) && command.Name!="series-episodes") return await SeriesActionAsync(command);
         if (command.Name.StartsWith("account-", StringComparison.Ordinal)) return await AccountActionAsync(command);
         if (command.Name.StartsWith("tv-", StringComparison.Ordinal)) return await TvActionAsync(command);
         if (command.Name.StartsWith("smart-", StringComparison.Ordinal)) return await SmartActionAsync(command);

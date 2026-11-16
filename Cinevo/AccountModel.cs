@@ -7,6 +7,8 @@ public sealed record SyncTitle(string Title,string Year,string Genre,string Seri
 {
     public static SyncTitle From(Movie m) => new(m.Title,m.Year,m.Genre,m.SeriesTitle,Public(m.SourceUrl),Public(m.StreamUrl),Public(m.PortalCoverUrl),Public(m.TmdbUrl),!m.ImportedOnly,m.Favorite,m.Watched,m.ResumeMilliseconds,m.DurationMilliseconds,m.Season??0,m.Episode??0);
     private static string Public(string value) => RemoteFiles.IsPublicHttps(value)?value:"";
+    public static SyncTitle FromProfile(Movie movie,string profile,string active){var state=Viewers.Get(movie,profile,active);return From(movie) with{Favorite=state.Favorite,Watched=state.Watched,Resume=state.Resume};}
+    public static void ApplyProfile(Movie movie,SyncTitle merged,SyncTitle original,string profile,string active){var current=FromProfile(movie,profile,active);var resolved=Merge(current,original,merged);Apply(movie,resolved with{Favorite=movie.Favorite,Watched=movie.Watched,Resume=movie.ResumeMilliseconds},From(movie));Viewers.Set(movie,profile,active,new(resolved.Watched,resolved.Favorite,resolved.Resume));}
     public static string Identity(Movie m) { var kind=ImportedTitle.Describe(m); return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(CoverService.Normalize(m.Title)+"|"+m.Year+"|"+kind.Season+"|"+kind.Episode))).ToLowerInvariant(); }
     public static SyncTitle Merge(SyncTitle local, SyncTitle? baseline, SyncTitle? remote)
     {
@@ -32,6 +34,7 @@ public sealed class AccountState
 {
     public string Username {get;set;}="";
     public string Token {get;set;}="";
+    public Dictionary<string,Dictionary<string,SyncTitle>> ViewerBaselines {get;set;}=[];
     public Dictionary<string,SyncTitle> Baseline {get;set;}=[];
     private static string PathName=>Path.Combine(Library.DataDirectory,"account.dat");
     public static AccountState? Load()=>File.Exists(PathName)?JsonSerializer.Deserialize<AccountState>(LocalSecret.Unprotect(File.ReadAllBytes(PathName))):null;

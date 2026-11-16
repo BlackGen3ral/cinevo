@@ -8,6 +8,8 @@ public sealed class Movie : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Changed([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new(name));
+    public Dictionary<string,ViewingState> Viewers { get; set; } = [];
+    public string SeasonPoster { get; set; } = "";
     public string Path { get; set; } = "";
     public string Title { get; set; } = "";
     public string Year { get; set; } = "";
@@ -62,12 +64,16 @@ public sealed class Movie : INotifyPropertyChanged
 public sealed record ScheduledTorrent(string Hash, DateTime At);
 public sealed class Library
 {
+    public List<ViewerProfile> Profiles { get; set; } = [new("principal","Principal")];
+    public string ActiveViewer { get; set; } = "principal";
     public List<ScheduledTorrent> DownloadSchedule { get; set; } = [];
     public List<ImportCheckpoint> ImportCheckpoints { get; set; } = [];
     public List<string> Folders { get; set; } = [];
     public List<Movie> Movies { get; set; } = [];
     public List<CatalogSource> CatalogSources { get; set; } = [];
     public HashSet<string> RemovedPaths { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public bool AutoImportDownloads { get; set; } = true;
+    public string MediaFolder { get; set; } = "";
     public bool EnableTv { get; set; }
     public bool AutoUpdate { get; set; } = true;
     public bool AutoCovers { get; set; } = true;
@@ -86,6 +92,7 @@ public sealed class Library
     }
     public void Save()
     {
+        Viewers.Capture(this);
         Directory.CreateDirectory(DataDirectory);
         var temp = DataPath + ".tmp";
         File.WriteAllText(temp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));

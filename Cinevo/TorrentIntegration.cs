@@ -195,7 +195,7 @@ public partial class MainWindow
         {
             var address = command.Address ?? "";
             var client = GetTorrentClient();
-            await client.AddAsync(address, lifetime.Token, ValidateDownloadFolder(command.DownloadFolder));
+            await client.AddAsync(address, lifetime.Token, ValidateDownloadFolder(command.DownloadFolder??(library.MediaFolder.Length>0?library.MediaFolder:null)));
             if (command.Id != null && webMovies.TryGetValue(command.Id, out var movie) && library.Movies.Contains(movie))
                 TrackTorrentFallback(client, movie, address, command.DownloadFolder);
             return null;

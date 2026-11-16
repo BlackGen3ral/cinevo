@@ -7,7 +7,7 @@ internal static class TvWebTests
  {
   var previous=Environment.GetEnvironmentVariable("CINEVO_TEST_DATA");Environment.SetEnvironmentVariable("CINEVO_TEST_DATA",root);
   var path=Path.Combine(root,"range-fixture.mp4");File.WriteAllBytes(path,Enumerable.Range(0,100).Select(i=>(byte)i).ToArray());
-  long position=-1;var server=new TvWeb((q,p)=>Task.FromResult<object>(new{movies=Array.Empty<object>()}),id=>Task.FromResult<byte[]?>(null),id=>Task.FromResult<string?>(id=="known"?path:null),(id,time,duration,favorite)=>{position=time;return Task.CompletedTask;});
+  long position=-1;var server=new TvWeb((q,p,viewer)=>Task.FromResult<object>(new{movies=Array.Empty<object>()}),id=>Task.FromResult<byte[]?>(null),id=>Task.FromResult<string?>(id=="known"?path:null),(id,time,duration,favorite,viewer)=>{position=time;return Task.CompletedTask;});
   try {
    await server.StartAsync(CancellationToken.None);var origin=$"http://127.0.0.1:{server.Port}";
    using var http=new HttpClient(new HttpClientHandler{UseProxy=false,UseCookies=true});

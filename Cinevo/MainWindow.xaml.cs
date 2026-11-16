@@ -35,6 +35,7 @@ public partial class MainWindow : Window
     internal async void Start()
     {
         StartDownloadSchedule();
+        StartMediaCenter();
         StartAccountSync();
         var webStartup = OpenWebAsync();
         _ = Task.Run(() => PortalCoverCache.TrimAsync(Path.Combine(Library.DataDirectory, "covers")));

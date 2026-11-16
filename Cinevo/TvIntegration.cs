@@ -7,15 +7,23 @@ public partial class MainWindow
     {
         if(command.Name=="tv-stop"){tv?.Stop();tv=null;library.EnableTv=false;library.Save();return null;}
         if(command.Name=="tv-start"&&tv==null){
-            var server=new TvWeb((search,page)=>Dispatcher.InvokeAsync(()=>WebCatalog("library",search,page,24,null,null)).Task,ReadWebCoverAsync,
+            var server=new TvWeb((search,page,profile)=>Dispatcher.InvokeAsync(()=>WebCatalog("library",search,page,24,null,null,CheckViewer(string.IsNullOrEmpty(profile)?null:profile))).Task,ReadWebCoverAsync,
                 id=>Dispatcher.InvokeAsync(()=>webMovies.TryGetValue(id,out var m)&&library.Movies.Contains(m)&&!m.ImportedOnly?(m.HasLocalFile?m.Path:RemoteFiles.IsPublicHttps(m.StreamUrl)?m.StreamUrl:null):null).Task,
-                (id,position,duration,favorite)=>Dispatcher.InvokeAsync(()=>{
+                (id,position,duration,favorite,profile)=>Dispatcher.InvokeAsync(()=>{
                     if(!webMovies.TryGetValue(id,out var m)||!library.Movies.Contains(m)||m.ImportedOnly)return;
-                    if(favorite.HasValue)m.Favorite=favorite.Value;
-                    else{m.DurationMilliseconds=duration;m.ResumeMilliseconds=position;m.Watched=duration>0&&position>=duration*.95;if(m.Watched)m.ResumeMilliseconds=0;}
+                    var viewer=CheckViewer(string.IsNullOrEmpty(profile)?null:profile);var state=Viewers.Get(m,viewer,library.ActiveViewer);
+                    if(favorite.HasValue)state=state with{Favorite=favorite.Value};
+                    else{m.DurationMilliseconds=duration;var watched=duration>0&&position>=duration*.95;state=state with{Watched=watched,Resume=watched?0:position};}
+                    Viewers.Set(m,viewer,library.ActiveViewer,state);
                     library.Save();Refresh();
                 }).Task,
-                id=>Dispatcher.InvokeAsync<object?>(()=>webMovies.TryGetValue(id,out var m)&&library.Movies.Contains(m)&&!m.ImportedOnly?WebMovie(m):null).Task);
+                (id,profile)=>Dispatcher.InvokeAsync<object?>(()=>webMovies.TryGetValue(id,out var m)&&library.Movies.Contains(m)&&!m.ImportedOnly?WebMovieFor(m,CheckViewer(string.IsNullOrEmpty(profile)?null:profile)):null).Task,
+                (operation,id,profile)=>Dispatcher.InvokeAsync(async()=>{
+                    if(operation=="profiles")return (object?)ProfilesInfo();
+                    if(id==null||!webMovies.TryGetValue(id,out var m)||m.ImportedOnly)throw new InvalidDataException("Série indisponível.");
+                    if(operation=="series")return SeriesHub(id,CheckViewer(string.IsNullOrEmpty(profile)?null:profile),true);
+                    return await SeriesActionAsync(new("series-season",id,null,false));
+                }).Task.Unwrap(),ReadSeasonPosterAsync);
             try{await server.StartAsync(lifetime.Token);}catch{server.Stop();throw;}tv=server;library.EnableTv=true;library.Save();
         }
         if(command.Name=="tv-code")tv?.Rotate();

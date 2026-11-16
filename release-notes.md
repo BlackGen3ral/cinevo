@@ -1,7 +1,8 @@
-- Contas opcionais com nome de usuário e senha; biblioteca, favoritos e progresso sincronizados entre PCs conectados.
-- Sincronização automática a cada 30 segundos, com alterações offline preservadas e combinação por campo para evitar sobrescrever mudanças independentes.
-- Central TV na rede privada com pareamento por código, sessões limitadas e opção de desconectar todos os aparelhos.
-- Interface TV com botões grandes, foco visível, navegação por setas, controle remoto e controles de videogame no PC.
-- Sons suaves de navegação e seleção, com opção para desligar.
-- Reprodução na TV de arquivos do PC e vídeos online diretos disponíveis, com HTTP Range e retomada do ponto salvo. A compatibilidade depende do navegador; não há conversão de formatos nesta versão.
-- Vídeos, caminhos de pastas e credenciais de outros serviços permanecem no computador.
+- Central de mídia adiciona automaticamente os vídeos e episódios concluídos no qBittorrent à biblioteca, com pasta padrão selecionável para os torrents.
+- Até oito perfis com favoritos, assistidos e progresso separados, preservando os dados antigos no perfil Principal.
+- Escolha independente do perfil na TV e sincronização dos perfis pela conta Cinevo.
+- Central de séries com uma ficha por série, temporadas, episódios disponíveis e indicação de onde continuar.
+- Capas de temporadas consultadas sob demanda pelo TMDB configurado; a capa disponível é usada como alternativa.
+- Interface reformulada com navegação compacta, mais espaço para as capas e remoção dos títulos grandes nas páginas.
+- Transições suaves e brilho animado no filme selecionado no modo controle, respeitando movimento reduzido.
+- Novidades com ícone para cada melhoria, tanto na versão atual quanto nas descrições do histórico.

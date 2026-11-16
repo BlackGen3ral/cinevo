@@ -31,7 +31,7 @@ public partial class MainWindow
         var token = lifetime.Token;
         if (command.Name == "smart-storage" || command.Name == "smart-clean") {
             var protectedPaths = library.Movies.Where(m => m.Path.Length > 0 || m.Cover.Length > 0)
-                .SelectMany(m => new[]{m.Path,m.Cover,m.ExternalSubtitlePath}).Where(Path.IsPathFullyQualified).Select(Path.GetFullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                .SelectMany(m => new[]{m.Path,m.Cover,m.ExternalSubtitlePath,m.SeasonPoster}).Where(Path.IsPathFullyQualified).Select(Path.GetFullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
             if(updateInstaller != null) protectedPaths.Add(Path.GetFullPath(updateInstaller));
             var videos = library.Movies.Where(m => m.HasLocalFile).Select(m => m.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             var kind = Text("kind");
@@ -58,7 +58,7 @@ public partial class MainWindow
         }
         if(command.Name == "smart-metadata") { var version=(await GetTorrentClient().VersionAsync(token)).Trim().TrimStart('v'); if(!Version.TryParse(version,out var parsed) || parsed.Major<5) throw new InvalidDataException("A seleção antes de baixar requer qBittorrent 5 ou superior.");
             if(TorrentClient.MagnetHash(Text("url")) is {} existing && (await GetTorrentClient().TransfersAsync(token,existing)).Any()) throw new InvalidDataException("Esse torrent já está na fila. Use Organizar / episódios na transferência existente.");
-            await GetTorrentClient().AddAsync(Text("url"),token,ValidateDownloadFolder(Text("folder")),true); return null; }
+            await GetTorrentClient().AddAsync(Text("url"),token,ValidateDownloadFolder(Text("folder").Length>0?Text("folder"):library.MediaFolder.Length>0?library.MediaFolder:null),true); return null; }
         if (command.Name.StartsWith("smart-torrent-")) {
             if(!TorrentClient.IsHash(command.Id)) throw new InvalidDataException("Torrent inválido.");
             var hash=command.Id!;

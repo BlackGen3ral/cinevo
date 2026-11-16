@@ -137,6 +137,18 @@ function folderPicker() {
 
 let historyPage = 1;
 let historyLoading = false;
+function releaseIcon(text) {
+  const paths=/perfil|pessoa/i.test(text)?['M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6','M2 20v-2a6 6 0 0 1 12 0v2','M16 5a3 3 0 0 1 0 6','M17 15a5 5 0 0 1 5 5']:
+    /série|temporada|episódio/i.test(text)?['M4 4h16v16H4z','M4 9h16','M9 9v11','M13 13l4 2-4 2z']:
+    /download|baixad|mídia|computador/i.test(text)?['M4 3h16v12H4z','M8 21h8','M12 15v6','M12 6v6','M9 9l3 3 3-3']:
+    /novidades|histórico/i.test(text)?['M4 4h16v16H4z','M8 8h8','M8 12h8','M8 16h5']:
+    /anima|brilho|visual|interface|foco/i.test(text)?['M12 3l2.7 6.3L21 12l-6.3 2.7L12 21l-2.7-6.3L3 12l6.3-2.7z']:
+    ['M5 12l4 4L19 6','M4 3h16v18H4'];
+  const holder=node('span','news-icon');holder.setAttribute('aria-hidden','true');
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('fill','none');svg.setAttribute('stroke','currentColor');svg.setAttribute('stroke-width','1.5');svg.setAttribute('stroke-linecap','round');svg.setAttribute('stroke-linejoin','round');
+  for(const d of paths){const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',d);svg.append(path);}holder.append(svg);return holder;
+}
+for(const item of document.querySelectorAll('#news-current li')){const text=item.textContent;item.replaceChildren(releaseIcon(text),node('span','',text));}
 async function loadHistory() {
   if (historyLoading) return;
   historyLoading = true;
@@ -158,7 +170,7 @@ async function loadHistory() {
       const notes = (release.notes || '').split('\n').filter(line => !/^\s*(?:##|\*\*Full Changelog|Full Changelog)/i.test(line))
         .map(line => line.replace(/\s+by @\S+.*$/, '').replace(/\s+in https:\/\/github\.com\/\S+$/, '').replace(/^\s*[-*]\s*/, ''))
         .filter(line => line.trim().length > 0).join('\n');
-      item.append(node('p', '', notes || 'Esta versão não tem descrição das mudanças publicada.'));
+      const changes=node('ul','news-changes');for(const line of (notes||'Esta versão não tem descrição das mudanças publicada.').split('\n')){const row=node('li');row.append(releaseIcon(line),node('span','',line));changes.append(row);}item.append(changes);
       $('#news-history').append(item);
     }
     historyPage++;

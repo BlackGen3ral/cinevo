@@ -200,7 +200,7 @@ function movieCard(movie) {
     art.append(progress);
   }
   const text = node('div', 'card-text');
-  text.append(node('strong', '', movie.title), node('small', '', [mediaLabel(movie), movie.year, movie.genre].filter(Boolean).join(' · ')));
+  text.append(node('strong', '', movie.mediaType==='series'&&state.section!=='imports'?movie.seriesTitle:movie.title), node('small', '', [mediaLabel(movie), movie.year, movie.genre].filter(Boolean).join(' · ')));
   open.append(art, text);
   card.append(open);
   if (movie.importedOnly) {
@@ -421,12 +421,7 @@ function render(data) {
           showShelf(JSON.stringify([site, title]), site + ' · Série · ' + title, entries, true);
       }
     } else {
-      const films = state.movies.filter(movie => movie.mediaType !== 'series');
-      if (films.length) showShelf(state.section + (home ? '-home' : '-grid'), home ? 'Minha biblioteca' : '', films);
-      for (const [title, episodes] of Map.groupBy(state.movies.filter(movie => movie.mediaType === 'series'), movie => movie.seriesTitle)) {
-        episodes.sort((a,b) => (a.season ?? 1) - (b.season ?? 1) || (a.episode ?? 0) - (b.episode ?? 0));
-        showShelf('series-' + title, title, episodes, true);
-      }
+      showShelf(state.section + (home ? '-home' : '-grid'), home ? 'Sua coleção' : '', state.movies);
     }
     rows.querySelector('.empty')?.remove();
   } else if (!home || state.search) {
@@ -454,7 +449,8 @@ function render(data) {
 }
 
 const movieDetails = new Map();
-function showDetails(movie) {
+function showDetails(movie, episode = false) {
+  if(movie.mediaType==='series'&&!episode)return openSeriesHub(movie);
   const signature = JSON.stringify(movie);
   if ($('#details').open && detailKey === signature) return;
   const dialog = $('#details');
@@ -523,7 +519,7 @@ function showDetails(movie) {
         episodes.append(node('h4', '', 'Temporada ' + season));
         for (const entry of entries) episodes.append(button(
           (entry.episode != null ? 'Episódio ' + entry.episode : entry.title) + (entry.watched ? ' · Assistido' : ''),
-          'secondary', () => { $('#details').close(); showDetails(entry); }));
+          'secondary', () => { $('#details').close(); showDetails(entry,true); }));
       }
     }).catch(error => episodes.append(node('p', '', error.message)));
   }

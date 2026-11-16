@@ -33,6 +33,9 @@ export class AccountStore extends DurableObject {
   this.sql.exec('CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, expires_at INTEGER NOT NULL)');
   this.sql.exec('CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at)');
   this.sql.exec('CREATE TABLE IF NOT EXISTS titles (id TEXT PRIMARY KEY, data TEXT NOT NULL, version INTEGER NOT NULL)');
+  this.sql.exec('CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY,name TEXT NOT NULL)');
+  this.sql.exec("INSERT OR IGNORE INTO profiles(id,name) VALUES('principal','Principal')");
+  this.sql.exec('CREATE TABLE IF NOT EXISTS profile_titles (profile TEXT NOT NULL,id TEXT NOT NULL,data TEXT NOT NULL,version INTEGER NOT NULL,PRIMARY KEY(profile,id))');
   this.sql.exec('CREATE TABLE IF NOT EXISTS rates (window INTEGER PRIMARY KEY, count INTEGER NOT NULL)');
  });}
  one(query,...args){return this.sql.exec(query,...args).toArray()[0];}
@@ -65,19 +68,31 @@ export class AccountStore extends DurableObject {
    if(typeof input.password!=='string'||input.password.length>128)throw new ImportError('Confira sua senha.');
    const candidate=await derive(input.password,account.salt);
    if(!crypto.subtle.timingSafeEqual(encoder.encode(candidate),encoder.encode(account.verifier)))throw new ImportError('Senha incorreta.',401);
-   this.ctx.storage.transactionSync(()=>{this.sql.exec("DELETE FROM titles");this.sql.exec("DELETE FROM sessions");this.sql.exec("DELETE FROM identity");});return json({ok:true});
+   this.ctx.storage.transactionSync(()=>{this.sql.exec("DELETE FROM titles");this.sql.exec("DELETE FROM profile_titles");this.sql.exec("DELETE FROM profiles");this.sql.exec("DELETE FROM sessions");this.sql.exec("DELETE FROM identity");});return json({ok:true});
   }
   if(path==='/api/account/me'&&request.method==='GET')return json({username:this.one('SELECT username FROM identity WHERE id=1').username});
+  if(path==='/api/account/profiles'&&request.method==='GET')return json({profiles:this.sql.exec('SELECT id,name FROM profiles ORDER BY id').toArray()});
+  if(path==='/api/account/profiles'&&request.method==='POST'){
+   const input=await body(request,8192);if(!Array.isArray(input.profiles)||input.profiles.length>8)throw new ImportError('São permitidos 8 perfis.');
+   const valid=input.profiles.map(p=>{if(!/^(principal|[a-f0-9]{32})$/.test(p.id)||typeof p.name!=='string'||!p.name.trim()||p.name.length>24)throw new ImportError('Perfil inválido.');return {id:p.id,name:p.name.trim()};});
+   const existing=new Set(this.sql.exec('SELECT id FROM profiles').toArray().map(p=>p.id));if(new Set([...existing,...valid.map(p=>p.id)]).size>8)throw new ImportError('A conta já tem 8 perfis.');
+   this.ctx.storage.transactionSync(()=>{for(const p of valid)this.sql.exec('INSERT OR IGNORE INTO profiles(id,name) VALUES(?,?)',p.id,p.name);});return json({ok:true});
+  }
+  const profile=new URL(request.url).searchParams.get('profile')||'principal';
+  if(!/^(principal|[a-f0-9]{32})$/.test(profile)||!this.one('SELECT id FROM profiles WHERE id=?',profile))throw new ImportError('Perfil indisponível.');
   if(path==='/api/account/titles'&&request.method==='GET'){
-   const after=new URL(request.url).searchParams.get('after')||'',rows=this.sql.exec('SELECT id,data,version FROM titles WHERE id>? ORDER BY id LIMIT 51',after).toArray();
+   const after=new URL(request.url).searchParams.get('after')||'';
+   const rows=(profile==='principal'?this.sql.exec('SELECT id,data,version FROM titles WHERE id>? ORDER BY id LIMIT 51',after):this.sql.exec('SELECT id,data,version FROM profile_titles WHERE profile=? AND id>? ORDER BY id LIMIT 51',profile,after)).toArray();
    return json({items:rows.slice(0,50).map(r=>({id:r.id,data:JSON.parse(r.data),version:r.version})),next:rows.length>50?rows[49].id:''});
   }
   if(path==='/api/account/titles'&&request.method==='POST'){
    const input=await body(request);if(!Array.isArray(input.items)||input.items.length>40)throw new ImportError('Lote inválido.');
    const prepared=input.items.map(item=>{if(!/^[a-f0-9]{64}$/.test(item.id)||!Number.isSafeInteger(item.version)||item.version<0)throw new ImportError('Versão inválida.');return {...item,data:clean(item.data)};});
    const items=prepared.map(item=>{
-    const row=item.version===0?this.one('INSERT INTO titles(id,data,version) VALUES(?,?,1) ON CONFLICT(id) DO NOTHING RETURNING version',item.id,JSON.stringify(item.data)):
-      this.one('UPDATE titles SET data=?,version=version+1 WHERE id=? AND version=? RETURNING version',JSON.stringify(item.data),item.id,item.version);
+    const row=profile==='principal'?(item.version===0?this.one('INSERT INTO titles(id,data,version) VALUES(?,?,1) ON CONFLICT(id) DO NOTHING RETURNING version',item.id,JSON.stringify(item.data)):
+      this.one('UPDATE titles SET data=?,version=version+1 WHERE id=? AND version=? RETURNING version',JSON.stringify(item.data),item.id,item.version)):
+     (item.version===0?this.one('INSERT INTO profile_titles(profile,id,data,version) VALUES(?,?,?,1) ON CONFLICT(profile,id) DO NOTHING RETURNING version',profile,item.id,JSON.stringify(item.data)):
+      this.one('UPDATE profile_titles SET data=?,version=version+1 WHERE profile=? AND id=? AND version=? RETURNING version',JSON.stringify(item.data),profile,item.id,item.version));
     return {id:item.id,version:row?.version||0,conflict:!row};
    });return json({items});
   }
