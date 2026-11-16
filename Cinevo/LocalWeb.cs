@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 namespace Cinevo;
 
 internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, Task<object>> catalog, Func<WebAction, Task<object?>> action,
-    Func<string, Task<byte[]?>> cover, Func<Task<object>> status,Func<string,Task<byte[]?>>? seasonCover=null,Func<string,Task<byte[]?>>? backdrop=null)
+    Func<string, Task<byte[]?>> cover, Func<Task<object>> status,Func<string,Task<byte[]?>>? seasonCover=null,Func<string,Task<byte[]?>>? backdrop=null,Func<string,Task<byte[]?>>? avatar=null)
 {
     private readonly string key = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     private WebApplication? app;
@@ -58,8 +58,11 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
             }
             await next(context);
         });
+        MapAsset("/avatar.svg", "avatar.svg", "image/svg+xml");
         MapAsset("/", "index.html", "text/html; charset=utf-8");
         MapAsset("/glass.css", "glass.css", "text/css; charset=utf-8");
+        MapAsset("/history.css", "history.css", "text/css; charset=utf-8");
+        MapAsset("/history.js", "history.js", "application/javascript; charset=utf-8");
         MapAsset("/glass.js", "glass.js", "application/javascript; charset=utf-8");
         MapAsset("/cinevo.css", "cinevo.css", "text/css; charset=utf-8");
         MapAsset("/cinevo.js", "cinevo.js", "application/javascript; charset=utf-8");
@@ -76,6 +79,7 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
         MapAsset("/instrument-serif.woff2", "instrument-serif.woff2", "font/woff2");
         app.MapGet("/favicon.ico", () => Results.Stream(typeof(LocalWeb).Assembly.GetManifestResourceStream("Cinevo.Assets.cinevo.ico")!, "image/x-icon"));
         app.MapGet("/cinevo.png", () => Results.Stream(typeof(LocalWeb).Assembly.GetManifestResourceStream("Cinevo.Assets.cinevo.png")!, "image/png"));
+        app.MapGet("/api/avatar/{id}",async(string id)=>avatar!=null&&await avatar(id) is {} bytes?Results.Bytes(bytes,"image/jpeg"):Results.NotFound());
         app.MapGet("/api/status", async () =>
         {
             var data = await status();

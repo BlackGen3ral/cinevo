@@ -9,6 +9,7 @@
   <link rel="apple-touch-icon" href="/cinevo.png">
   <link rel="stylesheet" href="/cinevo.css">
   <link rel="stylesheet" href="/glass.css">
+  <link rel="stylesheet" href="/history.css">
   <script src="/cinevo.js" defer></script>
   <script src="/settings.js" defer></script>
   <script src="/downloads.js" defer></script>
@@ -19,6 +20,7 @@
   <script src="/cinema.js" defer></script>
   <script src="/interface.js" defer></script>
   <script src="/glass.js" defer></script>
+  <script src="/history.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Ir para o conteúdo</a>
@@ -134,7 +136,7 @@
     </section>
     <p id="settings-status" role="status"></p>
   </dialog>
-  <dialog id="news-dialog" aria-labelledby="news-title"><div class="settings-heading"><div><h2 id="news-title">Novidades</h2><p>Histórico de atualizações do Cinevo.</p></div><button id="news-close" class="button secondary">Fechar</button></div><div class="settings-tabs" role="tablist" aria-label="Atualizações"><button id="news-current-tab" role="tab" aria-selected="true" aria-controls="news-current">Novidades desta versão</button><button id="news-history-tab" role="tab" aria-selected="false" aria-controls="news-archive">Histórico</button></div><section id="news-current" role="tabpanel" aria-labelledby="news-current-tab" class="settings-card"><h3>Cinevo 0.1.48 · Beta</h3><ul><li>Interface de vidro com painéis translúcidos, bordas iluminadas e acabamento unificado no menu, busca, cartões, downloads e janelas.</li><li>Fundo ambiente animado em violeta e rosa, criado com gradientes do próprio app, sem novas imagens ou arquivos de cache.</li><li>Movimento do fundo pausado quando o app perde o foco, fica oculto ou reproduz um vídeo no modo TV. A preferência de movimento reduzido é respeitada.</li><li>Leitura refinada nas capas, destaque cinematográfico e detalhes, com ações e estados mais consistentes.</li><li>Modo TV com o mesmo acabamento visual, mantendo foco visível, intensidade de brilho por perfil e uma alternativa sólida para navegadores sem suporte ao vidro.</li></ul></section><section id="news-archive" role="tabpanel" aria-labelledby="news-history-tab" hidden><div id="news-history"></div><p id="news-status" role="status"></p><button id="news-more" class="button secondary">Carregar histórico</button></section></dialog>
+  <dialog id="news-dialog" aria-labelledby="news-title"><div class="settings-heading"><div><h2 id="news-title">Novidades</h2><p>Histórico de atualizações do Cinevo.</p></div><button id="news-close" class="button secondary">Fechar</button></div><div class="settings-tabs" role="tablist" aria-label="Atualizações"><button id="news-current-tab" role="tab" aria-selected="true" aria-controls="news-current">Novidades desta versão</button><button id="news-history-tab" role="tab" aria-selected="false" aria-controls="news-archive">Histórico</button></div><section id="news-current" role="tabpanel" aria-labelledby="news-current-tab" class="settings-card"><h3>Cinevo 0.1.49 · Beta</h3><ul><li>A navegação pelo controle de videogame foi reformulada: foco na janela à frente, retorno à capa selecionada, deslocamento mais estável entre fileiras e exclusão de botões ocultos ou desativados.</li><li>Analógico com zona morta, direção estabilizada e pausa antes da repetição. A e B executam uma ação por toque; voltar fecha uma janela por vez. Os comandos ficam suspensos quando o Cinevo perde o foco.</li><li>Teclado na tela e seleção de filtros pelo controle. Pressione A no campo ou filtro, navegue com o direcional e use B para cancelar.</li><li>Foto de perfil no canto superior abre a página pessoal, com filmes e séries em andamento, concluídos e abandonados. A página inclui busca, filtros, contadores, progresso, registros e episódios por temporada.</li><li>Troca e remoção da foto no PC. A imagem é reduzida para 256 × 256, e cada pessoa mantém apenas um JPEG; nenhuma foto é enviada para a conta ou incluída no catálogo sincronizado.</li><li>Acompanhamento manual na ficha do título. Abandonar preserva o ponto salvo e retira o título do Continuar assistindo. Novas reproduções retomam o acompanhamento; concluir uma série considera os episódios conhecidos da biblioteca.</li><li>Histórico anterior aproveitado sem inventar datas, preservado ao retirar títulos da biblioteca e consultável pela TV pareada, respeitando cada perfil. Os registros detalhados permanecem neste PC da central.</li></ul></section><section id="news-archive" role="tabpanel" aria-labelledby="news-history-tab" hidden><div id="news-history"></div><p id="news-status" role="status"></p><button id="news-more" class="button secondary">Carregar histórico</button></section></dialog>
   <dialog id="clear-dialog" aria-labelledby="clear-title">
     <h2 id="clear-title">Limpar biblioteca?</h2>
     <p>Todos os filmes saem da biblioteca e as pastas são desvinculadas. Os arquivos continuam no PC. Os títulos online voltam para <strong>Filmes importados</strong>.</p>

@@ -6,7 +6,7 @@ if (location.hash && key) {
 }
 const headers = { Authorization: 'Bearer ' + key };
 const state = { section: 'library', search: '', site: '', type: '', page: 1, movies: [], revision: null, busy: false };
-const sectionNames = { library: 'Minha biblioteca', imports: 'Filmes importados', favorites: 'Favoritos', downloads: 'Downloads' };
+const sectionNames = { library: 'Minha biblioteca', imports: 'Filmes importados', favorites: 'Favoritos', downloads: 'Downloads', history:'Meu perfil' };
 const images = new Map();
 const imageObserver = new IntersectionObserver(entries => {
   for (const { target, isIntersecting } of entries) {
@@ -496,6 +496,7 @@ function showDetails(movie, episode = false) {
   const summary = node('p', '', movie.description || 'Buscando sinopse…');
   synopsis.append(summary);
   const tools = node('div', 'actions detail-tools');
+  if(window.openWatchStatus)tools.append(button('Acompanhamento','secondary',()=>openWatchStatus(movie)));
   tools.append(button('Corrigir identificação / coleções', 'secondary', () => openIdentification(movie)));
   tools.append(command(movie.favorite ? 'Remover favorito' : 'Favoritar', 'secondary', 'favorite', movie.id),
     command(movie.watched ? 'Marcar como não assistido' : 'Marcar como assistido', 'secondary', 'watched', movie.id),
@@ -669,6 +670,7 @@ let fetchCatalog;
 let firstPage;
 async function refresh(append = false, keepPages = false) {
   if (state.section === 'downloads') return true;
+  if (state.section === 'history') return window.refreshWatchHistory?.();
   if (state.search && window.organizedSearch) return window.organizedSearch(state.search);
   window.hideOrganizedSearch?.();
   fetchCatalog?.abort();
@@ -716,10 +718,13 @@ function changeSection(section) {
   }
   window.scrollTo(0, 0);
   const downloads = section === 'downloads';
+  const history = section === 'history';
+  if($('#watch-history')) $('#watch-history').hidden=!history;
   $('#downloads').hidden = downloads === false;
-  $('#collection').hidden = downloads;
-  $('.search').hidden = downloads;
-  $('#view-controls').hidden = downloads;
+  $('#collection').hidden = downloads||history;
+  $('.search').hidden = downloads||history;
+  $('#view-controls').hidden = downloads||history;
+  if(history){$('#hero').hidden=true;$('#profile-home').hidden=true;refreshWatchHistory();return;}
   if (downloads) {
     $('#hero').hidden = true;
     heroKey = undefined;

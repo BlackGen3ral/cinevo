@@ -1,12 +1,14 @@
 async function openProfiles(){
  const view=smartDialog('Quem vai assistir?');view.body.classList.add('profile-picker');
  try{const data=await transferAction('profile-list');
-  for(const [index,profile] of data.profiles.entries()){const control=button('', 'profile-tile',async()=>{try{await transferAction('profile-switch',profile.id);view.dialog.close();await refresh(false);await updateProfileLabel();}catch(error){view.status.textContent=error.message;}});control.append(node('span','profile-avatar',profile.name[0].toUpperCase()),node('strong','',profile.name),node('small','',profile.id===data.active?'Perfil atual':'Assistidos e favoritos individuais'));control.dataset.color=index%4;view.body.append(control);}
+  for(const [index,profile] of data.profiles.entries()){const control=button('', 'profile-tile',async()=>{try{await transferAction('profile-switch',profile.id);view.dialog.close();await refresh(false);await updateProfileLabel();}catch(error){view.status.textContent=error.message;}});control.append(profilePortrait(profile,'profile-avatar'),node('strong','',profile.name),node('small','',profile.id===data.active?'Perfil atual':'Assistidos e favoritos individuais'));control.dataset.color=index%4;view.body.append(control);}
   const form=node('form','profile-create');const name=smartField(form,'Adicionar uma pessoa','','text');name.maxLength=24;name.required=true;smartSubmit(form,'Criar perfil',async()=>{await transferAction('profile-add',null,name.value);view.dialog.close();openProfiles();},view.status);view.body.append(form);
   view.body.append(node('p','meta','A biblioteca e os arquivos são compartilhados. Favoritos, assistidos e progresso ficam separados. A TV escolhe seu próprio perfil, sem trocar o perfil do PC.'));
  }catch(error){view.status.textContent=error.message;}
 }
-async function updateProfileLabel(){try{const data=await transferAction('profile-list');$('#viewer-button').textContent=data.profiles.find(p=>p.id===data.active)?.name||'Perfis';await window.refreshVisualPrefs?.();}catch{}}
+function profilePortrait(profile,style=''){const img=node('img',style);img.alt='';img.src='/avatar.svg';if(profile.avatarVersion)request('/api/avatar/'+encodeURIComponent(profile.id)+'?v='+profile.avatarVersion).then(r=>r.blob()).then(blob=>{if(!img.isConnected)return;const url=URL.createObjectURL(blob);img.onload=img.onerror=()=>URL.revokeObjectURL(url);img.src=url;}).catch(()=>{});return img;}
+async function updateProfileLabel(){try{const data=await transferAction('profile-list'),profile=data.profiles.find(p=>p.id===data.active);const control=$('#viewer-button');control.replaceChildren(profilePortrait(profile,'viewer-photo'),node('span','',profile?.name||'Perfil'));control.title='Abrir meu perfil';control.setAttribute('aria-label','Abrir perfil de '+(profile?.name||''));await window.refreshVisualPrefs?.();return profile;}catch{}}
+async function changeProfilePhoto(remove=false){try{await transferAction(remove?'profile-photo-remove':'profile-photo');await updateProfileLabel();if(state.section==='history')await refreshWatchHistory();}catch(error){$('#status').textContent=error.message;}}
 async function openMediaCenter(){const view=smartDialog('Seu PC, sua central de mídia');
  async function load(command='media-read'){try{const data=await transferAction(command);view.body.replaceChildren();const stats=node('div','media-stats');stats.append(node('strong','',data.ready+' vídeos prontos'),node('span','',data.tv?'Central TV ativa':'Ative a central em Conta e TV'));view.body.append(stats,node('p','',data.status),node('p','meta','Os downloads ficam no PC. Vídeos concluídos no qBittorrent são adicionados automaticamente à biblioteca, inclusive episódios concluídos de um pacote. A TV reproduz pela rede local com o computador ligado.'));
  view.body.append(button(data.automatic?'Desativar inclusão automática':'Ativar inclusão automática','secondary',()=>load('media-auto')));
@@ -24,7 +26,7 @@ async function openSeriesHub(movie){
  for(const season of data.seasons){const tab=button('Temporada '+season.number+' · '+season.episodes.length,'secondary',()=>select(season));tab.dataset.season=season.number;tabs.append(tab);}if(data.seasons.length)select(data.seasons.find(s=>s.number===(data.next?.season??1))||data.seasons[0]);
  }catch(error){view.status.textContent=error.message;}
 }
-const viewerButton=button('Perfis','secondary',openProfiles);viewerButton.id='viewer-button';$('.topbar .tools').prepend(viewerButton);updateProfileLabel();
+const viewerButton=button('Meu perfil','secondary',()=>changeSection('history'));viewerButton.id='viewer-button';$('.topbar .tools').prepend(viewerButton);updateProfileLabel();
 const mediaButton=button('Mídia no PC','secondary',openMediaCenter);mediaButton.dataset.icon='library';$('.sidebar-support').prepend(mediaButton);
 
 const quick=node('details','menu quick-tools');quick.append(node('summary','','Ferramentas'));const quickPanel=node('div');quickPanel.append($('.smart-toolbar'));quick.append(quickPanel);$('.tools').insertBefore(quick,$('#view-controls'));

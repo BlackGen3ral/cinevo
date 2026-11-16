@@ -21,12 +21,16 @@ public partial class MainWindow
                 (operation,id,profile)=>Dispatcher.InvokeAsync(async()=>{
                     if(operation=="visual")return VisualInfo(string.IsNullOrEmpty(profile)?null:profile);
                     if(operation=="profiles")return (object?)ProfilesInfo();
+                    if(operation=="history-list")return await HistoryActionAsync(new("history-list",null,id,false),profile);
+                    if(operation.StartsWith("history-begin-"))return await HistoryActionAsync(new("history-begin",id,operation[14..],false),profile);
+                    if(operation.StartsWith("history-mark-"))return await HistoryActionAsync(new("history-mark",id,operation[13..],false),profile);
+                    if(operation.StartsWith("history-detail/"))return await HistoryActionAsync(new("history-detail",id,operation[15..],false),profile);
                     if(operation=="playback")return TvPlaybackInfo(id);
                     if(id==null||!webMovies.TryGetValue(id,out var m))throw new InvalidDataException("Série indisponível.");
                     if(operation=="next"){var following=ImportedTitle.NextEpisode(m,library.Movies.Where(v=>!v.ImportedOnly));return following==null?null:WebMovieFor(following,CheckViewer(string.IsNullOrEmpty(profile)?null:profile));}
                     if(operation=="series")return SeriesHub(id,CheckViewer(string.IsNullOrEmpty(profile)?null:profile),!m.ImportedOnly);
                     return await SeriesActionAsync(new("series-season",id,null,false));
-                }).Task.Unwrap(),ReadSeasonPosterAsync,(search,page,profile)=>Dispatcher.InvokeAsync(()=>WebCatalog("imports",search,page,24,null,null,CheckViewer(string.IsNullOrEmpty(profile)?null:profile))).Task,(command,session)=>Dispatcher.InvokeAsync(()=>TvDownloadAsync(command,session)).Task.Unwrap(),ReadTimelinePreview);
+                }).Task.Unwrap(),ReadSeasonPosterAsync,(search,page,profile)=>Dispatcher.InvokeAsync(()=>WebCatalog("imports",search,page,24,null,null,CheckViewer(string.IsNullOrEmpty(profile)?null:profile))).Task,(command,session)=>Dispatcher.InvokeAsync(()=>TvDownloadAsync(command,session)).Task.Unwrap(),ReadTimelinePreview,ReadProfilePhotoAsync);
             try{await server.StartAsync(lifetime.Token);}catch{server.Stop();throw;}tv=server;library.EnableTv=true;library.Save();
         }
         if(command.Name=="tv-code")tv?.Rotate();

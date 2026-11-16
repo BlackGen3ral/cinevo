@@ -79,7 +79,7 @@ public partial class PlayerWindow : Window
             externalSubtitleLoaded = true;
             if (File.Exists(movie.ExternalSubtitlePath)) engine.AddSubtitle(movie.ExternalSubtitlePath);
         }
-        if (!resumed && length > 0) { resumed = true; if (!movie.Watched && movie.ResumeMilliseconds > 1000 && movie.ResumeMilliseconds < length - 1000) engine.Time = movie.ResumeMilliseconds; }
+        if (!resumed && length > 0) { resumed = true; if(movie.Watched){movie.Watched=false;movie.ResumeMilliseconds=0;save();} if (!movie.Watched && movie.ResumeMilliseconds > 1000 && movie.ResumeMilliseconds < length - 1000) engine.Time = movie.ResumeMilliseconds; }
         PlayerStatus.Text = state == 4 ? "Em pausa · Espaço para continuar" : "Reproduzindo no Cinevo · Espaço pausa · ← → avançam 10s · F tela cheia";
         PauseButton.Content = state == 4 ? "▶  Continuar" : "Ⅱ  Pausar";
         updating = true;
@@ -104,7 +104,7 @@ public partial class PlayerWindow : Window
         updating = false;
     }
     private void CaptureProgress() { if (engine == null || engine.State is not (3 or 4) || engine.Time == lastCapturedTime) return; lastCapturedTime = engine.Time; movie.DurationMilliseconds = Math.Max(0, engine.Length); movie.ResumeMilliseconds = Math.Max(0, engine.Time); if (movie.DurationMilliseconds > 0 && movie.ResumeMilliseconds >= movie.DurationMilliseconds * .95) { movie.Watched = true; movie.ResumeMilliseconds = 0; } }
-    private void Pause_Click(object sender, RoutedEventArgs e) { if (engine == null) return; if (engine.State == 6) { ended=false;countdown.Reset();AutoNextPanel.Visibility=Visibility.Collapsed;engine.Open(movie.IsOnline&&!movie.HasLocalFile?movie.StreamUrl:movie.Path, Video.VideoHandle); resumed = true; timer.Start(); } else { if(engine.State == 3) { CaptureProgress(); save(); } engine.Pause(engine.State != 4); } }
+    private void Pause_Click(object sender, RoutedEventArgs e) { if (engine == null) return; if (engine.State == 6) { movie.Watched=false;movie.ResumeMilliseconds=0;save();ended=false;countdown.Reset();AutoNextPanel.Visibility=Visibility.Collapsed;engine.Open(movie.IsOnline&&!movie.HasLocalFile?movie.StreamUrl:movie.Path, Video.VideoHandle); resumed = true; timer.Start(); } else { if(engine.State == 3) { CaptureProgress(); save(); } engine.Pause(engine.State != 4); } }
     private void Back_Click(object sender, RoutedEventArgs e) => Close();
     private void BackTen_Click(object sender, RoutedEventArgs e) => Seek(-10000);
     private void ForwardTen_Click(object sender, RoutedEventArgs e) => Seek(10000);

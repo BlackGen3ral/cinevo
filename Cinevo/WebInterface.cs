@@ -33,7 +33,7 @@ public partial class MainWindow
                     {
                         revision = webRevision, status = Status.Text, scanning = scan != null,
                         canUpdate = Updater.IsInstalled, update = updateProgress, updateRequested = installRequested
-                    }).Task,ReadSeasonPosterAsync,ReadBackdropAsync);
+                    }).Task,ReadSeasonPosterAsync,ReadBackdropAsync,ReadProfilePhotoAsync);
                 try { await server.StartAsync(lifetime.Token); }
                 catch { server.Stop(); throw; }
                 if (closed) { server.Stop(); return; }
@@ -155,10 +155,11 @@ public partial class MainWindow
         var offset = (page - 1) * limit;
         var matches = collection.Where(movie => search.Length == 0 ||
             $"{movie.Title} {movie.Year} {movie.Genre}".Contains(search, StringComparison.CurrentCultureIgnoreCase)).ToList();
-        var returning = HomeFeed.Returning(saved,profile,library.ActiveViewer);
+        var feed=saved.Where(m=>!WatchJournal.Dropped(library,m,profile)).ToList();
+        var returning = HomeFeed.Returning(feed,profile,library.ActiveViewer);
         var favorites = saved.Where(movie => Viewers.Get(movie,profile,library.ActiveViewer).Favorite).OrderByDescending(movie => movie.Added).Take(12);
         var spotlight = page == 1 && section == "library" && search.Length == 0 && smart == new SmartFilter()
-            ? returning.FirstOrDefault() ?? saved.OrderByDescending(movie => movie.Added).FirstOrDefault() : null;
+            ? returning.FirstOrDefault() ?? feed.OrderByDescending(movie => movie.Added).FirstOrDefault() : null;
         return new
         {
             movies = matches.Skip(offset).Take(limit).Select(m=>WebMovieFor(m,profile)).ToArray(),
@@ -167,7 +168,7 @@ public partial class MainWindow
             spotlight = spotlight == null ? null : WebMovieFor(spotlight,profile),
             returning = spotlight == null ? null : returning.Select(m=>WebMovieFor(m,profile)).ToArray(),
             favorites = spotlight == null ? null : favorites.Select(m=>WebMovieFor(m,profile)).ToArray(),
-            nextEpisodes=spotlight==null?null:HomeFeed.Next(saved,profile,library.ActiveViewer).Select(m=>WebMovieFor(m,profile)).ToArray(),
+            nextEpisodes=spotlight==null?null:HomeFeed.Next(feed,profile,library.ActiveViewer).Select(m=>WebMovieFor(m,profile)).ToArray(),
             recentDownloads=spotlight==null?null:saved.Where(m=>m.HasLocalFile&&m.DownloadedAt!=null).OrderByDescending(m=>m.DownloadedAt).Take(12).Select(m=>WebMovieFor(m,profile)).ToArray(),
             viewerName=library.Profiles.First(p=>p.Id==profile).Name,
             total = saved.Count,
@@ -215,7 +216,7 @@ public partial class MainWindow
             tmdbLink = movie.TmdbUrl,
             tmdbConfigured = File.Exists(TmdbClient.CredentialPath),
             tmdbRevision,
-            movie.IsOnline, movie.ImportedOnly, progress=movie.DurationMilliseconds>0?Math.Clamp(viewing.Resume*100d/movie.DurationMilliseconds,0,100):0, movie.Rating, playLabel=viewing.Resume>1000&&!viewing.Watched?"▶ Continuar":movie.PlayLabel, movie.Available, hasLocalFile=movie.HasLocalFile, canPlay=movie.HasLocalFile||RemoteFiles.IsPublicHttps(movie.StreamUrl),
+            trackingStatus=WatchJournal.Find(library,movie,profile)?.Status??(viewing.Watched?"completed":viewing.Resume>1000?"watching":""),historyId=WatchJournal.Find(library,movie,profile)?.Id, movie.IsOnline, movie.ImportedOnly, progress=movie.DurationMilliseconds>0?Math.Clamp(viewing.Resume*100d/movie.DurationMilliseconds,0,100):0, movie.Rating, playLabel=viewing.Resume>1000&&!viewing.Watched?"▶ Continuar":movie.PlayLabel, movie.Available, hasLocalFile=movie.HasLocalFile, canPlay=movie.HasLocalFile||RemoteFiles.IsPublicHttps(movie.StreamUrl),
             hasDownloadOptions = movie.PortalId.Length > 0,
             hasCover = movie.Cover.Length > 0 || movie.PortalCoverUrl.Length > 0,
             coverVersion = HashCode.Combine(movie.Cover, movie.PortalCoverUrl)
@@ -307,6 +308,7 @@ public partial class MainWindow
         }
         if (command.Name.StartsWith("visual-", StringComparison.Ordinal)) return await VisualActionAsync(command);
         if (command.Name.StartsWith("search-", StringComparison.Ordinal)) return await SearchActionAsync(command);
+        if (command.Name.StartsWith("history-", StringComparison.Ordinal)) return await HistoryActionAsync(command);
         if (command.Name.StartsWith("profile-", StringComparison.Ordinal)) return await ProfileActionAsync(command);
         if (command.Name.StartsWith("media-", StringComparison.Ordinal)) return await MediaActionAsync(command);
         if (command.Name.StartsWith("series-", StringComparison.Ordinal) && command.Name!="series-episodes") return await SeriesActionAsync(command);

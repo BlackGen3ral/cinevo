@@ -138,7 +138,8 @@ function folderPicker() {
 let historyPage = 1;
 let historyLoading = false;
 function releaseIcon(text) {
-  const paths=/perfil|pessoa/i.test(text)?['M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6','M2 20v-2a6 6 0 0 1 12 0v2','M16 5a3 3 0 0 1 0 6','M17 15a5 5 0 0 1 5 5']:
+  const paths=/controle|analógico|direcional|teclado/i.test(text)?['M7 7h10a5 5 0 0 1 4.7 6.7l-1.1 3a2 2 0 0 1-3.3.8L15 15H9l-2.3 2.5a2 2 0 0 1-3.3-.8l-1.1-3A5 5 0 0 1 7 7','M7 9v5','M4.5 11.5h5','M16 10h.01','M19 13h.01']:
+    /perfil|pessoa|foto/i.test(text)?['M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6','M2 20v-2a6 6 0 0 1 12 0v2','M16 5a3 3 0 0 1 0 6','M17 15a5 5 0 0 1 5 5']:
     /série|temporada|episódio/i.test(text)?['M4 4h16v16H4z','M4 9h16','M9 9v11','M13 13l4 2-4 2z']:
     /download|baixad|mídia|computador/i.test(text)?['M4 3h16v12H4z','M8 21h8','M12 15v6','M12 6v6','M9 9l3 3 3-3']:
     /novidades|histórico/i.test(text)?['M4 4h16v16H4z','M8 8h8','M8 12h8','M8 16h5']:

@@ -1,5 +1,7 @@
-- Interface de vidro com painéis translúcidos, bordas iluminadas e acabamento unificado no menu, busca, cartões, downloads e janelas.
-- Fundo ambiente animado em violeta e rosa, criado com gradientes do próprio app, sem novas imagens ou arquivos de cache.
-- Movimento do fundo pausado quando o app perde o foco, fica oculto ou reproduz um vídeo no modo TV. A preferência de movimento reduzido é respeitada.
-- Leitura refinada nas capas, destaque cinematográfico e detalhes, com ações e estados mais consistentes.
-- Modo TV com o mesmo acabamento visual, mantendo foco visível, intensidade de brilho por perfil e uma alternativa sólida para navegadores sem suporte ao vidro.
+- A navegação pelo controle de videogame foi reformulada: foco na janela à frente, retorno à capa selecionada, deslocamento mais estável entre fileiras e exclusão de botões ocultos ou desativados.
+- Analógico com zona morta, direção estabilizada e pausa antes da repetição. A e B executam uma ação por toque; voltar fecha uma janela por vez. Os comandos ficam suspensos quando o Cinevo perde o foco.
+- Teclado na tela e seleção de filtros pelo controle. Pressione A no campo ou filtro, navegue com o direcional e use B para cancelar.
+- Foto de perfil no canto superior abre a página pessoal, com filmes e séries em andamento, concluídos e abandonados. A página inclui busca, filtros, contadores, progresso, registros e episódios por temporada.
+- Troca e remoção da foto no PC. A imagem é reduzida para 256 × 256, e cada pessoa mantém apenas um JPEG; nenhuma foto é enviada para a conta ou incluída no catálogo sincronizado.
+- Acompanhamento manual na ficha do título. Abandonar preserva o ponto salvo e retira o título do Continuar assistindo. Novas reproduções retomam o acompanhamento; concluir uma série considera os episódios conhecidos da biblioteca.
+- Histórico anterior aproveitado sem inventar datas, preservado ao retirar títulos da biblioteca e consultável pela TV pareada, respeitando cada perfil. Os registros detalhados permanecem neste PC da central.

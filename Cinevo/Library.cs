@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 namespace Cinevo;
 public sealed class Movie : INotifyPropertyChanged
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] public string? HistoryId {get;set;}
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Changed([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new(name));
     public List<string> CastNames { get; set; } = [];
@@ -68,6 +69,7 @@ public sealed class Movie : INotifyPropertyChanged
 public sealed record ScheduledTorrent(string Hash, DateTime At);
 public sealed class Library
 {
+    public Dictionary<string,Dictionary<string,WatchRecord>> WatchHistory {get;set;}=[];
     public Dictionary<string,VisualStyle> VisualStyles { get; set; } = [];
     public List<ViewerProfile> Profiles { get; set; } = [new("principal","Principal")];
     public string ActiveViewer { get; set; } = "principal";
@@ -92,6 +94,7 @@ public sealed class Library
         {
             var library = JsonSerializer.Deserialize<Library>(File.ReadAllText(DataPath)) ?? throw new InvalidDataException("Biblioteca vazia.");
             library.RemovedPaths = new(library.RemovedPaths, StringComparer.OrdinalIgnoreCase);
+            Viewers.Capture(library,false);WatchJournal.Capture(library);
             return library;
         }
         catch (JsonException ex) { throw new InvalidDataException("A biblioteca não pôde ser lida. O arquivo original foi preservado em " + DataPath, ex); }
@@ -99,6 +102,7 @@ public sealed class Library
     public void Save()
     {
         Viewers.Capture(this);
+        WatchJournal.Capture(this);
         Directory.CreateDirectory(DataDirectory);
         var temp = DataPath + ".tmp";
         File.WriteAllText(temp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));

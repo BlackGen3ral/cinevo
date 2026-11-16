@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 namespace Cinevo;
-internal sealed class TvWeb(Func<string,int,string?,Task<object>> catalog,Func<string,Task<byte[]?>> cover,Func<string,Task<string?>> video,Func<string,long,long,bool?,string?,Task> progress,Func<string,string?,Task<object?>>? details=null,Func<string,string?,string?,Task<object?>>? extra=null,Func<string,Task<byte[]?>>? seasonCover=null,Func<string,int,string?,Task<object>>? imports=null,Func<TvMediaCommand,string,Task<object?>>? download=null,Func<string,long,CancellationToken,Task<byte[]?>>? preview=null)
+internal sealed class TvWeb(Func<string,int,string?,Task<object>> catalog,Func<string,Task<byte[]?>> cover,Func<string,Task<string?>> video,Func<string,long,long,bool?,string?,Task> progress,Func<string,string?,Task<object?>>? details=null,Func<string,string?,string?,Task<object?>>? extra=null,Func<string,Task<byte[]?>>? seasonCover=null,Func<string,int,string?,Task<object>>? imports=null,Func<TvMediaCommand,string,Task<object?>>? download=null,Func<string,long,CancellationToken,Task<byte[]?>>? preview=null,Func<string,Task<byte[]?>>? avatar=null)
 {
     private WebApplication? app;
     private readonly ConcurrentDictionary<string,DateTime> sessions=new();
@@ -44,7 +44,8 @@ internal sealed class TvWeb(Func<string,int,string?,Task<object>> catalog,Func<s
             try{await next(context);}catch(InvalidDataException ex){if(!context.Response.HasStarted){context.Response.StatusCode=400;await context.Response.WriteAsJsonAsync(new{error=ex.Message});}}catch(System.Net.Http.HttpRequestException){if(!context.Response.HasStarted){context.Response.StatusCode=502;await context.Response.WriteAsJsonAsync(new{error="O PC não conseguiu acessar a origem ou o qBittorrent. Confira a conexão no computador."});}}catch(OperationCanceledException){if(!context.RequestAborted.IsCancellationRequested&&!context.Response.HasStarted){context.Response.StatusCode=503;await context.Response.WriteAsJsonAsync(new{error="A consulta demorou demais. Tente novamente."});}}catch(UnauthorizedAccessException){if(!context.Response.HasStarted){context.Response.StatusCode=403;await context.Response.WriteAsJsonAsync(new{error="O PC não tem permissão de acesso ao arquivo ou à pasta dos downloads."});}}catch(IOException){if(!context.Response.HasStarted){context.Response.StatusCode=500;await context.Response.WriteAsJsonAsync(new{error="O PC não conseguiu ler ou salvar o arquivo. Confira o disco e a pasta dos downloads."});}}
         });
         app.MapGet("/brand.png",()=>Results.Stream(typeof(TvWeb).Assembly.GetManifestResourceStream("Cinevo.Assets.cinevo.png")!,"image/png"));
-        Asset("/tv","tv.html","text/html; charset=utf-8");Asset("/tv.js","tv.js","application/javascript");Asset("/tv-central.js","tv-central.js","application/javascript");Asset("/tv.css","tv.css","text/css");Asset("/glass.css","glass.css","text/css");Asset("/glass.js","glass.js","application/javascript");Asset("/controller.js","controller.js","application/javascript");
+        Asset("/avatar.svg","avatar.svg","image/svg+xml");
+        Asset("/tv","tv.html","text/html; charset=utf-8");Asset("/tv.js","tv.js","application/javascript");Asset("/tv-central.js","tv-central.js","application/javascript");Asset("/tv.css","tv.css","text/css");Asset("/glass.css","glass.css","text/css");Asset("/history.css","history.css","text/css");Asset("/tv-history.js","tv-history.js","application/javascript");Asset("/glass.js","glass.js","application/javascript");Asset("/controller.js","controller.js","application/javascript");
         app.MapPost("/api/pair",async(HttpContext context)=>{
             var ip=context.Connection.RemoteIpAddress!.ToString();var now=DateTime.UtcNow;
             foreach(var old in attempts.Where(a=>a.Value.Start<now.AddMinutes(-2)).ToArray())attempts.TryRemove(old.Key,out _);
@@ -58,6 +59,10 @@ internal sealed class TvWeb(Func<string,int,string?,Task<object>> catalog,Func<s
             var session=Convert.ToHexString(RandomNumberGenerator.GetBytes(32));sessions[session]=now.AddHours(12);
             context.Response.Cookies.Append("cinevo_tv",session,new CookieOptions{HttpOnly=true,SameSite=SameSiteMode.Strict,MaxAge=TimeSpan.FromHours(12),Path="/"});Rotate();return Results.Json(new{ok=true});
         });
+        app.MapGet("/api/history",async(string? state,string? type,string? search,int? page,string? profile)=>extra==null?Results.NotFound():Results.Json(await extra("history-list",System.Text.Json.JsonSerializer.Serialize(new{state=state??"",type=type??"",search=search??"",page=page??1}),profile)));
+        app.MapGet("/api/history/{id}",async(string id,int? page,string? profile)=>extra==null?Results.NotFound():Results.Json(await extra("history-detail/"+Math.Clamp(page??1,1,100000),id,profile)));
+        app.MapPost("/api/history-title/{id}",async(string id,string? profile,HttpContext c)=>{var body=await c.Request.ReadFromJsonAsync<TvHistoryMark>();if(body?.Status is not ("watching" or "completed" or "dropped"))return Results.BadRequest();return extra==null?Results.NotFound():Results.Json(await extra("history-begin-"+body.Status,id,profile));});
+        app.MapPost("/api/history/{id}",async(string id,string? profile,HttpContext c)=>{var body=await c.Request.ReadFromJsonAsync<TvHistoryMark>();if(body?.Status is not ("watching" or "completed" or "dropped"))return Results.BadRequest();return extra==null?Results.NotFound():Results.Json(await extra("history-mark-"+body.Status,id,profile));});
         app.MapGet("/api/visual",async(string? profile)=>extra==null?Results.NotFound():Results.Json(await extra("visual",null,profile)));
         app.MapGet("/api/diagnostics",()=>Results.Json(Diagnostics()));
         app.MapGet("/api/playback/{id}",async(string id,string? profile)=>extra==null?Results.NotFound():Results.Json(await extra("playback",id,profile)));
@@ -69,6 +74,7 @@ internal sealed class TvWeb(Func<string,int,string?,Task<object>> catalog,Func<s
         app.MapPost("/api/download-resume/{id}",async(string id,HttpContext c)=>download==null?Results.NotFound():Results.Json(await download(new("tv-download-resume",id,null),Session(c))));
         app.MapPost("/api/download-cancel/{id}",async(string id,HttpContext c)=>download==null?Results.NotFound():Results.Json(await download(new("tv-download-cancel",id,null),Session(c))));
         app.MapGet("/api/preview/{id}",async(string id,long? position,HttpContext c)=>preview==null||position is null or <0 or >1000000000?Results.BadRequest():await preview(id,position.Value,c.RequestAborted) is {} bytes?Results.Bytes(bytes,"image/jpeg"):Results.NotFound());
+        app.MapGet("/api/avatar/{id}",async(string id)=>avatar!=null&&await avatar(id) is {} bytes?Results.Bytes(bytes,"image/jpeg"):Results.NotFound());
         app.MapGet("/api/profiles",async()=>extra==null?Results.NotFound():Results.Json(await extra("profiles",null,null)));
         app.MapGet("/api/next/{id}",async(string id,string? profile)=>extra==null?Results.NotFound():Results.Json(await extra("next",id,profile)));
         app.MapGet("/api/series/{id}",async(string id,string? profile)=>extra==null?Results.NotFound():Results.Json(await extra("series",id,profile)));
@@ -92,3 +98,5 @@ internal sealed record TvPresence(DateTime Seen,string State,string Error);
 internal sealed record TvHeartbeat(string State,int ErrorCode);
 internal sealed record TvDownloadChoice(string Option);
 internal sealed record TvMediaCommand(string Name,string? Id,string? Address);
+
+internal sealed record TvHistoryMark(string Status);

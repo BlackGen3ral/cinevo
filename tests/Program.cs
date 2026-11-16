@@ -31,6 +31,7 @@ try {
  await TorrentControlTests.Run();
  AccountModelTests.Run();
  ViewerTests.Run(root);
+ WatchJournalTests.Run(root);
  ExperienceTests.Run(root);
  InterfaceTests.Run();
  CentralTests.Run();

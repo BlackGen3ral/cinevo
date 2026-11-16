@@ -1,8 +1,8 @@
-# Cinevo 0.1.48 · Beta
+# Cinevo 0.1.49 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.48-beta.49/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.49-beta.50/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -55,6 +55,16 @@ Mantenha o Cinevo aberto no computador para concluir arquivos diretos e disponib
 A linha do tempo e os botões de salto mostram prévias de vídeos locais a cada dez segundos, geradas sob demanda por um decodificador silencioso separado. O cache é global, limitado a **96 imagens / 8 MiB de memória**, sem gravação de miniaturas no disco. Vídeos incompatíveis ou indisponíveis podem ficar sem prévia. A função usa os callbacks de vídeo do [LibVLC 3](https://videolan.videolan.me/vlc-3.0/group__libvlc__media__player.html).
 
 Abra **Diagnóstico da central** no PC ou **Diagnóstico** na TV, inclusive nos controles do player. O PC informa o contato das TVs nos últimos 45 segundos. A TV testa se o PC responde pela rede e informa erros recebidos pelo navegador. Sem resposta, pode haver falha de rede, suspensão, Cinevo fechado ou central desativada. O diagnóstico não presume que o PC está desligado e não garante compatibilidade de codecs com qualquer modelo de TV.
+
+## Meu histórico por perfil
+
+Clique na **foto de perfil no canto superior** para abrir **Meu perfil**, com seu histórico. Use **Trocar foto** para escolher uma imagem do PC e **Trocar perfil** para selecionar outra pessoa. A página reúne **Em andamento**, **Concluídos** e **Abandonados**, com busca, filtro de filmes/séries e paginação. Na ficha de um título, **Acompanhamento** permite mudar a situação. Abandonar preserva o ponto salvo e retira o título das sugestões de continuidade; reproduzir novamente ou escolher Em andamento retoma o acompanhamento.
+
+As séries são reunidas por nome, com progresso dos episódios conhecidos da biblioteca e registros por temporada. Concluir manualmente uma série marca os episódios conhecidos como assistidos. O app não afirma que uma série em exibição terminou. O histórico retém registros de títulos removidos da biblioteca e não cria cópias de vídeos ou capas.
+
+Os estados anteriores são aproveitados, com **Data não registrada** quando não existe informação histórica. Novas mudanças recebem data. Atualizações comuns de progresso não criam eventos repetidos a cada consulta. Na TV pareada, clique na foto do perfil ou em **Acompanhamento** na ficha; o perfil da TV é independente do perfil ativo no PC.
+
+O histórico detalhado e a situação Abandonado ficam salvos por perfil **neste PC**, disponíveis à TV na mesma central. A sincronização de conta existente continua compartilhando os campos de biblioteca, favoritos e ponto de reprodução; este novo diário detalhado não é enviado à conta.
 
 ## Atualizações
 
@@ -124,7 +134,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.48-beta.49
+./scripts/build.ps1 -Version 0.1.49-beta.50
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.
@@ -153,13 +163,13 @@ Abra **Conta e TV** no menu lateral. Criar ou conectar uma conta é opcional. A 
 
 Para usar a TV, ative a central e abra o endereço mostrado no navegador da TV, na mesma rede privada. Digite o código de 6 dígitos (válido por 5 minutos). O PC deve permanecer ligado com o Cinevo aberto. A central usa a porta 39876 e lembra a ativação; o botão Desativar central revoga as sessões dos aparelhos. No primeiro acesso, o Windows pode pedir permissão para a rede privada.
 
-O modo TV tem botões grandes, foco visível, navegação por setas/OK e controle remoto. No PC, o link **Abrir modo TV neste PC** permite usar controles padrão reconhecidos pelo navegador: direcional ou analógico esquerdo, A para selecionar, B para voltar e Start para pausar/continuar. Sons suaves podem ser desligados e não tocam automaticamente antes de interação. Não há downloads de pacotes de sons.
+O modo TV tem botões grandes, foco visível, navegação por setas/OK e controle remoto. No PC, o link **Abrir modo TV neste PC** permite usar controles padrão reconhecidos pelo navegador: direcional ou analógico esquerdo, A para selecionar, B para voltar e Start para pausar/continuar. No modo controle da interface principal, os mesmos comandos operam as capas, os menus e as janelas. A navegação mantém o foco na janela à frente e retorna à seleção anterior ao voltar. O analógico usa zona morta, estabilização da direção e uma pausa inicial antes de repetir; segurar A ou B não repete a ação. Ao retornar de outro programa ou reconectar o controle, solte os comandos antes de navegar. Em um campo de texto, A abre o teclado na tela; em um filtro, abre as opções para selecionar com o direcional. B cancela. Sons suaves podem ser desligados e não tocam automaticamente antes de interação. Não há downloads de pacotes de sons.
 
 Os vídeos locais são enviados diretamente pelo PC à TV com suporte a HTTP Range; vídeos online diretos continuam na origem. O player salva o progresso a cada 5 segundos e ao pausar/sair. Esta versão não converte formatos; codecs, faixas de áudio e legendas dependem do navegador da TV. A validação automatizada usa navegador no PC e controle simulado; não substitui o teste na TV física.
 
 ### Perfis, séries e central de mídia
 
-**Perfis** no topo permite criar até oito pessoas e trocar o perfil do PC. Assistidos, favoritos e ponto de reprodução são individuais; os arquivos são compartilhados. O perfil Principal preserva os dados anteriores. A TV escolhe o próprio perfil no cabeçalho, sem alterar o PC. Os perfis também sincronizam pela conta. Perfis não são controles de acesso nem têm senha individual.
+**Foto de perfil → Trocar perfil** permite criar até oito pessoas e trocar o perfil do PC. A foto é recortada para 256 × 256 e gravada como um único JPEG compacto por pessoa; trocar a foto substitui a anterior. Fotos permanecem neste PC e ficam disponíveis à TV pareada na mesma central. Assistidos, favoritos e ponto de reprodução são individuais; os arquivos são compartilhados. O perfil Principal preserva os dados anteriores. A TV escolhe o próprio perfil no cabeçalho, sem alterar o PC. Os perfis também sincronizam pela conta. Perfis não são controles de acesso nem têm senha individual.
 
 **Mídia no PC** gerencia a inclusão automática de vídeos concluídos do qBittorrent, verifica novos arquivos e escolhe a pasta padrão dos torrents. A verificação ocorre a cada 30 segundos, em lotes, fora da thread da interface para indexação dos arquivos. Vídeos ainda incompletos, arquivos fora da pasta do torrent e caminhos removidos da biblioteca não são incluídos.
 
