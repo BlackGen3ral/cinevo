@@ -149,6 +149,7 @@ public partial class MainWindow
             "continue" => saved.Where(movie => !movie.Watched && movie.ResumeMilliseconds > 30000).OrderByDescending(movie => movie.Added),
             _ => saved.OrderByDescending(movie => movie.Added)
         };
+        if(section=="library"&&type is "movie" or "series")collection=collection.Where(m=>ImportedTitle.Describe(m).Type==type);
         var smart = SmartFilter.Parse(ref search);
         collection = smart.Apply(collection);
         if(section!="imports")collection=collection.GroupBy(m=>ImportedTitle.Describe(m).Type=="series"?"series:"+SeriesCenter.Key(m):(object)m).Select(g=>g.First());
@@ -170,6 +171,7 @@ public partial class MainWindow
             favorites = spotlight == null ? null : favorites.Select(m=>WebMovieFor(m,profile)).ToArray(),
             nextEpisodes=spotlight==null?null:HomeFeed.Next(feed,profile,library.ActiveViewer).Select(m=>WebMovieFor(m,profile)).ToArray(),
             recentDownloads=spotlight==null?null:saved.Where(m=>m.HasLocalFile&&m.DownloadedAt!=null).OrderByDescending(m=>m.DownloadedAt).Take(12).Select(m=>WebMovieFor(m,profile)).ToArray(),
+            librarySummary=section=="library"?new{films=saved.Count(m=>ImportedTitle.Describe(m).Type!="series"),series=saved.Where(m=>ImportedTitle.Describe(m).Type=="series").Select(SeriesCenter.Key).Distinct().Count(),watching=feed.Where(m=>!Viewers.Get(m,profile,library.ActiveViewer).Watched&&Viewers.Get(m,profile,library.ActiveViewer).Resume>1000).GroupBy(m=>ImportedTitle.Describe(m).Type=="series"?"series:"+SeriesCenter.Key(m):(object)m).Count()}:null,
             viewerName=library.Profiles.First(p=>p.Id==profile).Name,
             total = saved.Count,
             folderCount = library.Folders.Count,

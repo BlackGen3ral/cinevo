@@ -3,6 +3,7 @@ internal static class InterfaceTests
 {
  internal static void Run(){
   if(!new VisualStyle().Valid()||!new VisualStyle("small",0,100,"compact").Valid()||new VisualStyle("huge").Valid()||new VisualStyle(Glow:101).Valid()||new VisualStyle(ClickVolume:-1).Valid()||new VisualStyle(Density:"other").Valid())throw new Exception("Preferências fora dos limites devem ser recusadas");
+  if(!new VisualStyle(ImportCoverWidth:124).Valid()||!new VisualStyle(ImportCoverWidth:280).Valid()||new VisualStyle(ImportCoverWidth:123).Valid()||new VisualStyle(ImportCoverWidth:281).Valid())throw new Exception("Limites das capas importadas inválidos");
   var old=new Movie{Title="Duna",Year="1984"};var recent=new Movie{Title="Duna",Year="2021",TorrentHashes=[new string('a',40)]};var index=new TransferArtworkIndex([old,recent]);
   if(index.Find(new string('a',40),"Nome alternativo")!=recent||index.Find("","Duna.2021.1080p.WEB-DL")!=recent||index.Find("","Duna.1984.720p")!=old||index.Find("","Duna.2000.1080p")!=null||index.Find("","Outro.2021")!=null)throw new Exception("Capas devem respeitar hash, título e ano sem associar outro filme");
   var film=new Movie{Title="Aurora",Year="2024"};var e1=new Movie{Title="Aurora S01E01",SeriesTitle="Aurora",Season=1,Episode=1};var e2=new Movie{Title="Aurora S01E02",SeriesTitle="Aurora",Season=1,Episode=2};Movie[] all=[film,e1,e2];

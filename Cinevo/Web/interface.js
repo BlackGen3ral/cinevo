@@ -6,6 +6,7 @@ function applyVisualStyle(value) {
   root.dataset.covers=value.covers;root.dataset.density=value.density;
   root.style.setProperty('--focus-glow',String(value.glow/100));
   root.dataset.glow=value.glow===0?'off':'on';
+  applyImportCoverWidth(value.importCoverWidth||({small:138,medium:178,large:224}[value.covers]||178));
   window.CinevoControls?.setVolume(value.clickVolume);
 }
 window.refreshVisualPrefs=async()=>applyVisualStyle(await transferAction('visual-read'));
@@ -17,7 +18,7 @@ async function openAppearance(){
   const density=select('Densidade da interface','density',[['compact','Compacta'],['comfortable','Confortável'],['spacious','Espaçosa']]);
   const range=(label,name)=>{const wrap=node('label','smart-field'),title=node('span'),input=node('input');input.name=name;input.type='range';input.min=0;input.max=100;input.step=1;input.value=original[name];const update=()=>title.textContent=label+' · '+input.value+'%';input.addEventListener('input',update);update();wrap.append(title,input);form.append(wrap);return input;};
   const glow=range('Intensidade do brilho','glow'),volume=range('Volume dos cliques','clickVolume');
-  const read=()=>({covers:covers.value,density:density.value,glow:+glow.value,clickVolume:+volume.value});
+  const read=()=>({...original,covers:covers.value,density:density.value,glow:+glow.value,clickVolume:+volume.value});
   form.addEventListener('input',()=>applyVisualStyle(read()));
   view.body.append(node('p','meta','Prévia imediata. O brilho mantém o contorno de foco visível. As preferências ficam salvas neste PC por perfil e são aplicadas também no modo TV ao conectar.'));
   const sample=button('Ouvir clique','secondary',()=>window.CinevoControls?.previewSound?.());view.body.append(sample);
@@ -35,6 +36,10 @@ function selectionInfo(movie){
   for(const text of [minutes?minutes+' min':'',movie.resolution||'',availability].filter(Boolean))info.append(node('span','',text));
   return info;
 }
+let importSizeTimer,importSaveGeneration=0;
+function applyImportCoverWidth(value){value=Math.max(124,Math.min(280,Number(value)||178));document.documentElement.style.setProperty('--import-cover-min',value+'px');const input=document.getElementById('import-cover-size');if(input)input.value=value;const label=document.getElementById('import-cover-label');if(label)label.textContent=Math.round(value/178*100)+'%';}
+window.getImportCoverWidth=()=>visualStyle.importCoverWidth||({small:138,medium:178,large:224}[visualStyle.covers]||178);
+window.saveImportCoverWidth=value=>{visualStyle.importCoverWidth=Number(value);applyImportCoverWidth(value);clearTimeout(importSizeTimer);const generation=++importSaveGeneration,viewer=window.cinevoViewerId;importSizeTimer=setTimeout(async()=>{try{const next=await transferAction('visual-import-covers',viewer,String(value));if(generation===importSaveGeneration&&viewer===window.cinevoViewerId)visualStyle=next;}catch(error){$('#status').textContent=error.message;}},450);};
 let searchGeneration=0;
 const searchResults=node('section','organized-search');searchResults.id='search-results';searchResults.hidden=true;searchResults.setAttribute('aria-label','Resultados por categoria');$('#main').append(searchResults);
 window.hideOrganizedSearch=()=>{searchGeneration++;searchResults.hidden=true;$('#collection').hidden=state.section==='downloads';};

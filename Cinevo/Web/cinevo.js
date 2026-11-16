@@ -232,6 +232,7 @@ function importFilters() {
     group.append(select);
     bar.append(group);
   }
+  const size=node('label','import-size','Tamanho das capas'),range=node('input'),value=node('output');range.type='range';range.id='import-cover-size';range.min=124;range.max=280;range.step=2;range.value=window.getImportCoverWidth?.()||178;range.setAttribute('aria-label','Tamanho das capas importadas');range.oninput=()=>window.saveImportCoverWidth(range.value);value.id='import-cover-label';value.textContent=Math.round(Number(range.value)/178*100)+'%';size.append(range,value);bar.append(size);
   return bar;
 }
 
@@ -357,7 +358,8 @@ function renderShelf(id, title, movies, rail, index) {
 }
 
 function render(data) {
-  const home = state.section === 'library' && !state.search;
+  const home = state.section === 'library' && !state.search && !state.type;document.documentElement.dataset.currentSection=state.section;
+  window.updateLibraryHome?.(data);
   if (heroTotal !== data.total || !home) { heroIndex = 0; heroSlide = null; }
   heroTotal = data.total;
   if (heroIndex === 0) heroSlide = null;
@@ -408,7 +410,7 @@ function render(data) {
     renderShelf(id, title, movies, rail, visibleShelves.size);
     visibleShelves.add(id);
   }
-  $('#profile-home').hidden=!home;$('#profile-home').textContent=home?'Sua sessão, '+(data.viewerName||'Principal')+'.':'';
+  $('#profile-home').hidden=true;$('#profile-home').textContent=home?'Sua sessão, '+(data.viewerName||'Principal')+'.':'';
   if (home && data.returning?.length) showShelf('returning', 'Continue assistindo', data.returning, true);
   if (home && data.nextEpisodes?.length) showShelf('next-episodes','Próximo episódio',data.nextEpisodes,true);
   if (home && data.recentDownloads?.length) showShelf('recent-downloads','Recém-baixados · prontos no PC',data.recentDownloads,true);
@@ -634,31 +636,7 @@ function renderTmdb(section, introduction, synopsis, tmdb, usesSynopsis, movie) 
   section.append(attribution);
 }
 
-function renderMovieTrailer(section, actions, movie, id) {
-  actions.append(button(id ? '▶ Ver trailer' : 'Buscar trailer', 'secondary', () => {
-    if (id && !section.querySelector('iframe')) {
-      const iframe = node('iframe');
-      iframe.title = 'Trailer de ' + movie.title;
-      iframe.allow = 'fullscreen; encrypted-media';
-      iframe.allowFullscreen = true;
-      iframe.referrerPolicy = 'origin';
-      iframe.src = 'https://www.youtube-nocookie.com/embed/' + id;
-      section.insertBefore(iframe, section.querySelector('a'));
-    }
-    section.scrollIntoView({ block: 'nearest' });
-    section.querySelector('iframe, a')?.focus({ preventScroll: true });
-  }));
-  if (section.dataset.trailer === (id || '') && section.childElementCount) return;
-  section.dataset.trailer = id || '';
-  const link = node('a', 'detail-source', id ? 'Abrir trailer no YouTube ↗' : 'Pesquisar trailer no YouTube ↗');
-  link.href = id ? 'https://www.youtube.com/watch?v=' + id :
-    'https://www.youtube.com/results?search_query=' + encodeURIComponent([movie.title, movie.year, 'trailer oficial'].filter(Boolean).join(' '));
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  section.replaceChildren(node('h3', '', 'Trailer'));
-  if (!id) section.append(node('p', '', 'Nenhum trailer vinculado. Você pode pesquisar ou adicionar um link em Editar detalhes.'));
-  section.append(link);
-}
+function renderMovieTrailer(section,actions,movie,id){window.CinevoTrailers?.render(section,actions,movie,id);}
 
 async function catalog(page, limit, signal) {
   const smartSearch = typeof smartFilters !== 'undefined' && Object.keys(smartFilters).length ? '@smart:' + JSON.stringify({search:state.search,filter:smartFilters}) : state.search;
@@ -707,7 +685,8 @@ async function refresh(append = false, keepPages = false) {
 function changeSection(section) {
   fetchCatalog?.abort();
   window.hideOrganizedSearch?.();
-  state.section = section;
+  state.section = section;document.documentElement.dataset.currentSection=section;
+  if($('#library-dashboard')) $('#library-dashboard').hidden=section!=='library';
   $('#current-section').textContent = sectionNames[section];
   state.search = '';
   state.site = state.type = '';

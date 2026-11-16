@@ -6,6 +6,10 @@ public partial class MainWindow
  private object VisualInfo(string? viewer=null){var id=CheckViewer(viewer??library.ActiveViewer);return library.VisualStyles.GetValueOrDefault(id)??new VisualStyle();}
  private Task<object?> VisualActionAsync(WebAction command){
   if(command.Name=="visual-read")return Task.FromResult<object?>(VisualInfo());
+  if(command.Name=="visual-import-covers"){
+   if(!int.TryParse(command.Address,out var width)||width is <124 or >280)throw new InvalidDataException("Escolha um tamanho de capa válido.");
+   var profile=CheckViewer(command.Id??library.ActiveViewer);var current=(VisualStyle)VisualInfo(profile);library.VisualStyles.TryGetValue(profile,out var old);var next=current with{ImportCoverWidth=width};library.VisualStyles[profile]=next;try{library.Save();}catch{if(old==null)library.VisualStyles.Remove(profile);else library.VisualStyles[profile]=old;throw;}return Task.FromResult<object?>(next);
+  }
   if(command.Name!="visual-save")throw new InvalidDataException("Preferência inválida.");
   var value=JsonSerializer.Deserialize<VisualStyle>(command.Address??"{}",new JsonSerializerOptions(JsonSerializerDefaults.Web))??new();if(!value.Valid())throw new InvalidDataException("Confira tamanho das capas, brilho, volume e densidade.");
   var id=library.ActiveViewer;library.VisualStyles.TryGetValue(id,out var previous);library.VisualStyles[id]=value;

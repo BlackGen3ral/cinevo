@@ -1,6 +1,6 @@
-- Corrigida a sobreposição de capas no modo controle. O destaque agora envolve o cartão inteiro, mantém o brilho animado e respeita o tamanho das capas e a preferência de movimento reduzido.
-- O direcional percorre filmes da mesma linha e sobe ou desce entre linhas. A abre a ficha, X adiciona o título importado à biblioteca e B retorna ao menu lateral; voltar do menu recupera a última capa selecionada.
-- Menu recolhido com ícones próprios, alinhamento uniforme e nome da opção ao focar ou passar o mouse. O botão de atualização também preserva o ícone ao mudar de estado.
-- Tela de downloads reorganizada: busca por título, filtros com contagem, ordenação por fila, progresso, velocidade ou nome, resumo do espaço restante e cartões com ações principais e menu de ações adicionais.
-- Opções de download com cartões por fonte, rótulo da qualidade e indicação de torrent, arquivo ou link. Ajustada a opção de escolher arquivos antes de baixar.
-- Corrigida a inclusão de filmes aleatórios nas opções: recomendações, navegação, rodapés e links para páginas de outros títulos são descartados. O app também filtra respostas anteriores do portal antes de exibir as opções.
+- O modo controle é ativado ao movimentar o analógico ou usar um botão do gamepad. Mouse e teclado retomam o modo normal no PC; um controle parado ou usado fora da janela não muda a interface.
+- Minha biblioteca ganhou um cabeçalho por perfil, resumo da coleção, filtros rápidos para filmes e séries e um destaque mais compacto.
+- Filmes importados agora têm um controle deslizante para aumentar ou diminuir as capas na hora. O tamanho é salvo por perfil, sem recriar os cartões nem duplicar imagens no disco.
+- Opções de download agora abrem em uma janela compacta sobre a ficha, mantendo as fontes e a escolha da pasta no mesmo lugar.
+- Trailers vinculados do YouTube carregam dentro da ficha, sem reprodução ou som automático. Há opção para recarregar e abrir no YouTube quando o vídeo não permitir reprodução incorporada.
+- Corrigido o nome das abas que permanecia sobre o conteúdo depois de clicar no menu recolhido. A indicação desaparece ao clicar, sair com o mouse ou após uma breve exibição.

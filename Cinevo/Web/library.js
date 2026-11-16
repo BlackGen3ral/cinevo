@@ -1,0 +1,8 @@
+(function(){
+ const root=node('section','library-dashboard');root.id='library-dashboard';root.hidden=true;document.getElementById('hero').before(root);
+ const heading=node('div','library-welcome'),copy=node('div');copy.append(node('p','eyebrow','SUA COLEÇÃO PESSOAL'),node('h1','','Minha biblioteca'));const greeting=node('p','library-greeting');copy.append(greeting);const actions=node('div','library-actions');actions.append(command('Adicionar pasta','primary','add-folder'),button('Organizar coleção','secondary',()=>openSmartFilters()));heading.append(copy,actions);
+ const stats=node('div','library-stats');const values={};for(const [key,label] of [['films','Filmes'],['series','Séries'],['watching','Em andamento']]){const metric=node('div');values[key]=node('strong','','0');metric.append(values[key],node('span','',label));stats.append(metric);}
+ const tabs=node('div','library-tabs');tabs.setAttribute('role','group');tabs.setAttribute('aria-label','Filtrar minha biblioteca');for(const [value,label] of [['','Tudo'],['movie','Filmes'],['series','Séries']]){const tab=button(label,'secondary',()=>{state.type=value;state.page=1;refresh();});tab.dataset.libraryType=value;tabs.append(tab);}
+ root.append(heading,stats,tabs);
+ window.updateLibraryHome=data=>{root.hidden=state.section!=='library';if(root.hidden)return;greeting.textContent='Sua próxima sessão, '+(data.viewerName||'Principal')+'.';for(const key in values){const value=data.librarySummary?.[key]??0;if(values[key].textContent!==String(value))values[key].textContent=Number(value).toLocaleString('pt-BR');}for(const tab of tabs.children)tab.setAttribute('aria-pressed',String(tab.dataset.libraryType===state.type));};
+})();

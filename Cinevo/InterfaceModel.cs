@@ -1,7 +1,7 @@
 namespace Cinevo;
-public sealed record VisualStyle(string Covers="medium",int Glow=65,int ClickVolume=30,string Density="comfortable")
+public sealed record VisualStyle(string Covers="medium",int Glow=65,int ClickVolume=30,string Density="comfortable",int ImportCoverWidth=0)
 {
- public bool Valid()=>Covers is "small" or "medium" or "large"&&Glow is >=0 and <=100&&ClickVolume is >=0 and <=100&&Density is "compact" or "comfortable" or "spacious";
+ public bool Valid()=>Covers is "small" or "medium" or "large"&&Glow is >=0 and <=100&&ClickVolume is >=0 and <=100&&Density is "compact" or "comfortable" or "spacious"&&(ImportCoverWidth==0||ImportCoverWidth is >=124 and <=280);
 }
 internal sealed class TransferArtworkIndex
 {

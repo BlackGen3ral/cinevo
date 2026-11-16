@@ -26,3 +26,5 @@ async function openAccountTv() {
 const accountButton=button('Conta e TV','secondary',openAccountTv);$('.sidebar-support').prepend(accountButton);
 const tvModeButton=button('Modo controle','secondary',()=>{const enabled=!document.documentElement.classList.contains('tv-mode');CinevoControls.setMode(enabled);tvModeButton.textContent=enabled?'Sair do modo controle':'Modo controle';});$('.smart-toolbar').append(tvModeButton);
 const soundButton=button('Sons de navegação','secondary',()=>{CinevoControls.setSound(!CinevoControls.soundEnabled());soundButton.textContent=CinevoControls.soundEnabled()?'Sons: ligados':'Sons: desligados';});$('.smart-toolbar').append(soundButton);
+
+document.addEventListener('cinevo-modechange',event=>{tvModeButton.textContent=event.detail.controller?'Sair do modo controle':'Modo controle';});

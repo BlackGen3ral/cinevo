@@ -50,7 +50,7 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
             context.Response.Headers.CacheControl = "no-store";
             context.Response.Headers.XContentTypeOptions = "nosniff";
             context.Response.Headers["Referrer-Policy"] = "no-referrer";
-            context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; font-src 'self'; frame-src https://www.youtube-nocookie.com; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'";
+            context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self' https://www.youtube.com; style-src 'self'; img-src 'self' blob:; font-src 'self'; frame-src https://www.youtube-nocookie.com https://www.youtube.com; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'";
             if (context.Request.Path.StartsWithSegments("/api") && !Authorized(context.Request.Headers.Authorization))
             {
                 context.Response.StatusCode = 401;
@@ -61,6 +61,9 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
         MapAsset("/avatar.svg", "avatar.svg", "image/svg+xml");
         MapAsset("/", "index.html", "text/html; charset=utf-8");
         MapAsset("/glass.css", "glass.css", "text/css; charset=utf-8");
+        MapAsset("/experience.css", "experience.css", "text/css; charset=utf-8");
+        MapAsset("/trailers.js", "trailers.js", "application/javascript; charset=utf-8");
+        MapAsset("/library.js", "library.js", "application/javascript; charset=utf-8");
         MapAsset("/downloads.css", "downloads.css", "text/css; charset=utf-8");
         MapAsset("/navigation.css", "navigation.css", "text/css; charset=utf-8");
         MapAsset("/navigation.js", "navigation.js", "application/javascript; charset=utf-8");

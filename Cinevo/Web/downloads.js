@@ -230,14 +230,13 @@ $('#transfer-search').oninput=applyTransferFilter;$('#transfer-sort').onchange=a
 setInterval(() => refreshTransfers(), 1500);
 
 async function showSourceDownloads(movie, trigger) {
-  const panel = $('#detail-content .detail-intro');
-  const existing = panel.querySelector('.source-downloads');
+  const existing=document.querySelector('.source-dialog[open] .source-downloads');
   if (existing) {
-    existing.scrollIntoView({ block: 'nearest' });
-    return;
+    if(existing.dataset.movie===movie.id){existing.closest('dialog').focus();return;}existing.closest('dialog').close();
   }
-  const choices = node('div', 'source-downloads');
-  panel.append(choices);
+  const view=smartDialog('Opções de download');view.dialog.classList.add('source-dialog');view.dialog.setAttribute('aria-label','Opções de download de '+movie.title);
+  const choices=node('div','source-downloads');choices.dataset.movie=movie.id;view.body.append(choices);
+  const selected=node('div','source-selected'),cover=poster(movie);if(cover){selected.append(cover);imageObserver.observe(cover);}selected.append(node('strong','',movie.title));view.body.prepend(selected);
   const message = node('p', '', 'Consultando opções da origem…');
   choices.append(node('h3','','Escolha seu download'),node('p','source-context',movie.title+' · Opções publicadas pelas fontes deste título.'),message);
   message.setAttribute('role', 'status');
@@ -251,12 +250,14 @@ async function showSourceDownloads(movie, trigger) {
     const sources = await transferAction('movie-sources', movie.id);
     let found = 0;
     for (const source of sources) {
+    if(!choices.isConnected)break;
     const group = node('section', 'source-group');
     group.append(node('h4', '', source.site || 'Origem'));
     choices.append(group);
     let options;
     try { options = await transferAction('download-options', source.id); }
     catch (error) { group.append(node('p', '', error.message)); continue; }
+    if(!choices.isConnected)break;
     found += options.length;
     if (!options.length) group.append(node('p', '', 'Nenhuma opção disponível nesta origem.'));
     for (const option of options) {
@@ -277,8 +278,8 @@ async function showSourceDownloads(movie, trigger) {
           setText(message, 'Enviando ao qBittorrent…');
           if(selectEpisodes.checked) await smartCall('smart-metadata', source.id, {url:resolved.url,folder:sourceFolder.value||''});
           else await transferAction('torrent-add', source.id, resolved.url, sourceFolder.value);
-          if (choices.isConnected && $('#details').open) {
-            $('#details').close();
+          if (choices.isConnected) {
+            view.dialog.close();if($('#details').open)$('#details').close();
             changeSection('downloads');
             setText($('#torrent-message'), 'Link enviado. Se escolheu consultar arquivos, abra Organizar / episódios após receber os metadados.');
           }
@@ -306,13 +307,13 @@ async function showSourceDownloads(movie, trigger) {
     }
     setText(message, found ? '' : 'Nenhuma fonte retornou opções. Confira as mensagens de cada site.');
     if (!found) choices.append(button('Consultar fontes novamente', 'secondary', () => {
-      choices.remove();
+      view.dialog.close();
       showSourceDownloads(movie, trigger);
     }));
   } catch (error) {
     setText(message, error.message || 'A consulta falhou. Tente novamente.');
     choices.append(button('Tentar novamente', 'secondary', () => {
-      choices.remove();
+      view.dialog.close();
       return showSourceDownloads(movie, trigger);
     }));
   } finally { trigger.disabled = false; }
