@@ -1,0 +1,9 @@
+- Séries locais agrupadas e episódios ordenados por temporada e número.
+- Lista de temporadas e episódios na ficha da série.
+- Botão Próximo episódio para continuar com o vídeo seguinte disponível na biblioteca.
+- Vídeos concluídos de um torrent incluídos na biblioteca ao iniciar a reprodução.
+- Ajuste da sincronização de legendas em segundos, salvo por vídeo.
+- Seleção de áudio e legenda preservada para cada vídeo.
+- Retomada do ponto salvo mesmo em reproduções interrompidas antes de 30 segundos.
+- Novo pacote de atualização contendo só o aplicativo quando o runtime instalado for compatível. Esta versão exige uma instalação completa de transição.
+- Novidades da versão instalada e histórico de atualizações em abas separadas.

@@ -274,6 +274,16 @@ public partial class MainWindow
                 (movie == selected || identity != null && FilmIdentity(movie) == identity))
                 .OrderByDescending(movie => movie == selected).DistinctBy(movie => movie.SourceUrl).Select(WebMovie).ToArray();
         }
+        if (command.Name == "series-episodes")
+        {
+            if (command.Id == null || !webMovies.TryGetValue(command.Id, out var selected)) throw new InvalidDataException("Série indisponível.");
+            var series = ImportedTitle.Describe(selected);
+            if (series.Type != "series") return Array.Empty<object>();
+            return library.Movies.Select(movie => (Movie: movie, Kind: ImportedTitle.Describe(movie)))
+                .Where(item => item.Kind.Type == "series" && CoverService.Normalize(item.Kind.Series) == CoverService.Normalize(series.Series))
+                .OrderBy(item => item.Kind.Season ?? 1).ThenBy(item => item.Kind.Episode ?? 0)
+                .Select(item => WebMovie(item.Movie)).ToArray();
+        }
         if (command.Name == "catalog-sources")
         {
             CatalogWatch.Discover(library);

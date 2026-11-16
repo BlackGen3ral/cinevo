@@ -46,6 +46,8 @@ public static class Updater
                     var installer = Path.Combine(directory.FullName, InstallerName);
                     File.Delete(installer);
                     File.Delete(installer + ".download");
+                    File.Delete(Path.Combine(directory.FullName, "Cinevo-Update.exe"));
+                    File.Delete(Path.Combine(directory.FullName, "Cinevo-Update.exe.download"));
                     if (!directory.EnumerateFileSystemInfos().Any()) directory.Delete();
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { complete = false; }
@@ -55,7 +57,7 @@ public static class Updater
         return complete;
     }
 
-    public static async Task<string?> DownloadAsync(HttpClient http, Version current, string stagingDirectory, CancellationToken token = default, IProgress<UpdateProgress>? progress = null)
+    public static async Task<string?> DownloadAsync(HttpClient http, Version current, string stagingDirectory, CancellationToken token = default, IProgress<UpdateProgress>? progress = null, string? installedRuntimeId = null)
     {
         using var response = await http.GetAsync($"https://api.github.com/repos/{Repository}/releases?per_page=10", token).ConfigureAwait(false);
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
@@ -70,10 +72,27 @@ public static class Updater
         if (installer.ValueKind == JsonValueKind.Undefined || checksums.ValueKind == JsonValueKind.Undefined) throw new InvalidDataException("Publicação sem instalador ou verificação de integridade.");
         string Url(JsonElement asset) { var url = asset.GetProperty("browser_download_url").GetString()!; if (!url.StartsWith($"https://github.com/{Repository}/releases/download/", StringComparison.Ordinal)) throw new InvalidDataException("Origem da atualização inválida."); return url; }
         var sums = await http.GetStringAsync(Url(checksums), token).ConfigureAwait(false);
-        var hash = sums.Split('\n').Select(l => l.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries)).FirstOrDefault(p => p.Length == 2 && p[1].TrimStart('*') == InstallerName)?[0];
+        var packageName = InstallerName;
+        var runtimeFile = Path.Combine(AppContext.BaseDirectory, "runtime-id.txt");
+        installedRuntimeId ??= IsInstalled && File.Exists(runtimeFile) ? File.ReadAllText(runtimeFile).Trim() : null;
+        var compact = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == "Cinevo-Update.exe");
+        var runtime = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == "runtime-id.txt");
+        string? Checksum(string name) => sums.Split('\n').Select(l => l.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            .FirstOrDefault(p => p.Length == 2 && p[1].TrimStart('*') == name)?[0];
+        if (installedRuntimeId is { Length: 64 } && compact.ValueKind != JsonValueKind.Undefined && runtime.ValueKind != JsonValueKind.Undefined)
+        {
+            var runtimeBytes = await http.GetByteArrayAsync(Url(runtime), token).ConfigureAwait(false);
+            if (runtimeBytes.Length <= 128 && Convert.ToHexString(SHA256.HashData(runtimeBytes)).Equals(Checksum("runtime-id.txt"), StringComparison.OrdinalIgnoreCase) &&
+                System.Text.Encoding.UTF8.GetString(runtimeBytes).Trim().Equals(installedRuntimeId, StringComparison.OrdinalIgnoreCase))
+            {
+                installer = compact;
+                packageName = "Cinevo-Update.exe";
+            }
+        }
+        var hash = Checksum(packageName);
         if (hash == null || hash.Length != 64 || !hash.All(Uri.IsHexDigit)) throw new InvalidDataException("Verificação de integridade ausente.");
         var directory = System.IO.Path.Combine(stagingDirectory, latest.ToString()); Directory.CreateDirectory(directory);
-        var target = Path.Combine(directory, InstallerName);
+        var target = Path.Combine(directory, packageName);
         if (File.Exists(target))
         {
             progress?.Report(new("verify"));

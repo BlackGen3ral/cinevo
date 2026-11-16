@@ -9,14 +9,18 @@ public partial class PlayerWindow : Window
 {
     private readonly Movie movie;
     private readonly Action save;
+    public bool PlayNextRequested { get; private set; }
     private VlcEngine? engine;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(400) };
-    private bool updating, seeking, resumed, tracksLoaded, fullscreen, closed, teardownStarted, teardownFinished;
+    private bool updating, seeking, resumed, tracksLoaded, externalSubtitleLoaded, fullscreen, closed, teardownStarted, teardownFinished;
     private long lastSaved;
+    private int knownSubtitleCount = -1;
     private WindowState previousState;
-    public PlayerWindow(Movie movie, Action save)
+    public PlayerWindow(Movie movie, Action save, bool hasNext = false)
     {
         this.movie = movie; this.save = save; InitializeComponent();
+        NextEpisodeButton.Visibility = hasNext ? Visibility.Visible : Visibility.Collapsed;
+        SubtitleDelayInput.Text = (movie.SubtitleDelayMilliseconds / 1000d).ToString("0.0", System.Globalization.CultureInfo.CurrentCulture);
         MovieTitle.Text = movie.Title; Title = movie.Title + " — Cinevo";
         Loaded += (_, _) => Start(); timer.Tick += (_, _) => Tick();
         Closing += Player_Closing;
@@ -49,19 +53,28 @@ public partial class PlayerWindow : Window
         if (state == 6) { movie.Watched = true; movie.ResumeMilliseconds = 0; save(); PlayerStatus.Text = "Sessão concluída. Filme marcado como assistido."; PauseButton.Content = "▶  Rever"; timer.Stop(); return; }
         if (state is not (3 or 4)) { PlayerStatus.Text = "Carregando o vídeo…"; return; }
         var length = engine.Length;
-        if (!resumed && length > 0) { resumed = true; if (!movie.Watched && movie.ResumeMilliseconds > 30000 && movie.ResumeMilliseconds < length - 10000) engine.Time = movie.ResumeMilliseconds; }
+        if (!externalSubtitleLoaded)
+        {
+            externalSubtitleLoaded = true;
+            if (File.Exists(movie.ExternalSubtitlePath)) engine.AddSubtitle(movie.ExternalSubtitlePath);
+        }
+        if (!resumed && length > 0) { resumed = true; if (!movie.Watched && movie.ResumeMilliseconds > 1000 && movie.ResumeMilliseconds < length - 1000) engine.Time = movie.ResumeMilliseconds; }
         PlayerStatus.Text = state == 4 ? "Em pausa · Espaço para continuar" : "Reproduzindo no Cinevo · Espaço pausa · ← → avançam 10s · F tela cheia";
         PauseButton.Content = state == 4 ? "▶  Continuar" : "Ⅱ  Pausar";
         updating = true;
         if (!seeking) { Timeline.Maximum = Math.Max(1, length); Timeline.Value = Math.Clamp(engine.Time, 0, Timeline.Maximum); }
         Elapsed.Text = TimeText(engine.Time); Total.Text = TimeText(length); updating = false;
-        if (!tracksLoaded) { LoadTracks(); tracksLoaded = AudioTracks.Items.Count > 0; }
+        if (!tracksLoaded || engine.Tracks(false).Count != knownSubtitleCount) { LoadTracks(); tracksLoaded = engine.Tracks(true).Any(track => track.Id >= 0); }
         if (Environment.TickCount64 - lastSaved > 10000) { CaptureProgress(); save(); lastSaved = Environment.TickCount64; }
     }
     private void LoadTracks()
     {
         if (engine == null) return; updating = true;
         var audio = engine.Tracks(true); var subtitles = engine.Tracks(false);
+        knownSubtitleCount = subtitles.Count;
+        if (movie.PreferredAudioTrack is int audioId && audio.Any(track => track.Id == audioId)) engine.AudioTrack(audioId);
+        if (movie.PreferredSubtitleTrack is int subtitleId && subtitles.Any(track => track.Id == subtitleId)) engine.SubtitleTrack(subtitleId);
+        engine.SubtitleDelay = movie.SubtitleDelayMilliseconds * 1000L;
         if (audio.Count == 0) audio.Add(new(-1, "Sem áudio"));
         if (subtitles.Count == 0) subtitles.Add(new(-1, "Sem legendas"));
         AudioTracks.ItemsSource = audio; SubtitleTracks.ItemsSource = subtitles;
@@ -79,9 +92,19 @@ public partial class PlayerWindow : Window
     private void Seek_Start(object sender, MouseButtonEventArgs e) => seeking = true;
     private void Seek_End(object sender, MouseButtonEventArgs e) { seeking = false; if (engine != null) engine.Time = (long)Timeline.Value; }
     private void Timeline_Changed(object sender, RoutedPropertyChangedEventArgs<double> e) { if (!updating && !seeking && engine != null) engine.Time = (long)e.NewValue; }
-    private void Audio_Changed(object sender, SelectionChangedEventArgs e) { if (!updating && AudioTracks.SelectedItem is MediaTrack track) engine?.AudioTrack(track.Id); }
-    private void Subtitle_Changed(object sender, SelectionChangedEventArgs e) { if (!updating && SubtitleTracks.SelectedItem is MediaTrack track) engine?.SubtitleTrack(track.Id); }
-    private void Subtitle_Click(object sender, RoutedEventArgs e) { if (engine == null) return; var d = new OpenFileDialog { Filter = "Legendas|*.srt;*.ass;*.ssa;*.vtt;*.sub" }; if (d.ShowDialog(this) == true) { if (engine.AddSubtitle(d.FileName) == 0) { LoadTracks(); PlayerStatus.Text = "Legenda carregada."; } else PlayerStatus.Text = "Não foi possível carregar esta legenda."; } }
+    private void Audio_Changed(object sender, SelectionChangedEventArgs e) { if (!updating && AudioTracks.SelectedItem is MediaTrack track) { engine?.AudioTrack(track.Id); movie.PreferredAudioTrack = track.Id; } }
+    private void Subtitle_Changed(object sender, SelectionChangedEventArgs e) { if (!updating && SubtitleTracks.SelectedItem is MediaTrack track) { engine?.SubtitleTrack(track.Id); movie.PreferredSubtitleTrack = track.Id; } }
+    private void NextEpisode_Click(object sender, RoutedEventArgs e) { PlayNextRequested = true; Close(); }
+    private void SubtitleDelay_Click(object sender, RoutedEventArgs e)
+    {
+        if (!double.TryParse(SubtitleDelayInput.Text, out var seconds) || !double.IsFinite(seconds) || Math.Abs(seconds) > 600)
+        { PlayerStatus.Text = "Informe um ajuste entre −600 e 600 segundos."; return; }
+        movie.SubtitleDelayMilliseconds = (int)Math.Round(seconds * 1000);
+        if (engine != null) engine.SubtitleDelay = movie.SubtitleDelayMilliseconds * 1000L;
+        save();
+        PlayerStatus.Text = "Sincronização da legenda salva para este vídeo.";
+    }
+    private void Subtitle_Click(object sender, RoutedEventArgs e) { if (engine == null) return; var d = new OpenFileDialog { Filter = "Legendas|*.srt;*.ass;*.ssa;*.vtt;*.sub" }; if (d.ShowDialog(this) == true) { if (engine.AddSubtitle(d.FileName) == 0) { movie.ExternalSubtitlePath = d.FileName; movie.PreferredSubtitleTrack = null; LoadTracks(); save(); PlayerStatus.Text = "Legenda carregada."; } else PlayerStatus.Text = "Não foi possível carregar esta legenda."; } }
     private void Fullscreen_Click(object sender, RoutedEventArgs e) => ToggleFullscreen();
     private void ToggleFullscreen() { fullscreen = !fullscreen; if (fullscreen) { previousState = WindowState; WindowState = WindowState.Normal; WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize; WindowState = WindowState.Maximized; Header.Visibility = Visibility.Collapsed; } else { WindowState = WindowState.Normal; WindowStyle = WindowStyle.SingleBorderWindow; ResizeMode = ResizeMode.CanResize; WindowState = previousState; Header.Visibility = Visibility.Visible; } }
     private void Player_KeyDown(object sender, KeyEventArgs e)

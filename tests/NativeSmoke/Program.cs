@@ -17,6 +17,11 @@ try
     if (player.AddSubtitle(subtitle) != 0) throw new Exception("Legenda externa não foi aceita");
     for (var i=0;i<20 && player.Tracks(false).Count<2;i++) Thread.Sleep(100);
     if (player.Tracks(false).Count<2) throw new Exception("Faixa de legenda não foi enumerada");
+    player.SubtitleDelay = 250000;
+    if (player.SubtitleDelay != 250000) throw new Exception("Atraso da legenda não foi aplicado");
+    player.SubtitleDelay = -500000;
+    if (player.SubtitleDelay != -500000) throw new Exception("Adiantamento da legenda não foi aplicado");
+    player.SubtitleDelay = 0;
     Console.WriteLine("PASS: legenda SRT externa carregada e enumerada pelo LibVLC.");
     var audio = Path.Combine(root, "Áudio de teste.wav");
     using (var wav = new BinaryWriter(File.Create(audio))) { wav.Write(Encoding.ASCII.GetBytes("RIFF")); wav.Write(36 + 44100 * 2 * 5); wav.Write(Encoding.ASCII.GetBytes("WAVEfmt ")); wav.Write(16); wav.Write((short)1); wav.Write((short)1); wav.Write(44100); wav.Write(88200); wav.Write((short)2); wav.Write((short)16); wav.Write(Encoding.ASCII.GetBytes("data")); wav.Write(44100 * 2 * 5); wav.Write(new byte[44100 * 2 * 5]); }

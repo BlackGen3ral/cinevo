@@ -121,11 +121,28 @@ public partial class MainWindow : Window
             try { Status.Text="Conectando ao vídeo da origem…"; await RemoteFiles.ValidateAsync(movie.StreamUrl,lifetime.Token); }
             catch(Exception ex) { if (!closed) MessageBox.Show("Não foi possível acessar o vídeo: "+ex.Message,"Cinevo"); return; }
             if(closed)return;
-            new PlayerWindow(movie,()=>library.Save()){Owner=this}.ShowDialog();Refresh();return;
+            await PlayEpisodesAsync(movie); return;
         }
         if (!File.Exists(movie.Path)) { MessageBox.Show("O arquivo não está disponível. Conecte o disco ou confira a pasta original.\n\n" + movie.Path, "Cinevo"); return; }
-        var player = new PlayerWindow(movie, () => library.Save()) { Owner = this };
-        player.ShowDialog(); Refresh();
+        await PlayEpisodesAsync(movie);
+    }
+    private async Task PlayEpisodesAsync(Movie movie)
+    {
+        while (!closed)
+        {
+            var next = ImportedTitle.NextEpisode(movie, library.Movies);
+            var player = new PlayerWindow(movie, () => library.Save(), next != null) { Owner = this };
+            player.ShowDialog();
+            Refresh();
+            if (!player.PlayNextRequested || next == null) return;
+            movie = next;
+            if (!movie.HasLocalFile)
+            {
+                try { await RemoteFiles.ValidateAsync(movie.StreamUrl, lifetime.Token); }
+                catch (Exception ex) when (ex is IOException or System.Net.Http.HttpRequestException)
+                { Status.Text = "Não foi possível abrir o próximo episódio."; return; }
+            }
+        }
     }
     private async void Play_Click(object sender, RoutedEventArgs e) { if (((FrameworkElement)sender).DataContext is Movie m) await Play(m); }
     private async void Movie_DoubleClick(object sender, MouseButtonEventArgs e) { if (e.OriginalSource is DependencyObject d && FindButton(d)) return; if (e.OriginalSource is FrameworkElement { DataContext: Movie m }) await Play(m); }

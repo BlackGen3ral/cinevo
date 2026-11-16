@@ -155,7 +155,10 @@ async function loadHistory() {
       title.append(link);
       item.append(title);
       if (release.date) item.append(node('time', '', new Date(release.date).toLocaleDateString('pt-BR')));
-      item.append(node('p', '', release.notes || 'Versão publicada no GitHub.'));
+      const notes = (release.notes || '').split('\n').filter(line => !/^\s*(?:##|\*\*Full Changelog|Full Changelog)/i.test(line))
+        .map(line => line.replace(/\s+by @\S+.*$/, '').replace(/\s+in https:\/\/github\.com\/\S+$/, '').replace(/^\s*[-*]\s*/, ''))
+        .filter(line => line.trim().length > 0).join('\n');
+      item.append(node('p', '', notes || 'Esta versão não tem descrição das mudanças publicada.'));
       $('#news-history').append(item);
     }
     historyPage++;
@@ -168,8 +171,17 @@ async function loadHistory() {
 async function openNews() {
   if (!$('#news-dialog').open) $('#news-dialog').showModal();
   transferAction('settings-news-seen').catch(() => {});
-  if (historyPage === 1) await loadHistory();
+  selectNewsTab(false);
 }
+function selectNewsTab(history) {
+  $('#news-current').hidden = history;
+  $('#news-archive').hidden = !history;
+  $('#news-current-tab').setAttribute('aria-selected', !history);
+  $('#news-history-tab').setAttribute('aria-selected', history);
+  if (history && historyPage === 1) loadHistory();
+}
+$('#news-current-tab').onclick = () => selectNewsTab(false);
+$('#news-history-tab').onclick = () => selectNewsTab(true);
 $('#open-news').onclick = openNews;
 $('#settings-news').onclick = () => { $('#settings-dialog').close(); openNews(); };
 $('#news-close').onclick = () => $('#news-dialog').close();

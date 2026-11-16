@@ -421,7 +421,12 @@ function render(data) {
           showShelf(JSON.stringify([site, title]), site + ' · Série · ' + title, entries, true);
       }
     } else {
-      showShelf(state.section + (home ? '-home' : '-grid'), home ? 'Minha biblioteca' : '', state.movies);
+      const films = state.movies.filter(movie => movie.mediaType !== 'series');
+      if (films.length) showShelf(state.section + (home ? '-home' : '-grid'), home ? 'Minha biblioteca' : '', films);
+      for (const [title, episodes] of Map.groupBy(state.movies.filter(movie => movie.mediaType === 'series'), movie => movie.seriesTitle)) {
+        episodes.sort((a,b) => (a.season ?? 1) - (b.season ?? 1) || (a.episode ?? 0) - (b.episode ?? 0));
+        showShelf('series-' + title, title, episodes, true);
+      }
     }
     rows.querySelector('.empty')?.remove();
   } else if (!home || state.search) {
@@ -507,6 +512,20 @@ function showDetails(movie) {
   if (movie.tmdbConfigured === false) renderTmdbStatus(credits, movie, 'disconnected');
   story.append(synopsis, trailer);
   information.append(story, credits, tools);
+  if (movie.mediaType === 'series') {
+    const episodes = node('section', 'source-group');
+    episodes.append(node('h3', '', 'Temporadas e episódios'));
+    information.append(episodes);
+    transferAction('series-episodes', movie.id).then(items => {
+      if (!episodes.isConnected) return;
+      for (const [season, entries] of Map.groupBy(items, item => item.season ?? 1)) {
+        episodes.append(node('h4', '', 'Temporada ' + season));
+        for (const entry of entries) episodes.append(button(
+          (entry.episode != null ? 'Episódio ' + entry.episode : entry.title) + (entry.watched ? ' · Assistido' : ''),
+          'secondary', () => { $('#details').close(); showDetails(entry); }));
+      }
+    }).catch(error => episodes.append(node('p', '', error.message)));
+  }
   panel.replaceChildren(header, information);
   if (!dialog.open) {
     dialog.showModal();

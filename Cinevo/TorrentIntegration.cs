@@ -159,11 +159,18 @@ public partial class MainWindow
         var movie = library.Movies.FirstOrDefault(item => string.Equals(item.Path, path, StringComparison.OrdinalIgnoreCase));
         if (movie == null)
         {
-            var (title, year) = Scanner.Parse(path);
-            movie = new Movie { Title = title, Year = year, Path = path, Bytes = file.Size };
-            library.Movies.Add(movie);
+            var added = new List<Movie>();
+            foreach (var video in files.Where(item => item.Progress >= 1 && item.Priority > 0))
+            {
+                var videoPath = VideoPath(torrent, video);
+                if (videoPath == null || library.Movies.Any(item => item.Path.Equals(videoPath, StringComparison.OrdinalIgnoreCase))) continue;
+                var (title, year) = Scanner.Parse(videoPath);
+                var entry = new Movie { Title = title, Year = year, Path = videoPath, Bytes = video.Size };
+                added.Add(entry); library.Movies.Add(entry);
+            }
             try { library.Save(); }
-            catch { library.Movies.Remove(movie); throw; }
+            catch { foreach (var entry in added) library.Movies.Remove(entry); throw; }
+            movie = library.Movies.First(item => item.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
             Refresh();
         }
         await RunWebDialogAsync(() => Play(movie));

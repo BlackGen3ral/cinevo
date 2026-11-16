@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.1.40"
+  #define AppVersion "0.1.41"
 #endif
 [Setup]
 AppId={{AEAD2361-3C54-45F4-BCE9-6D8D821D281C}
@@ -14,7 +14,11 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\dist
+#ifdef UpdateOnly
+OutputBaseFilename=Cinevo-Update
+#else
 OutputBaseFilename=Cinevo-Setup
+#endif
 SetupIconFile=..\Cinevo\Assets\cinevo.ico
 UninstallDisplayIcon={app}\Cinevo.exe
 Compression=lzma2/fast
@@ -30,7 +34,15 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 [Tasks]
 Name: "desktopicon"; Description: "Criar atalho na área de trabalho"; Flags: checkedonce
 [Files]
+#ifdef UpdateOnly
+Source: "..\dist\app\Cinevo.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\app\Cinevo.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\app\Cinevo.deps.json"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\app\Cinevo.runtimeconfig.json"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\app\runtime-id.txt"; DestDir: "{app}"; Flags: ignoreversion
+#else
 Source: "..\dist\app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+#endif
 [Icons]
 Name: "{group}\Cinevo"; Filename: "{app}\Cinevo.exe"
 Name: "{autodesktop}\Cinevo"; Filename: "{app}\Cinevo.exe"; Tasks: desktopicon
@@ -50,8 +62,19 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ProcessId: Integer;
   ProcessHandle: THandle;
+#ifdef UpdateOnly
+  RuntimeId: AnsiString;
+#endif
 begin
   Result := '';
+#ifdef UpdateOnly
+  if not LoadStringFromFile(ExpandConstant('{app}\runtime-id.txt'), RuntimeId) or
+    (Trim(String(RuntimeId)) <> '{#AppRuntimeId}') then
+  begin
+    Result := 'Esta instalação precisa do instalador completo do Cinevo. Baixe Cinevo-Setup.exe na publicação oficial.';
+    Exit;
+  end;
+#endif
   ProcessId := StrToIntDef(ExpandConstant('{param:CinevoWaitPid|0}'), 0);
   if ProcessId <= 0 then Exit;
   ProcessHandle := OpenProcess($00100000, False, ProcessId);

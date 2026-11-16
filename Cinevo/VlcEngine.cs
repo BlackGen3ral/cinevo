@@ -43,6 +43,7 @@ public sealed class VlcEngine : IDisposable
     public void SubtitleTrack(int id) => Native.libvlc_video_set_spu(player, id);
     public int CurrentAudioTrack => Native.libvlc_audio_get_track(player);
     public int CurrentSubtitleTrack => Native.libvlc_video_get_spu(player);
+    public long SubtitleDelay { get => Native.libvlc_video_get_spu_delay(player); set => Native.libvlc_video_set_spu_delay(player, value); }
     public int AddSubtitle(string path) => Native.libvlc_media_player_add_slave(player, 0, new Uri(path).AbsoluteUri, true);
     public List<MediaTrack> Tracks(bool audio)
     {
@@ -56,6 +57,8 @@ public sealed class VlcEngine : IDisposable
     [StructLayout(LayoutKind.Sequential)] private struct TrackDescription { public int Id; public IntPtr Name; public IntPtr Next; }
     private static class Native
     {
+        [DllImport("libvlc", CallingConvention = CallingConvention.Cdecl)] internal static extern long libvlc_video_get_spu_delay(IntPtr player);
+        [DllImport("libvlc", CallingConvention = CallingConvention.Cdecl)] internal static extern int libvlc_video_set_spu_delay(IntPtr player, long delay);
         [DllImport("kernel32", CharSet = CharSet.Unicode)] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool SetDllDirectory(string path);
         [DllImport("libvlc", CallingConvention = CallingConvention.Cdecl)] internal static extern IntPtr libvlc_new(int argc, IntPtr argv);
         [DllImport("libvlc", CallingConvention = CallingConvention.Cdecl)] internal static extern void libvlc_release(IntPtr instance);

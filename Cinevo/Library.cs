@@ -36,6 +36,10 @@ public sealed class Movie : INotifyPropertyChanged
     public string CoverSource { get; set; } = "";
     public DateTime CoverLastAttempt { get; set; }
     public long ResumeMilliseconds { get; set; }
+    public int SubtitleDelayMilliseconds { get; set; }
+    public string ExternalSubtitlePath { get; set; } = "";
+    public int? PreferredAudioTrack { get; set; }
+    public int? PreferredSubtitleTrack { get; set; }
     public long DurationMilliseconds { get; set; }
     public bool Watched { get; set; }
     public bool Favorite { get; set; }

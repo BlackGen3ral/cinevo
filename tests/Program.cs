@@ -11,6 +11,7 @@ Assert(Scanner.Parse("2001.A.Space.Odyssey.1968.mkv") == ("2001 A Space Odyssey"
 var root = Path.Combine(Path.GetTempPath(), "Cinevo-tests-" + Guid.NewGuid());
 Directory.CreateDirectory(Path.Combine(root, "sub"));
 try {
+ SeriesTests.Run(root);
  File.WriteAllText(Path.Combine(root, "Teste.2023.MKV"), "movie");
  File.WriteAllText(Path.Combine(root, "sub", "Outro.mp4"), "movie");
  File.WriteAllText(Path.Combine(root, "ignorar.txt"), "text");

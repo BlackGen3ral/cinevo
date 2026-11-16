@@ -7,6 +7,7 @@
    <DockPanel Margin="0,12,0,0"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><TextBlock Text="Volume" VerticalAlignment="Center" Margin="0,0,8,0"/><Slider x:Name="Volume" Width="90" Minimum="0" Maximum="100" Value="80" ValueChanged="Volume_Changed" VerticalAlignment="Center" AutomationProperties.Name="Volume"/><Button Content="⛶" ToolTip="Tela cheia (F)" Click="Fullscreen_Click" Margin="15,0,0,0"/></StackPanel>
     <StackPanel Orientation="Horizontal"><Button Content="−10s" Click="BackTen_Click"/><Button x:Name="PauseButton" Content="Ⅱ  Pausar" Click="Pause_Click" Background="#B49AF8" Foreground="#15111F"/><Button Content="+10s" Click="ForwardTen_Click"/><Button Content="Legenda…" Click="Subtitle_Click"/><ComboBox x:Name="AudioTracks" Width="130" MinWidth="100" ToolTip="Faixa de áudio" DisplayMemberPath="Name" SelectionChanged="Audio_Changed" Margin="0,0,8,0"/><ComboBox x:Name="SubtitleTracks" Width="140" MinWidth="100" ToolTip="Faixa de legenda" DisplayMemberPath="Name" SelectionChanged="Subtitle_Changed"/></StackPanel>
    </DockPanel>
+   <WrapPanel Margin="0,10,0,0"><TextBlock Text="Legenda · ajuste em segundos" VerticalAlignment="Center" Margin="0,0,10,0"/><TextBox x:Name="SubtitleDelayInput" Width="65" Text="0,0" ToolTip="Valor positivo atrasa a legenda; negativo adianta"/><Button Content="Aplicar" Click="SubtitleDelay_Click"/><Button x:Name="NextEpisodeButton" Content="Próximo episódio →" Click="NextEpisode_Click" Visibility="Collapsed"/></WrapPanel>
   </StackPanel>
  </Grid>
 </Window>
