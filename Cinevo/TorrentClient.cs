@@ -28,6 +28,12 @@ internal sealed record TorrentTransfer(string Hash, string Name, double Progress
     [property: JsonPropertyName("num_leechs")] int Leechers = -1);
 
 internal sealed record TorrentFile(int Index, string Name, double Progress, int Priority, long Size);
+internal sealed record TorrentTracker(string Url, int Status,
+    [property: JsonPropertyName("num_peers")] int Peers,
+    [property: JsonPropertyName("num_seeds")] int Seeds, string Msg);
+internal sealed record TorrentNetwork(
+    [property: JsonPropertyName("connection_status")] string Connection,
+    [property: JsonPropertyName("dht_nodes")] int Dht);
 
 internal sealed class TorrentClient : IDisposable
 {
@@ -174,6 +180,9 @@ internal sealed class TorrentClient : IDisposable
         $"O qBittorrent não respondeu na porta {connection.Port}. Outro programa pode estar usando a porta. Em Interface Web do qBittorrent, escolha outra porta e informe a mesma no Cinevo.");
 
     public Task<string> VersionAsync(CancellationToken token) => SendAsync("app/version", token);
+    public Task<TorrentTracker[]> TrackersAsync(string hash, CancellationToken token) =>
+        ReadAsync<TorrentTracker[]>("torrents/trackers?hash=" + hash, token);
+    public Task<TorrentNetwork> NetworkAsync(CancellationToken token) => ReadAsync<TorrentNetwork>("transfer/info", token);
     public Task<TorrentTransfer[]> TransfersAsync(CancellationToken token, string? hash = null) =>
         ReadAsync<TorrentTransfer[]>("torrents/info?sort=added_on&reverse=true" + (hash == null ? "" : "&hashes=" + hash), token);
     public Task<TorrentFile[]> FilesAsync(string hash, CancellationToken token) =>

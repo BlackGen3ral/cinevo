@@ -115,4 +115,4 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
     };
 }
 
-internal sealed record WebAction(string Name, string? Id, string? Address, bool Continuation, string? DownloadFolder = null);
+internal sealed record WebAction(string Name, string? Id, string? Address, bool Continuation, string? DownloadFolder = null, string? ImportRoot = null);

@@ -263,6 +263,17 @@ public partial class MainWindow
     private bool webImporting;
     private async Task<object?> DispatchWebActionAsync(WebAction command)
     {
+        if (command.Name == "import-checkpoints")
+            return library.ImportCheckpoints.OrderByDescending(item => item.Updated).ToArray();
+        if (command.Name == "movie-sources")
+        {
+            if (command.Id == null || !webMovies.TryGetValue(command.Id, out var selected) || !library.Movies.Contains(selected))
+                throw new InvalidDataException("Filme indisponível.");
+            var identity = FilmIdentity(selected);
+            return library.Movies.Where(movie => movie.IsOnline && RemoteFiles.IsPublicHttps(movie.SourceUrl) &&
+                (movie == selected || identity != null && FilmIdentity(movie) == identity))
+                .OrderByDescending(movie => movie == selected).DistinctBy(movie => movie.SourceUrl).Select(WebMovie).ToArray();
+        }
         if (command.Name == "catalog-sources")
         {
             CatalogWatch.Discover(library);
@@ -328,7 +339,24 @@ public partial class MainWindow
             {
                 if (TmdbClient.IsSiteUrl(address)) return await ImportTmdbAsync(address);
                 var connection = await PortalService.GetOrCreateConnectionAsync(lifetime.Token);
-                return await ImportTrackedBatchAsync(connection, address, command.Continuation);
+                var root = command.ImportRoot ?? address;
+                if (!RemoteFiles.IsPublicHttps(root) || root.Length > 4000) throw new InvalidDataException("Origem da importação inválida.");
+                var checkpoint = library.ImportCheckpoints.FirstOrDefault(item => item.Root == root);
+                if (!command.Continuation || checkpoint == null)
+                {
+                    checkpoint = new ImportCheckpoint { Root = root, Next = address };
+                    library.ImportCheckpoints.RemoveAll(item => item.Root == root);
+                    library.ImportCheckpoints.Add(checkpoint);
+                    library.Save();
+                }
+                var batch = await ImportTrackedBatchAsync(connection, address, command.Continuation);
+                checkpoint.Next = batch.Next.Length > 0 ? batch.Next : batch.Partial.Length > 0 ? address : "";
+                checkpoint.Count += batch.Count;
+                checkpoint.Total = Math.Max(checkpoint.Total, batch.Total);
+                checkpoint.SyncNeeded |= !batch.Local && batch.Count > 0;
+                checkpoint.Updated = DateTime.UtcNow;
+                library.Save();
+                return batch;
             }
             catch (System.Net.Http.HttpRequestException)
             {
@@ -339,6 +367,12 @@ public partial class MainWindow
                 throw new InvalidDataException("A resposta demorou demais. Você pode tentar continuar.");
             }
             finally { webImporting = false; }
+        }
+        if (command.Name == "import-finish")
+        {
+            library.ImportCheckpoints.RemoveAll(item => item.Root == command.Address && item.Next.Length == 0);
+            library.Save();
+            return null;
         }
         if (command.Name == "sync-imports")
         {

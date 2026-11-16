@@ -52,6 +52,7 @@ public sealed class Movie : INotifyPropertyChanged
 }
 public sealed class Library
 {
+    public List<ImportCheckpoint> ImportCheckpoints { get; set; } = [];
     public List<string> Folders { get; set; } = [];
     public List<Movie> Movies { get; set; } = [];
     public List<CatalogSource> CatalogSources { get; set; } = [];

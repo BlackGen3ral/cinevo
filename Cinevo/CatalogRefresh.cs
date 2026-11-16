@@ -43,6 +43,7 @@ public partial class MainWindow
                     foreach (var source in library.CatalogSources.ToArray())
                     {
                         if (closed || webImporting || manualPortalImports > 0) break;
+                        if (library.ImportCheckpoints.Any(item => item.Root == source.Address)) continue;
                         if (!CatalogWatch.IsDue(source, DateTime.UtcNow)) continue;
                         try
                         {

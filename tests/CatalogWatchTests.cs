@@ -5,6 +5,20 @@ internal static class CatalogWatchTests
 {
     public static async Task Run()
     {
+        var pendingLibrary = new Library
+        {
+            ImportCheckpoints = [new ImportCheckpoint
+            {
+                Root = "https://example.org/", Next = "https://example.org/page/5/",
+                Count = 400, Total = 9412, SyncNeeded = true
+            }]
+        };
+        var restoredPending = JsonSerializer.Deserialize<Library>(JsonSerializer.Serialize(pendingLibrary))!;
+        var pending = restoredPending.ImportCheckpoints.Single();
+        if (pending.Count != 400 || pending.Total != 9412 || !pending.SyncNeeded || pending.Next != "https://example.org/page/5/")
+            throw new Exception("O progresso manual e a sincronização pendente devem sobreviver ao reinício.");
+        if (JsonSerializer.Deserialize<Library>("{}")!.ImportCheckpoints.Count != 0)
+            throw new Exception("Bibliotecas antigas precisam abrir sem importações pendentes.");
         var legacy = "https://example.org/wp-json/wp/v2/posts?page=49" +
             string.Concat(Enumerable.Repeat("&per_page=16&_embed=wp:featuredmedia&_fields=id,link,title", 100));
         var normalized = CatalogWatch.NormalizeImportAddress(legacy);

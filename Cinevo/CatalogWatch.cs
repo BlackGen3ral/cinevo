@@ -2,6 +2,16 @@ using System.Text.RegularExpressions;
 
 namespace Cinevo;
 
+public sealed class ImportCheckpoint
+{
+    public string Root { get; set; } = "";
+    public string Next { get; set; } = "";
+    public int Count { get; set; }
+    public int Total { get; set; }
+    public bool SyncNeeded { get; set; }
+    public DateTime Updated { get; set; } = DateTime.UtcNow;
+}
+
 public sealed class CatalogSource
 {
     public bool LocalImport { get; set; }

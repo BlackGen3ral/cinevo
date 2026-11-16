@@ -197,6 +197,21 @@ public partial class MainWindow
         var hash = command.Id!.ToLowerInvariant();
         switch (command.Name)
         {
+            case "torrent-diagnose":
+                var client = GetTorrentClient();
+                var transfer = (await client.TransfersAsync(lifetime.Token, hash)).FirstOrDefault(item => item.Hash.Equals(hash, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new InvalidDataException("A transferência não está mais na fila.");
+                var trackers = await client.TrackersAsync(hash, lifetime.Token);
+                var network = await client.NetworkAsync(lifetime.Token);
+                return new
+                {
+                    transfer.State, transfer.Progress, transfer.Seeds, transfer.Leechers, network.Connection, network.Dht,
+                    trackers = trackers.Select(item => new
+                    {
+                        name = Uri.TryCreate(item.Url, UriKind.Absolute, out var tracker) ? tracker.Host : item.Url,
+                        item.Status, item.Peers, item.Seeds, message = item.Msg
+                    }).ToArray()
+                };
             case "torrent-reannounce":
                 await GetTorrentClient().ReannounceAsync(hash, lifetime.Token);
                 return null;

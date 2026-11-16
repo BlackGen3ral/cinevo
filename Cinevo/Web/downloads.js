@@ -71,7 +71,7 @@ function createTransferCard(hash) {
     }));
   const reannounce = button('Buscar pares novamente', 'secondary', event =>
     actOnTransfer('torrent-reannounce', hash, event.currentTarget));
-  controls.append(control, reannounce, remove);
+  controls.append(control, reannounce, button('Diagnóstico', 'secondary', () => diagnoseTransfer(hash)), remove);
   foot.append(rates, controls);
   card.append(header, metrics, track, foot);
   return { card, update(item) {
@@ -161,6 +161,37 @@ function applyTransferFilter() {
     $('#torrent-empty').textContent = 'Nenhum download neste filtro.';
   }
 }
+
+async function diagnoseTransfer(hash) {
+  const dialog = $('#diagnostic-dialog');
+  if (!dialog.open) dialog.showModal();
+  const result = $('#diagnostic-result');
+  result.replaceChildren(node('p', '', 'Consultando o qBittorrent…'));
+  try {
+    const data = await transferAction('torrent-diagnose', hash);
+    const label = transferState({ state: data.state, progress: data.progress })[0];
+    const explanation = /meta/i.test(data.state) ? 'Aguardando receber os metadados do torrent de um par acessível.' :
+      /^(paused|stopped)/i.test(data.state) ? 'A transferência está pausada. Use Retomar para continuar.' :
+      /queued/i.test(data.state) ? 'O qBittorrent está aguardando uma vaga na fila.' :
+      /stalledDL/i.test(data.state) ? 'O download está ativo, mas ainda não conseguiu transferir dados dos pares.' :
+      /error|missingFiles/i.test(data.state) ? 'Confira a pasta de destino, o espaço livre e as permissões no qBittorrent.' :
+      data.progress >= 1 ? 'O download foi concluído.' : 'A transferência está em andamento.';
+    result.replaceChildren(node('h3', '', label), node('p', '', explanation),
+      node('p', '', 'Semeadores conectados: ' + Math.max(0, data.seeds) + ' · Outros pares: ' + Math.max(0, data.leechers)),
+      node('p', '', 'Rede: ' + ({ connected: 'conectada', firewalled: 'conexões de entrada limitadas', disconnected: 'desconectada' }[data.connection] || data.connection) + ' · Nós DHT: ' + data.dht));
+    if (!data.seeds && !data.leechers) result.append(node('p', '', 'Nenhum par conectado agora. Você pode buscar pares novamente ou consultar outra fonte do filme.'));
+    result.append(node('h3', '', 'Trackers'));
+    for (const tracker of data.trackers) {
+      const section = node('section', 'settings-card');
+      section.append(node('strong', '', tracker.name), node('p', '',
+        (['Desativado', 'Ainda não consultado', 'Respondendo', 'Atualizando', 'Falhou'][tracker.status] || 'Estado desconhecido') +
+        (tracker.seeds >= 0 ? ' · ' + tracker.seeds + ' semeadores informados' : '')));
+      if (tracker.message) section.append(node('p', '', tracker.message));
+      result.append(section);
+    }
+  } catch (error) { result.replaceChildren(node('p', '', error.message)); }
+}
+$('#diagnostic-close').onclick = () => $('#diagnostic-dialog').close();
 for (const filter of document.querySelectorAll('[data-transfer-filter]')) filter.onclick = () => {
   transferFilter = filter.dataset.transferFilter;
   applyTransferFilter();
@@ -236,18 +267,27 @@ async function showSourceDownloads(movie, trigger) {
   const choices = node('div', 'source-downloads');
   panel.append(choices);
   const message = node('p', '', 'Consultando opções da origem…');
-  choices.append(node('h3', '', 'Baixar este conteúdo'), message);
+  choices.append(node('h3', '', 'Fontes deste filme'), message);
   message.setAttribute('role', 'status');
   const sourceFolder = folderPicker();
   choices.append(sourceFolder.element);
   choices.scrollIntoView({ block: 'nearest' });
   trigger.disabled = true;
   try {
-    const options = await transferAction('download-options', movie.id);
-    setText(message, options.length ? '' : 'Nenhuma opção publicada pela origem.');
+    const sources = await transferAction('movie-sources', movie.id);
+    let found = 0;
+    for (const source of sources) {
+    const group = node('section', 'source-group');
+    group.append(node('h4', '', source.site || 'Origem'));
+    choices.append(group);
+    let options;
+    try { options = await transferAction('download-options', source.id); }
+    catch (error) { group.append(node('p', '', error.message)); continue; }
+    found += options.length;
+    if (!options.length) group.append(node('p', '', 'Nenhuma opção disponível nesta origem.'));
     for (const option of options) {
       const label = option.label + (option.kind === 'torrent' ? ' · qBittorrent' : option.kind === 'link' ? ' ↗' : '');
-      choices.append(button(label, 'secondary', async event => {
+      group.append(button(label, 'secondary', async event => {
         const selected = event.currentTarget;
         selected.disabled = true;
         let torrentSelected = option.kind === 'torrent';
@@ -255,14 +295,14 @@ async function showSourceDownloads(movie, trigger) {
         choices.querySelector('.source-connection')?.remove();
         try {
           if (option.kind === 'resolve') setText(message, 'Consultando a liberação do download na origem…');
-          const resolved = option.kind === 'resolve' ? await transferAction('download-resolve', movie.id, option.url) : option;
+          const resolved = option.kind === 'resolve' ? await transferAction('download-resolve', source.id, option.url) : option;
           torrentSelected = resolved.kind === 'torrent';
           if (resolved.kind !== 'torrent') {
-            await transferAction('download-source', movie.id, option.url);
+            await transferAction('download-source', source.id, option.url);
             return;
           }
           setText(message, 'Enviando ao qBittorrent…');
-          await transferAction('torrent-add', movie.id, resolved.url, sourceFolder.value);
+          await transferAction('torrent-add', source.id, resolved.url, sourceFolder.value);
           if (choices.isConnected && $('#details').open) {
             $('#details').close();
             changeSection('downloads');
@@ -289,6 +329,12 @@ async function showSourceDownloads(movie, trigger) {
         } finally { selected.disabled = false; }
       }));
     }
+    }
+    setText(message, found ? '' : 'Nenhuma fonte retornou opções. Confira as mensagens de cada site.');
+    if (!found) choices.append(button('Consultar fontes novamente', 'secondary', () => {
+      choices.remove();
+      showSourceDownloads(movie, trigger);
+    }));
   } catch (error) {
     setText(message, error.message || 'A consulta falhou. Tente novamente.');
     choices.append(button('Tentar novamente', 'secondary', () => {

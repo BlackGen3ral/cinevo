@@ -749,11 +749,36 @@ function renderUpdate(data) {
     info.stage === 'download' ? updateSize(info.received) + (known ? ' / ' + updateSize(info.total) : '') : '';
 }
 
-const importing = { next: '', continuation: false, running: false, paused: false, seen: new Set() };
+const importing = { root: '', next: '', count: 0, total: 0, syncNeeded: false, continuation: false, running: false, paused: false, seen: new Set() };
+async function pendingImports() {
+  const response = await request('/api/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'import-checkpoints' }) });
+  const checkpoints = await response.json();
+  const list = $('#pending-imports');
+  list.replaceChildren();
+  for (const item of checkpoints) {
+    const card = node('section', 'settings-card');
+    card.append(node('strong', '', new URL(item.root).hostname), node('p', '', item.count.toLocaleString('pt-BR') +
+      (item.total ? ' de ' + item.total.toLocaleString('pt-BR') : '') + ' títulos processados.'));
+    card.append(button(item.next ? 'Retomar importação' : 'Finalizar sincronização', 'secondary', () => {
+      if (importing.running) return;
+      importing.root = item.root;
+      importing.next = item.next;
+      importing.count = item.count;
+      importing.total = item.total;
+      importing.syncNeeded = item.syncNeeded;
+      importing.continuation = item.next !== item.root;
+      importing.seen.clear();
+      $('#import-url').value = item.root;
+      runImport(true);
+    }));
+    list.append(card);
+  }
+}
 async function openImport() {
   if (!$('#import-dialog').open) $('#import-dialog').showModal();
   if (importing.running) return;
   try {
+    await pendingImports();
     const response = await request('/api/action', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'catalog-sources' })
@@ -773,8 +798,8 @@ async function openImport() {
   } catch (error) { $('#import-status').textContent = error.message; }
 }
 
-async function runImport() {
-  if (!importing.next || importing.running) return;
+async function runImport(finishing = false) {
+  if ((!importing.next && !finishing) || importing.running) return;
   importing.running = true;
   importing.paused = false;
   $('#start-import').disabled = $('#import-url').disabled = $('#close-import').disabled = true;
@@ -782,9 +807,9 @@ async function runImport() {
   $('#pause-import').hidden = $('#pause-import').disabled = false;
   $('#resume-import').hidden = true;
   const progress = $('#import-status');
-  let count = 0;
-  let total = 0;
-  let syncNeeded = false;
+  let count = importing.count;
+  let total = importing.total;
+  let syncNeeded = importing.syncNeeded;
   let message = '';
   try {
     while (importing.next && !importing.paused) {
@@ -793,11 +818,14 @@ async function runImport() {
       const result = await (await request('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'import-batch', address, continuation: importing.continuation })
+        body: JSON.stringify({ name: 'import-batch', address, continuation: importing.continuation, importRoot: importing.root })
       })).json();
       count += result.count;
       total = Math.max(total, result.total || 0);
       syncNeeded ||= !result.local && result.count > 0;
+      importing.count = count;
+      importing.total = total;
+      importing.syncNeeded = syncNeeded;
       importing.next = result.next || '';
       importing.continuation = true;
       if (result.partial) { message = result.partial; break; }
@@ -823,6 +851,10 @@ async function runImport() {
           body: JSON.stringify({ name: 'sync-imports' })
         });
         await refresh();
+        if (!importing.next) await request('/api/action', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'import-finish', address: importing.root })
+        });
       } catch (error) { message = error.message; }
     }
     if (count > 1) {
@@ -834,6 +866,7 @@ async function runImport() {
     $('#resume-import').hidden = !importing.next;
     $('#start-import').disabled = $('#import-url').disabled = $('#close-import').disabled = false;
     $('#reimport-source').disabled = $('#saved-source').disabled = false;
+    pendingImports().catch(() => {});
   }
 }
 $('#import-form').onsubmit = event => {
@@ -844,6 +877,9 @@ $('#import-form').onsubmit = event => {
     if (address.protocol !== 'https:') throw new Error();
     address.hash = '';
     importing.next = address.href;
+    importing.root = address.href;
+    importing.count = importing.total = 0;
+    importing.syncNeeded = false;
   } catch {
     $('#import-status').textContent = 'Cole um endereço HTTPS público completo.';
     return;
@@ -857,7 +893,7 @@ $('#pause-import').onclick = () => {
   $('#pause-import').disabled = true;
   $('#import-status').textContent = 'Pausando após as páginas em andamento…';
 };
-$('#resume-import').onclick = runImport;
+$('#resume-import').onclick = () => runImport(true);
 $('#reimport-source').onclick = () => {
   if (importing.running || !$('#saved-source').value) return;
   $('#import-url').value = $('#saved-source').value;
