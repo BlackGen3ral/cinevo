@@ -1,0 +1,43 @@
+/* Controller cards and the compact sidebar share a single focus treatment. */
+.tv-mode .card{position:relative;min-width:0;scroll-margin:110px 16px 40px}
+.tv-mode .card:focus-within{content-visibility:visible;contain:none;overflow:visible;border-color:#d7c1ef99;z-index:3}
+.tv-mode .card::after{content:"";position:absolute;inset:0;border-radius:inherit;border:2px solid #e9d7fb;box-shadow:inset 0 0 0 1px #fff2;pointer-events:none;opacity:0;z-index:5;transition:opacity .16s}
+.tv-mode .card:focus-within::after{opacity:1}
+.tv-mode .card .poster-button:focus,.tv-mode .card .poster-button:focus-visible{outline:none!important;box-shadow:none!important;animation:none!important;transform:none}
+.tv-mode .card>.button[data-control-focus]:focus{outline:2px solid #f1dbff!important;outline-offset:-3px;box-shadow:none!important}
+.tv-mode .card>.button{min-height:38px;font-size:12px}
+.tv-mode .card .poster{border-radius:16px 16px 0 0}
+.tv-mode .rail{padding:12px 10px 18px;margin:-12px -10px -9px;scroll-padding-inline:10px}
+.tv-mode .grid{column-gap:max(16px,var(--card-gap));row-gap:max(24px,var(--card-gap))}
+.tv-mode #rows[data-view=list] .grid{row-gap:12px}
+.tv-mode #rows[data-view=list] .card .poster{border-radius:7px}
+@keyframes controller-card-light{0%,100%{box-shadow:0 0 18px rgb(191 159 241 / calc(var(--focus-glow)*.27)),0 8px 24px #05040b44}50%{box-shadow:0 0 30px rgb(207 169 239 / calc(var(--focus-glow)*.48)),0 10px 30px #05040b55}}
+@media(prefers-reduced-motion:no-preference){.tv-mode .card:focus-within{animation:controller-card-light 2.8s ease-in-out infinite}.tv-mode .card:hover{transform:none}}
+[data-glow=off].tv-mode .card:focus-within{animation:none;box-shadow:none}
+.tv-mode .card .selection-info{padding:34px 12px 12px;gap:4px 8px;background:linear-gradient(transparent,#101322ed 45%);font-size:11px}
+.control-help{position:fixed;bottom:17px;left:50%;transform:translateX(-50%);display:flex;gap:18px;align-items:center;max-width:calc(100vw - 30px);padding:10px 18px;border:1px solid #d9c7f22e;border-radius:30px;background:#151323f0;box-shadow:0 9px 35px #0006;color:#ded6ed;font-size:12px;pointer-events:none;z-index:12;white-space:nowrap}
+.control-help[hidden]{display:none}.control-help b{display:inline-grid;place-items:center;min-width:20px;height:20px;margin-right:6px;background:#d3b7f21b;border:1px solid #d3b7f23b;border-radius:50%;font-size:11px;color:#f3eaff}
+/* Text is wrapped independently of the icon so no label can leak into the icon rail. */
+.sidebar .sidebar-symbol{display:inline-grid;place-items:center;flex:0 0 20px;width:20px;height:20px;color:inherit}
+.sidebar-symbol svg{display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
+.sidebar .sidebar-label{display:block;min-width:0;flex:1;text-align:left;font-size:12px;line-height:1.4;white-space:normal;overflow-wrap:normal}
+.sidebar nav button,.sidebar .sidebar-support>button,.sidebar #update{display:flex;align-items:center;gap:11px;width:100%;min-width:0;padding:11px 12px}
+.sidebar button[data-sidebar-label]::before{display:none!important}
+.sidebar nav button>span:not(.sidebar-symbol):not(.sidebar-label){flex:none}
+.sidebar #sidebar-toggle{display:flex;align-items:center;justify-content:center;gap:9px;padding:10px}
+.sidebar #sidebar-toggle .sidebar-label{flex:none}
+.sidebar #sidebar-toggle .sidebar-symbol{width:18px;height:18px;flex-basis:18px}
+.sidebar-collapsed{--rail:86px}
+.sidebar-collapsed .sidebar{padding-left:10px;padding-right:10px}
+.sidebar-collapsed .sidebar .sidebar-label,.sidebar-collapsed .sidebar nav button>span:not(.sidebar-symbol){display:none!important}
+.sidebar-collapsed .sidebar button[data-sidebar-label],.sidebar-collapsed .sidebar #update{width:46px;min-width:0;min-height:46px;height:46px;flex:none;justify-content:center;gap:0;padding:0;margin-left:auto;margin-right:auto;border-radius:13px;font-size:0!important}
+.sidebar-collapsed .sidebar button[data-sidebar-label] .sidebar-symbol{display:inline-grid!important;width:21px;height:21px;flex-basis:21px}
+.sidebar-collapsed .sidebar .brand{width:46px;height:44px;margin:0 auto 20px;padding:0;justify-content:center}
+.sidebar-collapsed .sidebar .brand span{display:none}.sidebar-collapsed .sidebar .brand img{margin:0;width:31px;height:31px}
+.sidebar-collapsed .sidebar nav{gap:7px}.sidebar-collapsed .sidebar-support{gap:5px;padding-top:12px}
+.sidebar-collapsed .sidebar #version{display:block;text-align:center;margin:4px 0 0;padding:0;font-size:0}
+.sidebar-collapsed #update-controls{width:100%}.sidebar-collapsed #update-transfer{width:40px;margin:9px auto 0}.sidebar-collapsed #update-label{display:none}.sidebar-collapsed #update-progress{position:static;display:block;width:40px}
+.nav-tooltip{position:fixed;z-index:10000;padding:10px 14px;max-width:min(230px,65vw);border:1px solid #d7c1ef45;border-radius:12px;background:#1d192bf5;box-shadow:0 12px 36px #0007;color:#f2eafc;font:500 12px/1.5 'Segoe UI',sans-serif;pointer-events:none}
+.nav-tooltip[hidden]{display:none}
+@media(min-width:901px){.sidebar{overflow-x:hidden;overflow-y:auto;scrollbar-width:none}.sidebar::-webkit-scrollbar{display:none}.sidebar .sidebar-support{flex-shrink:0}.sidebar-collapsed .sidebar nav button[aria-current]::after{left:1px;top:14px;bottom:14px}}
+@media(max-width:900px){.sidebar-collapsed .sidebar button[data-sidebar-label]{width:42px;height:42px;min-height:42px}.control-help{gap:10px;font-size:11px}}

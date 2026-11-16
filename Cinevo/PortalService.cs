@@ -133,7 +133,7 @@ public static class PortalService
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
             response.EnsureSuccessStatusCode();
             var bytes = await RemoteFiles.ReadBoundedAsync(response, 128 * 1024, token);
-            var options = JsonSerializer.Deserialize<PortalDownloads>(bytes, JsonOptions)?.Options ?? [];
+            var options = SourceDownloads.FilterOptions(JsonSerializer.Deserialize<PortalDownloads>(bytes, JsonOptions)?.Options ?? [],sourceUrl);
             return options.Count == 0 && RemoteFiles.IsPublicHttps(sourceUrl)
                 ? await SourceDownloads.LoadAsync(sourceUrl, token) : options;
         }

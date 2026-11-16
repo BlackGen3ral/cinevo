@@ -44,68 +44,36 @@ function setText(element, value) {
 }
 
 function createTransferCard(hash) {
-  const card = node('article', 'transfer-card');
-  const artwork=node('div','transfer-art','C');const body=node('div','transfer-body');let coverKey='';const fileName=node('small','transfer-filename');
-  const speedValue=node('strong');const etaValue=node('strong');const vitals=node('div','transfer-vitals');for(const [label,value] of [['Velocidade',speedValue],['Previsão de término',etaValue]]){const item=node('div');item.append(node('small','',label),value);vitals.append(item);}
-  const title = node('h2');
-  const badge = node('span', 'transfer-badge');
-  const header = node('div', 'transfer-card-header');
-  header.append(title, badge);
-  const percent = node('strong');
-  const bytes = node('span');
-  const metrics = node('div', 'transfer-metrics');
-  metrics.append(bytes, percent);
-  const track = node('div', 'transfer-track');
-  track.setAttribute('role', 'progressbar');
-  track.setAttribute('aria-label', 'Progresso do download');
-  const fill = node('span');
-  track.append(fill);
-  const foot = node('div', 'transfer-card-foot');
-  const rates = node('span');
-  let mode;
-  const control = button('', 'secondary', event => actOnTransfer(
-    control.dataset.action, hash, event.currentTarget));
-  const controls = node('div', 'transfer-actions');
-  const remove = button('Remover', 'secondary', () => confirmRemoval('Remover transferência?',
-    title.textContent + ' sai da fila do qBittorrent. Os arquivos ficam no PC.', async () => {
-      await transferAction('torrent-remove', hash);
-      refreshTransfers(true);
-    }));
-  const reannounce = button('Buscar pares novamente', 'secondary', event =>
-    actOnTransfer('torrent-reannounce', hash, event.currentTarget));
-  controls.append(button('Organizar / episódios', 'secondary', () => organizeTorrent(hash)), control, reannounce, button('Diagnóstico', 'secondary', () => diagnoseTransfer(hash)), remove);
-  foot.append(rates, controls);
-  body.append(header,fileName,metrics,track,vitals,foot);card.append(artwork,body);
-  return { card, update(item) {
-    const [label, color] = transferState(item);
-    const progress = Math.max(0, Math.min(100, (item.progress || 0) * 100));
-    const value = Math.floor(progress * 10) / 10;
-    setText(title,item.movie?.title||item.name||hash);setText(fileName,item.movie?item.name||'':'');
-    const nextCover=item.movie?.hasCover?item.movie.id+'|'+item.movie.coverVersion:'';if(nextCover!==coverKey){coverKey=nextCover;const old=artwork.querySelector('img');if(old)imageObserver.unobserve(old);artwork.replaceChildren();if(nextCover){const image=poster(item.movie);image.alt='Capa de '+item.movie.title;artwork.append(image);imageObserver.observe(image);}else artwork.textContent='C';}
-    setText(speedValue,item.speed>0?storageSize(item.speed)+'/s':color==='done'?'Concluído':'0 B/s');const estimated=item.speed>0&&Number.isFinite(item.eta)&&item.eta>0&&item.eta<8640000;setText(etaValue,color==='done'?'Disponível':estimated?new Date(Date.now()+item.eta*1000).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · '+timeLeft(item.eta):'Sem estimativa');
-    setText(badge, label + (item.priority>0?' · Fila '+item.priority:''));
-    badge.dataset.status = color;
-    setText(percent, value.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%');
-    setText(bytes, storageSize(item.completed) + (item.size > 0 ? ' de ' + storageSize(item.size) : ''));
-    fill.style.width = value + '%';
-    track.setAttribute('aria-valuenow', value);
-    const waitingForPeers = /meta|stalledDL/i.test(item.state || '') && color === 'wait';
-    const peers = Number.isInteger(item.seeds) && item.seeds >= 0 &&
-      Number.isInteger(item.leechers) && item.leechers >= 0 ? item.seeds + item.leechers : null;
-    const peerStatus = peers === 0 ? 'Nenhum par conectado' : peers === null ? '' :
-      peers.toLocaleString('pt-BR') + (peers === 1 ? ' par conectado' : ' pares conectados');
-    reannounce.hidden = !waitingForPeers;
-    setText(rates, (item.scheduled ? 'Início: '+new Date(item.scheduled).toLocaleString('pt-BR') : '') || item.fallback || (waitingForPeers ? peerStatus : color === 'done' ? 'Disponível no PC' :
-      peerStatus));
-    const nextMode = color === 'done' ? 'torrent-files' : color === 'paused' ? 'torrent-resume' : 'torrent-pause';
-    card.dataset.status = color;
-    if (mode !== nextMode) {
-      mode = nextMode;
-      control.dataset.action = mode;
-      setText(control, mode === 'torrent-files' ? 'Assistir' : mode === 'torrent-resume' ? 'Retomar' : 'Pausar');
-    }
-    control.hidden = color === 'error' || /checking|moving|allocating/i.test(item.state || '');
-  } };
+ const card=node('article','transfer-card');card.dataset.hash=hash;card.setAttribute('aria-labelledby','transfer-title-'+hash);
+ const artwork=node('div','transfer-art');const fallback=node('span','transfer-art-fallback','↓');fallback.setAttribute('aria-hidden','true');artwork.append(fallback);let coverKey='';
+ const body=node('div','transfer-body'),title=node('h2');title.id='transfer-title-'+hash;
+ const badge=node('span','transfer-badge'),header=node('div','transfer-card-header');header.append(title,badge);
+ const percent=node('strong','transfer-percent'),bytes=node('span'),metrics=node('div','transfer-metrics');metrics.append(percent,bytes);
+ const track=node('div','transfer-track');track.setAttribute('role','progressbar');track.setAttribute('aria-label','Progresso do download');track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuemax','100');const fill=node('span');track.append(fill);
+ const speedValue=node('strong'),etaValue=node('strong'),peersValue=node('strong'),vitals=node('div','transfer-vitals');for(const [label,value] of [['Velocidade',speedValue],['Tempo restante',etaValue],['Pares conectados',peersValue]]){const item=node('div');item.append(node('small','',label),value);vitals.append(item);}
+ const foot=node('div','transfer-card-foot'),rates=node('p','transfer-note'),actions=node('div','transfer-actions');let mode;
+ const control=button('','primary',event=>actOnTransfer(control.dataset.action,hash,event.currentTarget));
+ const diagnose=button('Diagnóstico','secondary',()=>diagnoseTransfer(hash));diagnose.dataset.icon='info';
+ const extra=node('details','menu transfer-menu'),toggle=node('summary','','Mais ações');toggle.setAttribute('aria-label','Mais ações para este download');extra.append(toggle);const menu=node('div');extra.append(menu);
+ const reannounce=button('Buscar pares novamente','secondary',event=>actOnTransfer('torrent-reannounce',hash,event.currentTarget));
+ menu.append(button('Fila e episódios','secondary',()=>{extra.open=false;organizeTorrent(hash);}),reannounce,button('Remover da fila','secondary',()=>{extra.open=false;confirmRemoval('Remover transferência?',title.textContent+' sai da fila do qBittorrent. Os arquivos ficam no PC.',async()=>{await transferAction('torrent-remove',hash);refreshTransfers(true);});}));
+ actions.append(control,diagnose,extra);foot.append(actions);
+ const technical=node('details','transfer-technical'),technicalLabel=node('summary','','Arquivo e informações'),fileName=node('small','transfer-filename');technical.append(technicalLabel,fileName);
+ body.append(header,metrics,track,vitals,rates,foot,technical);card.append(artwork,body);
+ return {card,update(item){
+  const [label,color]=transferState(item),progress=Math.max(0,Math.min(100,(item.progress||0)*100)),value=Math.floor(progress*10)/10;
+  card.dataset.name=item.movie?.title||item.name||hash;card.dataset.progress=progress;card.dataset.speed=item.speed||0;card.dataset.priority=item.priority||0;
+  setText(title,card.dataset.name);setText(fileName,item.name||card.dataset.name);setText(technicalLabel,item.priority>0?'Arquivo · posição '+item.priority+' na fila':'Arquivo e informações');
+  const nextCover=item.movie?.hasCover?item.movie.id+'|'+item.movie.coverVersion:'';if(nextCover!==coverKey){coverKey=nextCover;const old=artwork.querySelector('img');if(old)imageObserver.unobserve(old);artwork.replaceChildren();if(nextCover){const image=poster(item.movie);image.alt='Capa de '+item.movie.title;artwork.append(image);imageObserver.observe(image);}else artwork.append(fallback);}
+  setText(speedValue,item.speed>0?storageSize(item.speed)+'/s':color==='done'?'Finalizado':'—');const estimated=item.speed>0&&Number.isFinite(item.eta)&&item.eta>0&&item.eta<8640000;setText(etaValue,color==='done'?'Pronto para assistir':estimated?timeLeft(item.eta):'Aguardando estimativa');
+  const peers=Number.isInteger(item.seeds)&&item.seeds>=0&&Number.isInteger(item.leechers)&&item.leechers>=0?item.seeds+item.leechers:null;setText(peersValue,peers==null?'—':peers.toLocaleString('pt-BR'));
+  setText(badge,label);badge.dataset.status=color;setText(percent,value.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%');setText(bytes,storageSize(item.completed)+(item.size>0?' de '+storageSize(item.size):''));fill.style.width=value+'%';track.setAttribute('aria-valuenow',value);
+  const waiting=/meta|stalledDL/i.test(item.state||'')&&color==='wait';reannounce.hidden=!waiting;
+  setText(rates,(item.scheduled?'Programado para '+new Date(item.scheduled).toLocaleString('pt-BR'):'')||item.fallback||(waiting?(peers===0?'A origem ainda não tem pares conectados. Consulte o diagnóstico para entender o motivo.':'Aguardando os pares enviarem os dados do torrent.'):color==='done'?'O vídeo está disponível no PC. Os arquivos são preservados ao remover da fila.':''));rates.hidden=!rates.textContent;
+  const nextMode=color==='done'?'torrent-files':color==='paused'?'torrent-resume':'torrent-pause';card.dataset.status=color;
+  if(mode!==nextMode){mode=nextMode;control.dataset.action=mode;setText(control,mode==='torrent-files'?'Assistir agora':mode==='torrent-resume'?'Retomar download':'Pausar download');}
+  control.hidden=color==='error'||/checking|moving|allocating/i.test(item.state||'');
+ }};
 }
 
 function renderTransfers(data) {
@@ -117,11 +85,7 @@ function renderTransfers(data) {
   $('#torrent-empty').hidden = !data.configured || list.length > 0;
   $('#torrent-summary').hidden = !data.configured || !list.length;
   const speed = list.reduce((total, item) => total + Math.max(0, item.speed || 0), 0);
-  const counters = [
-    [list.length, list.length === 1 ? 'transferência' : 'transferências'],
-    [list.filter(item => item.progress >= 1).length, 'concluídos'],
-    [storageSize(speed) + '/s', 'velocidade total']
-  ];
+  const counters=[[list.filter(item=>transferState(item)[1]==='active').length,'baixando agora'],[storageSize(speed)+'/s','velocidade total'],[storageSize(list.reduce((sum,item)=>sum+Math.max(0,(item.size||0)-(item.completed||0)),0)),'restantes nos downloads'],[list.filter(item=>item.progress>=1).length,'prontos para assistir']];
   for (const [index, [value, label]] of counters.entries()) {
     const summary = $('#torrent-summary');
     if (!summary.children[index]) {
@@ -133,6 +97,7 @@ function renderTransfers(data) {
     setText(summary.children[index].lastChild, label);
   }
   const rows = $('#torrent-rows');
+  const focused=rows.contains(document.activeElement)?document.activeElement:null;
   const current = new Set();
   for (const item of list) {
     if (current.has(item.hash)) continue;
@@ -148,18 +113,19 @@ function renderTransfers(data) {
     entry.card.remove();
     transferCards.delete(hash);
   }
-  applyTransferFilter();
+  applyTransferFilter();if(focused?.isConnected&&document.activeElement===document.body)focused.focus({preventScroll:true});
   rows.classList.remove('stale-transfers');
 }
 
 function applyTransferFilter() {
-  let visible = 0;
+  let visible = 0;const search=($('#transfer-search')?.value||'').trim().toLocaleLowerCase();
   for (const { card } of transferCards.values()) {
-    card.hidden = transferFilter !== 'all' && card.dataset.status !== transferFilter;
+    card.hidden=(transferFilter!=='all'&&card.dataset.status!==transferFilter)||!!search&&!card.dataset.name.toLocaleLowerCase().includes(search);
     if (!card.hidden) visible++;
   }
   for (const filter of document.querySelectorAll('[data-transfer-filter]'))
-    filter.setAttribute('aria-pressed', filter.dataset.transferFilter === transferFilter);
+    {filter.setAttribute('aria-pressed',filter.dataset.transferFilter===transferFilter);if(!filter.dataset.label)filter.dataset.label=filter.textContent;const count=[...transferCards.values()].filter(({card})=>filter.dataset.transferFilter==='all'||card.dataset.status===filter.dataset.transferFilter).length;filter.replaceChildren(node('span','',filter.dataset.label),node('small','',String(count)));}
+  const order=$('#transfer-sort')?.value||'queue',rows=$('#torrent-rows'),focused=rows.contains(document.activeElement)?document.activeElement:null;const ordered=[...transferCards.values()].sort((a,b)=>order==='name'?a.card.dataset.name.localeCompare(b.card.dataset.name,'pt-BR'):order==='progress'?Number(b.card.dataset.progress)-Number(a.card.dataset.progress):order==='speed'?Number(b.card.dataset.speed)-Number(a.card.dataset.speed):Number(a.card.dataset.priority||999999)-Number(b.card.dataset.priority||999999));for(const [index,item] of ordered.entries())if(rows.children[index]!==item.card)rows.insertBefore(item.card,rows.children[index]||null);if(focused?.isConnected&&document.activeElement===document.body)focused.focus({preventScroll:true});
   if (transferCards.size) {
     $('#torrent-empty').hidden = visible > 0;
     $('#torrent-empty').textContent = 'Nenhum download neste filtro.';
@@ -260,6 +226,7 @@ $('#torrent-form').onsubmit = async event => {
   if($('#torrent-choose-before')?.checked){try{await smartCall('smart-metadata',null,{url:input.value.trim(),folder:magnetFolder.value||''});input.value='';setText($('#torrent-message'),'Consultando metadados. Abra Organizar / episódios para selecionar os arquivos.');refreshTransfers(true);}catch(error){setText($('#torrent-message'),error.message);}}
   else if (await actOnTransfer('torrent-add', null, submit, input.value.trim())) input.value = '';
 };
+$('#transfer-search').oninput=applyTransferFilter;$('#transfer-sort').onchange=applyTransferFilter;
 setInterval(() => refreshTransfers(), 1500);
 
 async function showSourceDownloads(movie, trigger) {
@@ -272,11 +239,12 @@ async function showSourceDownloads(movie, trigger) {
   const choices = node('div', 'source-downloads');
   panel.append(choices);
   const message = node('p', '', 'Consultando opções da origem…');
-  choices.append(node('h3', '', 'Fontes deste filme'), message);
+  choices.append(node('h3','','Escolha seu download'),node('p','source-context',movie.title+' · Opções publicadas pelas fontes deste título.'),message);
   message.setAttribute('role', 'status');
   const sourceFolder = folderPicker();
   choices.append(sourceFolder.element);
   const selectEpisodes=smartField(choices,'Escolher arquivos antes de baixar (qBittorrent 5+)',null,'checkbox');
+  selectEpisodes.parentElement.classList.add('source-file-choice');
   choices.scrollIntoView({ block: 'nearest' });
   trigger.disabled = true;
   try {
@@ -292,8 +260,7 @@ async function showSourceDownloads(movie, trigger) {
     found += options.length;
     if (!options.length) group.append(node('p', '', 'Nenhuma opção disponível nesta origem.'));
     for (const option of options) {
-      const label = option.label + (option.kind === 'torrent' ? ' · qBittorrent' : option.kind === 'link' ? ' ↗' : '');
-      group.append(button(label, 'secondary', async event => {
+      const choose=button('', 'secondary source-option', async event => {
         const selected = event.currentTarget;
         selected.disabled = true;
         let torrentSelected = option.kind === 'torrent';
@@ -334,7 +301,7 @@ async function showSourceDownloads(movie, trigger) {
             choices.append(actions);
           }
         } finally { selected.disabled = false; }
-      }));
+      });const copy=node('span');copy.append(node('strong','',option.label||'Download da origem'),node('small','',option.kind==='torrent'?'Enviar ao qBittorrent':option.kind==='file'?'Salvar o arquivo oferecido pela origem':option.kind==='resolve'?'Consultar a opção disponibilizada pelo site':'Abrir o link de download na origem'));choose.append(copy,node('span','source-kind',option.kind==='torrent'?'Torrent':option.kind==='file'?'Arquivo':option.kind==='resolve'?'Consultar':'Link ↗'));group.append(choose);
     }
     }
     setText(message, found ? '' : 'Nenhuma fonte retornou opções. Confira as mensagens de cada site.');

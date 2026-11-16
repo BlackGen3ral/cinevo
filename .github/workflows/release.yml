@@ -1,7 +1,9 @@
 name: Windows release
 on:
   push:
+    branches: [main]
     tags: ['v*']
+    paths: ['Cinevo/**', 'scripts/**', 'installer/**', 'tests/**', 'portal/**', 'release-notes.md', '.github/workflows/release.yml']
   workflow_dispatch:
     inputs:
       version:
@@ -9,32 +11,55 @@ on:
         required: true
 permissions:
   contents: write
+concurrency:
+  group: cinevo-windows-release
+  cancel-in-progress: false
 jobs:
   release:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve beta version
+        id: version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          $version = if ($env:INPUT_VERSION) { $env:INPUT_VERSION } elseif ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { ([xml](Get-Content Cinevo/Cinevo.csproj -Raw)).Project.PropertyGroup.Version | Select-Object -First 1 }
+          if ($version -notmatch '^0\.\d+\.\d+-beta\.\d+$') { throw 'Use uma nova versão Beta antes de publicar.' }
+          "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
+          $existing = gh release view "v$version" --json assets --repo $env:GITHUB_REPOSITORY 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $assets = ($existing | ConvertFrom-Json).assets.name
+            foreach ($name in @('Cinevo-Setup.exe','Cinevo-Update.exe','runtime-id.txt','SHA256SUMS.txt','vlc-3.0.24-source.tar.xz')) {
+              if ($name -notin $assets) { throw 'A versão já existe, mas está incompleta. Não reutilize tags publicadas.' }
+            }
+            "published=true" >> $env:GITHUB_OUTPUT
+          } else {
+            "published=false" >> $env:GITHUB_OUTPUT
+          }
+          exit 0
       - uses: actions/setup-dotnet@v4
+        if: steps.version.outputs.published != 'true'
         with:
           dotnet-version: '10.0.x'
       - uses: actions/setup-node@v4
+        if: steps.version.outputs.published != 'true'
         with:
           node-version: '22'
       - name: Verify portal
+        if: steps.version.outputs.published != 'true'
         working-directory: portal
         run: |
           npm ci --ignore-scripts
           npm test
       - name: Build and verify installer
+        if: steps.version.outputs.published != 'true'
         shell: pwsh
-        env:
-          INPUT_VERSION: ${{ inputs.version }}
-        run: |
-          $version = if ($env:INPUT_VERSION) { $env:INPUT_VERSION } else { $env:GITHUB_REF_NAME.TrimStart('v') }
-          if ($version -notmatch '^\d+\.\d+\.\d+(-beta\.\d+)?$') { throw 'Invalid version' }
-          ./scripts/build.ps1 -Version $version
-          "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
+        run: ./scripts/build.ps1 -Version $env:RELEASE_VERSION
       - name: Publish installer
+        if: steps.version.outputs.published != 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}

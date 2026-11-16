@@ -61,6 +61,9 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
         MapAsset("/avatar.svg", "avatar.svg", "image/svg+xml");
         MapAsset("/", "index.html", "text/html; charset=utf-8");
         MapAsset("/glass.css", "glass.css", "text/css; charset=utf-8");
+        MapAsset("/downloads.css", "downloads.css", "text/css; charset=utf-8");
+        MapAsset("/navigation.css", "navigation.css", "text/css; charset=utf-8");
+        MapAsset("/navigation.js", "navigation.js", "application/javascript; charset=utf-8");
         MapAsset("/history.css", "history.css", "text/css; charset=utf-8");
         MapAsset("/history.js", "history.js", "application/javascript; charset=utf-8");
         MapAsset("/glass.js", "glass.js", "application/javascript; charset=utf-8");

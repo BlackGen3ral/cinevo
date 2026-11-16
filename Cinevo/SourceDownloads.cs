@@ -14,10 +14,53 @@ internal static class SourceDownloads
     private static readonly Regex Tags = new(@"<[^>]*>", RegexOptions.None, RegexTimeout);
     private static readonly Regex Quality = new(@"\b(?:4320|2160|1440|1080|720|576|480|360)[pi]\b|\b[48]k\b|\bfull[ ._-]?hd\b", RegexOptions.IgnoreCase, RegexTimeout);
 
+    // Only offer links to download destinations; a film recommendation is another page.
+    internal static bool IsOfferedDestination(string url, string label, Uri origin, bool explicitDownload = false)
+    {
+        if (TorrentClient.IsMagnet(url)) return true;
+        if (!RemoteFiles.IsPublicHttps(url) || !Uri.TryCreate(url, UriKind.Absolute, out var target)) return false;
+        if (Regex.IsMatch(target.AbsolutePath, @"^/(?:categoria|category|tag|genre|genero|qualidade|quality|page|pagina)/", RegexOptions.IgnoreCase, RegexTimeout)) return false;
+        if (DynamicDownloads.IsLinkLiberado(url) || explicitDownload) return true;
+        var offered = Regex.IsMatch(label, @"\b(?:download|baixar|\d{3,4}p)\b", RegexOptions.IgnoreCase, RegexTimeout);
+        if (!offered) return false;
+        if (Scanner.Extensions.Contains(Path.GetExtension(target.AbsolutePath)) || target.AbsolutePath.EndsWith(".torrent", StringComparison.OrdinalIgnoreCase)) return true;
+        var words = CoverService.Normalize(Quality.Replace(label, " "));
+        words = Regex.Replace(words, @"\b(?:download|baixar|baixe|fazer|faca|o|do|de|da|a|em|no|na|para|por|aqui|clique|click|link|links|direto|direct|arquivo|file|torrent|dual|audio|dublado|legendado|legenda|portugues|ingles|pt|br|hd|sd|web|dl|bluray|x264|x265|hevc|h264|h265|hdr|hdr10|dv|dolby|atmos|truehd|ac3|eac3|aac|mp4|mkv|gb|mb|gib|mib|kb|b|mega|drive|google|gdrive|onedrive|mediafire|opcao|option|episodio|episode|ep|temporada|season|[0-9]+)\b", " ", RegexOptions.IgnoreCase, RegexTimeout);
+        if (Regex.IsMatch(words, @"[a-z]", RegexOptions.IgnoreCase, RegexTimeout)) return false;
+        return target.Host != origin.Host || target.AbsolutePath == origin.AbsolutePath ||
+            Regex.IsMatch(target.AbsolutePath, @"(?:^|/)(?:download|downloads|baixar|out|go|redirect|get|dl)(?:/|\.|$)", RegexOptions.IgnoreCase, RegexTimeout);
+    }
+
+    internal static List<PortalDownload> FilterOptions(IEnumerable<PortalDownload> options, string source)
+    {
+        if (!Uri.TryCreate(source, UriKind.Absolute, out var origin)) return [];
+        return options.Where(o => o.Kind == "torrent" ? TorrentClient.IsMagnet(o.Url) :
+            o.Kind == "file" ? RemoteFiles.IsPublicHttps(o.Url) :
+            o.Kind == "resolve" ? DynamicDownloads.IsLinkLiberado(o.Url) || o.Url.StartsWith(source.Split('#')[0]+"#cinevo-download=", StringComparison.Ordinal) :
+            o.Kind == "link" && IsOfferedDestination(o.Url, o.Label, origin)).DistinctBy(o=>o.Url).Take(20).ToList();
+    }
+
+    private static string DownloadContent(string html)
+    {
+        html=Regex.Replace(html,@"<!--.*?-->|<(script|style)\b[^>]*>.*?</\1\s*>","",RegexOptions.IgnoreCase|RegexOptions.Singleline,RegexTimeout);
+        var output=new StringBuilder(html.Length);var stack=new List<(string Tag,bool Skip)>();var ignored=0;var previous=0;
+        foreach(Match token in Regex.Matches(html,@"<(?<close>/)?(?<tag>nav|aside|footer|div|section|article|ul|ol)\b(?<attrs>[^>]{0,12000})>",RegexOptions.IgnoreCase,RegexTimeout)){
+            if(ignored==0)output.Append(html,previous,token.Index-previous);
+            var tag=token.Groups["tag"].Value.ToLowerInvariant();
+            if(token.Groups["close"].Success){var wasIgnored=ignored>0;var index=stack.FindLastIndex(f=>f.Tag==tag);if(index>=0){for(var i=index;i<stack.Count;i++)if(stack[i].Skip)ignored--;stack.RemoveRange(index,stack.Count-index);}if(!wasIgnored)output.Append(token.Value);}
+            else{var markers=string.Join(" ",Attributes.Matches(token.Groups["attrs"].Value).Cast<Match>().Where(m=>m.Groups["key"].Value.ToLowerInvariant() is "class" or "id" or "role").Select(m=>m.Groups["value"].Value));
+                var skip=tag is "nav" or "aside" or "footer" || markers.Split((char[]?)null,StringSplitOptions.RemoveEmptyEntries).Any(v=>v is "sidebar" or "site-sidebar" or "widget-area" or "complementary") || Regex.IsMatch(markers,@"(?:^|[\s_-])(?:related|relacionados?|recommend(?:ed|ations?)?|suggest(?:ed|ions?)?|recent-posts|latest-posts|recomendados?|mais-filmes|navigation)(?:$|[\s_-])",RegexOptions.IgnoreCase,RegexTimeout);
+                if(stack.Count>=256)throw new InvalidDataException("A estrutura da página é complexa demais para consultar.");stack.Add((tag,skip));if(skip)ignored++;if(ignored==0)output.Append(token.Value);}
+            previous=token.Index+token.Length;
+        }
+        if(ignored==0)output.Append(html,previous,html.Length-previous);return output.ToString();
+    }
+
     internal static List<PortalDownload> Parse(string html, Uri origin)
     {
         var result = new Dictionary<string, PortalDownload>(StringComparer.Ordinal);
-        foreach (var option in DynamicDownloads.Parse(html, origin)) result.TryAdd(option.Url, option);
+        var hasDynamic=html.Contains("LUMENDownloadConfig",StringComparison.Ordinal);html=DownloadContent(html);
+        foreach (var option in DynamicDownloads.Parse((hasDynamic?"LUMENDownloadConfig":"")+html, origin)) result.TryAdd(option.Url, option);
         html = Regex.Replace(html, @"<!--.*?-->|<(script|style)\b[^>]*>.*?</\1\s*>", "", RegexOptions.IgnoreCase | RegexOptions.Singleline, RegexTimeout);
         foreach (Match anchor in Anchors.Matches(html))
         {
@@ -33,6 +76,7 @@ internal static class SourceDownloads
             if (name.Length == 0) name = label;
             var liberated = DynamicDownloads.IsLinkLiberado(address.AbsoluteUri);
             var explicitDownload = liberated || Regex.IsMatch(anchor.Groups["attrs"].Value, @"(?:^|\s)download(?:\s|=|$)", RegexOptions.IgnoreCase, RegexTimeout);
+            if (!IsOfferedDestination(torrent?href:address.AbsoluteUri,name,origin,explicitDownload)) continue;
             if (!torrent && !explicitDownload)
             {
                 var offered = Regex.IsMatch(name, @"\b(?:download|baixar|\d{3,4}p)\b", RegexOptions.IgnoreCase, RegexTimeout);

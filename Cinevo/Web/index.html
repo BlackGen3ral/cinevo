@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="/cinevo.css">
   <link rel="stylesheet" href="/glass.css">
   <link rel="stylesheet" href="/history.css">
+  <link rel="stylesheet" href="/navigation.css">
+  <link rel="stylesheet" href="/downloads.css">
   <script src="/cinevo.js" defer></script>
   <script src="/settings.js" defer></script>
   <script src="/downloads.js" defer></script>
@@ -21,6 +23,7 @@
   <script src="/interface.js" defer></script>
   <script src="/glass.js" defer></script>
   <script src="/history.js" defer></script>
+  <script src="/navigation.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Ir para o conteúdo</a>
@@ -75,18 +78,20 @@
         </div>
       </div>
       <p id="torrent-connection" class="transfer-status" role="status"></p>
-      <form id="torrent-form" hidden>
+      <details class="transfer-create"><summary>Adicionar download por link magnet</summary><form id="torrent-form" hidden>
         <label for="torrent-magnet">Adicionar link magnet</label>
         <div><input id="torrent-magnet" type="text" maxlength="4096" placeholder="magnet:?…" required><button class="button accent" type="submit">Baixar</button></div>
       </form>
+      </details>
       <p id="torrent-message" role="status"></p>
       <div id="torrent-summary" class="transfer-summary" hidden></div>
+      <div class="transfer-toolbar"><label class="transfer-search">Buscar downloads<input type="search" id="transfer-search" placeholder="Nome do filme ou série"></label><label class="transfer-sort">Ordenar<select id="transfer-sort"><option value="queue">Posição na fila</option><option value="progress">Maior progresso</option><option value="speed">Maior velocidade</option><option value="name">Nome do título</option></select></label></div>
       <div id="transfer-filters" class="transfer-filters" role="group" aria-label="Filtrar downloads">
         <button type="button" data-transfer-filter="all" aria-pressed="true">Todos</button>
         <button type="button" data-transfer-filter="active" aria-pressed="false">Em andamento</button>
         <button type="button" data-transfer-filter="wait" aria-pressed="false">Aguardando</button>
         <button type="button" data-transfer-filter="paused" aria-pressed="false">Pausados</button>
-        <button type="button" data-transfer-filter="done" aria-pressed="false">Concluídos</button>
+        <button type="button" data-transfer-filter="done" aria-pressed="false">Concluídos</button><button type="button" data-transfer-filter="error" aria-pressed="false">Atenção</button>
       </div>
       <div id="torrent-rows"></div>
       <p id="torrent-empty" class="empty" hidden>Nenhuma transferência no qBittorrent.</p>
@@ -136,7 +141,7 @@
     </section>
     <p id="settings-status" role="status"></p>
   </dialog>
-  <dialog id="news-dialog" aria-labelledby="news-title"><div class="settings-heading"><div><h2 id="news-title">Novidades</h2><p>Histórico de atualizações do Cinevo.</p></div><button id="news-close" class="button secondary">Fechar</button></div><div class="settings-tabs" role="tablist" aria-label="Atualizações"><button id="news-current-tab" role="tab" aria-selected="true" aria-controls="news-current">Novidades desta versão</button><button id="news-history-tab" role="tab" aria-selected="false" aria-controls="news-archive">Histórico</button></div><section id="news-current" role="tabpanel" aria-labelledby="news-current-tab" class="settings-card"><h3>Cinevo 0.1.49 · Beta</h3><ul><li>A navegação pelo controle de videogame foi reformulada: foco na janela à frente, retorno à capa selecionada, deslocamento mais estável entre fileiras e exclusão de botões ocultos ou desativados.</li><li>Analógico com zona morta, direção estabilizada e pausa antes da repetição. A e B executam uma ação por toque; voltar fecha uma janela por vez. Os comandos ficam suspensos quando o Cinevo perde o foco.</li><li>Teclado na tela e seleção de filtros pelo controle. Pressione A no campo ou filtro, navegue com o direcional e use B para cancelar.</li><li>Foto de perfil no canto superior abre a página pessoal, com filmes e séries em andamento, concluídos e abandonados. A página inclui busca, filtros, contadores, progresso, registros e episódios por temporada.</li><li>Troca e remoção da foto no PC. A imagem é reduzida para 256 × 256, e cada pessoa mantém apenas um JPEG; nenhuma foto é enviada para a conta ou incluída no catálogo sincronizado.</li><li>Acompanhamento manual na ficha do título. Abandonar preserva o ponto salvo e retira o título do Continuar assistindo. Novas reproduções retomam o acompanhamento; concluir uma série considera os episódios conhecidos da biblioteca.</li><li>Histórico anterior aproveitado sem inventar datas, preservado ao retirar títulos da biblioteca e consultável pela TV pareada, respeitando cada perfil. Os registros detalhados permanecem neste PC da central.</li></ul></section><section id="news-archive" role="tabpanel" aria-labelledby="news-history-tab" hidden><div id="news-history"></div><p id="news-status" role="status"></p><button id="news-more" class="button secondary">Carregar histórico</button></section></dialog>
+  <dialog id="news-dialog" aria-labelledby="news-title"><div class="settings-heading"><div><h2 id="news-title">Novidades</h2><p>Histórico de atualizações do Cinevo.</p></div><button id="news-close" class="button secondary">Fechar</button></div><div class="settings-tabs" role="tablist" aria-label="Atualizações"><button id="news-current-tab" role="tab" aria-selected="true" aria-controls="news-current">Novidades desta versão</button><button id="news-history-tab" role="tab" aria-selected="false" aria-controls="news-archive">Histórico</button></div><section id="news-current" role="tabpanel" aria-labelledby="news-current-tab" class="settings-card"><h3>Cinevo 0.1.50 · Beta</h3><ul><li>Corrigida a sobreposição de capas no modo controle. O destaque agora envolve o cartão inteiro, mantém o brilho animado e respeita o tamanho das capas e a preferência de movimento reduzido.</li><li>O direcional percorre filmes da mesma linha e sobe ou desce entre linhas. A abre a ficha, X adiciona o título importado à biblioteca e B retorna ao menu lateral; voltar do menu recupera a última capa selecionada.</li><li>Menu recolhido com ícones próprios, alinhamento uniforme e nome da opção ao focar ou passar o mouse. O botão de atualização também preserva o ícone ao mudar de estado.</li><li>Tela de downloads reorganizada: busca por título, filtros com contagem, ordenação por fila, progresso, velocidade ou nome, resumo do espaço restante e cartões com ações principais e menu de ações adicionais.</li><li>Opções de download com cartões por fonte, rótulo da qualidade e indicação de torrent, arquivo ou link. Ajustada a opção de escolher arquivos antes de baixar.</li><li>Corrigida a inclusão de filmes aleatórios nas opções: recomendações, navegação, rodapés e links para páginas de outros títulos são descartados. O app também filtra respostas anteriores do portal antes de exibir as opções.</li></ul></section><section id="news-archive" role="tabpanel" aria-labelledby="news-history-tab" hidden><div id="news-history"></div><p id="news-status" role="status"></p><button id="news-more" class="button secondary">Carregar histórico</button></section></dialog>
   <dialog id="clear-dialog" aria-labelledby="clear-title">
     <h2 id="clear-title">Limpar biblioteca?</h2>
     <p>Todos os filmes saem da biblioteca e as pastas são desvinculadas. Os arquivos continuam no PC. Os títulos online voltam para <strong>Filmes importados</strong>.</p>

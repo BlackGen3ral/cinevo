@@ -32,7 +32,7 @@ function selectionInfo(movie){
   const minutes=Math.round((movie.durationMilliseconds||0)/60000);
   const availability=movie.hasLocalFile?'Disponível no PC':movie.canPlay?'Disponível online':movie.isOnline?'Na origem':'Arquivo indisponível';
   const info=node('span','selection-info');
-  for(const text of [minutes?minutes+' min':'Duração não informada',movie.resolution||'Resolução não informada',availability])info.append(node('span','',text));
+  for(const text of [minutes?minutes+' min':'',movie.resolution||'',availability].filter(Boolean))info.append(node('span','',text));
   return info;
 }
 let searchGeneration=0;

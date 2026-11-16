@@ -42,7 +42,17 @@ function downloadQuality(value) {
  if (/^full/i.test(quality)) return 'Full HD';
  return /k$/i.test(quality) ? quality.toUpperCase() : quality.toLowerCase();
 }
+function offeredDestination(address,label,origin,explicit){
+ const target=new URL(address);if(/^\/(?:categoria|category|tag|genre|genero|qualidade|quality|page|pagina)\//i.test(target.pathname))return false;
+ if(explicit||target.hostname==='linkliberado.xyz'&&target.pathname==='/liberar.php')return true;
+ if(!/\b(?:download|baixar|\d{3,4}p)\b/i.test(label))return false;
+ if(/\.(?:mp4|mkv|avi|mov|wmv|m4v|webm|mpg|mpeg|ts|m2ts|vob|torrent)$/i.test(target.pathname))return true;
+ const words=label.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\b(?:4320|2160|1440|1080|720|576|480|360)[pi]\b|\b[48]k\b|\bfull[ ._-]?hd\b/gi,' ').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\b(?:download|baixar|baixe|fazer|faca|o|do|de|da|a|em|no|na|para|por|aqui|clique|click|link|links|direto|direct|arquivo|file|torrent|dual|audio|dublado|legendado|legenda|portugues|ingles|pt|br|hd|sd|web|dl|bluray|x264|x265|hevc|h264|h265|hdr|hdr10|dv|dolby|atmos|truehd|ac3|eac3|aac|mp4|mkv|gb|mb|gib|mib|kb|b|mega|drive|google|gdrive|onedrive|mediafire|opcao|option|episodio|episode|ep|temporada|season|[0-9]+)\b/g,' ');
+ return !/[a-z]/i.test(words)&&(target.hostname!==new URL(origin).hostname||target.pathname===new URL(origin).pathname||/(?:^|\/)(?:download|downloads|baixar|out|go|redirect|get|dl)(?:\/|\.|$)/i.test(target.pathname));
+}
 export async function downloadOptions(html, url, Rewriter = HTMLRewriter) {
+ const excluded='script,style,nav,aside,footer,[class*="related"],[id*="related"],[class*="relacionad"],[id*="relacionad"],[class*="recommend"],[class*="suggest"],.sidebar,#sidebar,.widget-area,[role="complementary"],[class*="recent-posts"],[class*="latest-posts"]';
+ html=new Rewriter().on(excluded,{element(element){element.remove();}}).transform(html instanceof Response?html:new Response(html));
  const options = new Map();
  let current;
  const parser = new Rewriter().on('script,style', {element(element){element.remove();}}).on('a[href]', {
@@ -61,7 +71,7 @@ export async function downloadOptions(html, url, Rewriter = HTMLRewriter) {
     let name = clean(entry.text, 160) || clean(label, 160);
     const path = magnet ? '' : new URL(address).pathname;
     const offered = explicit || /\b(?:download|baixar|\d{3,4}p)\b/i.test(name);
-    if (!magnet && (!offered || (!explicit && /^\/(?:categoria|category|tag|genre|genero|qualidade|quality)\//i.test(path)))) return;
+    if (!magnet && (!offered || !offeredDestination(address,name,url,explicit))) return;
     if (magnet && !downloadQuality(name)) {
      const displayName = new URLSearchParams(address.slice(address.indexOf('?') + 1)).get('dn') || '';
      const quality = downloadQuality(label) || downloadQuality(displayName);

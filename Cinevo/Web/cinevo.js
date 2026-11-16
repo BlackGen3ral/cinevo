@@ -206,7 +206,7 @@ function movieCard(movie) {
   card.append(open);
   if (movie.importedOnly) {
     const add = command('Adicionar à biblioteca', 'secondary', 'add-to-library', movie.id);
-    add.dataset.icon = 'add';
+    add.dataset.icon = 'add';add.dataset.controlAction='add';
     add.setAttribute('aria-label', 'Adicionar à biblioteca: ' + movie.title);
     card.append(add);
   }
@@ -770,7 +770,7 @@ function renderUpdate(data) {
   const active = ['check', 'download', 'verify'].includes(info.stage);
   const button = $('#update');
   button.hidden = !data.canUpdate || (active && data.updateRequested);
-  button.textContent = info.stage === 'ready' ? 'Instalar e reiniciar' : 'Atualizar Cinevo';
+  const updateText=info.stage==='ready'?'Instalar e reiniciar':'Atualizar Cinevo',label=button.querySelector('.sidebar-label');if(label){if(label.textContent!==updateText)label.textContent=updateText;button.dataset.sidebarLabel=updateText;button.setAttribute('aria-label',updateText);}else button.textContent=updateText;
   $('#update-transfer').hidden = !active;
   const known = info.stage === 'download' && info.total > 0;
   if (known) $('#update-progress').value = Math.min(100, info.received * 100 / info.total);

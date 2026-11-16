@@ -1,8 +1,8 @@
-# Cinevo 0.1.49 · Beta
+# Cinevo 0.1.50 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.49-beta.50/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.50-beta.51/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -19,6 +19,10 @@ O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda 
 Requisitos: Windows 10/11 x64. O motor LibVLC e seus módulos já vêm no instalador: não é necessário instalar VLC ou outro player. Arquivos incompletos, protegidos por DRM ou com formatos incomuns ainda podem falhar na reprodução.
 
 ## Recursos
+
+O modo controle mantém um destaque completo ao redor da capa e usa o direcional para trocar de filme ou de linha. **A** abre a ficha, **X** adiciona o título importado à biblioteca e **B** retorna ao menu. O menu recolhido mostra apenas ícones, com o nome da opção ao focar.
+
+A tela de downloads inclui busca por título, filtros com contagem, ordenação, resumo de espaço restante e ações secundárias em **Mais ações**. As opções da origem são limitadas a destinos de download reconhecidos; recomendações e páginas de outros filmes não são listadas como arquivos.
 
 A interface usa painéis de vidro, bordas suaves e iluminação ambiente em violeta e rosa. O fundo é feito com gradientes locais e anima apenas transformações; não baixa novas imagens nem grava cache para esse efeito. O movimento pausa quando o app perde o foco, fica oculto ou mostra o player da TV. A intensidade acompanha o brilho do perfil, e a preferência do sistema por movimento reduzido desativa a animação. Navegadores sem suporte ao desfoque recebem painéis sólidos.
 
@@ -134,7 +138,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.49-beta.50
+./scripts/build.ps1 -Version 0.1.50-beta.51
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.
@@ -182,3 +186,5 @@ A tela inicial usa o perfil selecionado para as fileiras Continue assistindo e P
 O botão Recolher menu libera espaço para as capas, mantém rótulos e ícones acessíveis e salva a preferência no PC. A expansão e o retorno das capas usam View Transitions quando disponíveis; movimento reduzido e navegadores sem suporte usam a abertura simples.
 
 No player Windows e no modo TV, o próximo episódio disponível é iniciado após uma contagem de 10 segundos ao terminar. Cancelar mantém a sessão no episódio atual. Na TV, sair do player, mudar de perfil ou ocultar a página interrompe a contagem. No Windows, volume e tela cheia são mantidos ao avançar. A reprodução na TV continua sujeita aos formatos aceitos pelo navegador.
+
+A publicação em `main` gera a release Beta usando a versão do projeto, cria a tag correspondente e envia os instaladores verificados. A fila de publicação é única; versões já publicadas com todos os arquivos não são recriadas. O gatilho por tag e a execução manual continuam disponíveis.

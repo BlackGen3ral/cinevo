@@ -1,7 +1,6 @@
-- A navegação pelo controle de videogame foi reformulada: foco na janela à frente, retorno à capa selecionada, deslocamento mais estável entre fileiras e exclusão de botões ocultos ou desativados.
-- Analógico com zona morta, direção estabilizada e pausa antes da repetição. A e B executam uma ação por toque; voltar fecha uma janela por vez. Os comandos ficam suspensos quando o Cinevo perde o foco.
-- Teclado na tela e seleção de filtros pelo controle. Pressione A no campo ou filtro, navegue com o direcional e use B para cancelar.
-- Foto de perfil no canto superior abre a página pessoal, com filmes e séries em andamento, concluídos e abandonados. A página inclui busca, filtros, contadores, progresso, registros e episódios por temporada.
-- Troca e remoção da foto no PC. A imagem é reduzida para 256 × 256, e cada pessoa mantém apenas um JPEG; nenhuma foto é enviada para a conta ou incluída no catálogo sincronizado.
-- Acompanhamento manual na ficha do título. Abandonar preserva o ponto salvo e retira o título do Continuar assistindo. Novas reproduções retomam o acompanhamento; concluir uma série considera os episódios conhecidos da biblioteca.
-- Histórico anterior aproveitado sem inventar datas, preservado ao retirar títulos da biblioteca e consultável pela TV pareada, respeitando cada perfil. Os registros detalhados permanecem neste PC da central.
+- Corrigida a sobreposição de capas no modo controle. O destaque agora envolve o cartão inteiro, mantém o brilho animado e respeita o tamanho das capas e a preferência de movimento reduzido.
+- O direcional percorre filmes da mesma linha e sobe ou desce entre linhas. A abre a ficha, X adiciona o título importado à biblioteca e B retorna ao menu lateral; voltar do menu recupera a última capa selecionada.
+- Menu recolhido com ícones próprios, alinhamento uniforme e nome da opção ao focar ou passar o mouse. O botão de atualização também preserva o ícone ao mudar de estado.
+- Tela de downloads reorganizada: busca por título, filtros com contagem, ordenação por fila, progresso, velocidade ou nome, resumo do espaço restante e cartões com ações principais e menu de ações adicionais.
+- Opções de download com cartões por fonte, rótulo da qualidade e indicação de torrent, arquivo ou link. Ajustada a opção de escolher arquivos antes de baixar.
+- Corrigida a inclusão de filmes aleatórios nas opções: recomendações, navegação, rodapés e links para páginas de outros títulos são descartados. O app também filtra respostas anteriores do portal antes de exibir as opções.

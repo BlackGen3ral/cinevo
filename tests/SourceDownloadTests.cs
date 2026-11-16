@@ -39,6 +39,19 @@ internal static class SourceDownloadTests
         if (options.Count != 2 || options[0].Kind != "torrent" || options[0].Label != "1080p" ||
             options[0].Url.Contains("&amp;") || options[1].Kind != "file" || options[1].Url != "https://example.org/video.mp4")
             throw new Exception("A consulta local não preservou as opções públicas de download.");
+        var recommendations=$"""
+            <div class="content-sidebar-wrap"><main><article><a href="{magnet}">1080p</a><a download href="/licensed.mp4">Baixar o filme selecionado</a>
+            <a href="https://files.example.net/item/123">Baixar 720p · Dual Áudio</a>
+            <a href="/outro-filme">Outro filme (2026) Dublado Download</a><a href="/outro-filme">Baixar</a>
+            <a href="https://outro-site.example.net/filme/sem-relacao">Série aleatória 2ª Temporada Download</a>
+            <div class="related-posts"><div><a href="magnet:?xt=urn:btih:{new string('b',40)}">2160p</a></div></div>
+            </article></main></div><aside><a download href="/wrong.mp4">1080p</a></aside><footer><a href="https://files.example.net/other">Download</a></footer>
+            """;
+        var filtered=SourceDownloads.Parse(recommendations,new Uri("https://example.org/film"));
+        if(filtered.Count!=3||filtered.Any(o=>o.Url.Contains("outro")||o.Url.Contains("wrong")||o.Url.Contains(new string('b',40))))throw new Exception("Recomendações e páginas de outros filmes não são opções de download");
+        var stale=SourceDownloads.FilterOptions([new("https://site.example/filme/serie-aleatoria","Série aleatória 2ª Temporada Download","link"),new("https://example.org/outro-filme","Baixar","link"),new("https://files.example.net/file/123","Baixar 1080p","link")],"https://example.org/film");
+        if(stale.Count!=1||!stale[0].Url.Contains("files.example.net"))throw new Exception("Respostas antigas do portal também precisam rejeitar páginas de filmes aleatórios");
+        if(SourceDownloads.Parse("<div class='related-posts'>"+dynamicHtml+"</div>",new Uri("https://example.org/film")).Count!=0)throw new Exception("Botões de recomendações não podem entrar na seleção");
         Console.WriteLine("PASS: consulta local com magnet, resolução, entidades, arquivo direto, duplicatas e links inválidos.");
     }
 }
