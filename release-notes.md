@@ -1,8 +1,7 @@
-- Filtros combinados por gênero, duração, nota TMDB ou informada, resolução, idioma e coleção.
-- Identificação de possíveis duplicados por título, ano e episódio, sem excluir arquivos.
-- Correção de título, ano, série, temporada e episódio; escolha da ficha e capa correta pelo endereço do TMDB.
-- Coleções pessoais editáveis na ficha de cada título.
-- Prioridade na fila, limite global de velocidade e quantidade de downloads simultâneos no qBittorrent.
-- Agendamento de início por transferência, com Cinevo e qBittorrent abertos.
-- Consulta de metadados antes do download e seleção de arquivos ou episódios no qBittorrent 5 ou superior.
-- Painel de armazenamento com tamanho dos vídeos, capas e pacotes temporários, e limpeza selecionável de caches sem uso.
+- Contas opcionais com nome de usuário e senha; biblioteca, favoritos e progresso sincronizados entre PCs conectados.
+- Sincronização automática a cada 30 segundos, com alterações offline preservadas e combinação por campo para evitar sobrescrever mudanças independentes.
+- Central TV na rede privada com pareamento por código, sessões limitadas e opção de desconectar todos os aparelhos.
+- Interface TV com botões grandes, foco visível, navegação por setas, controle remoto e controles de videogame no PC.
+- Sons suaves de navegação e seleção, com opção para desligar.
+- Reprodução na TV de arquivos do PC e vídeos online diretos disponíveis, com HTTP Range e retomada do ponto salvo. A compatibilidade depende do navegador; não há conversão de formatos nesta versão.
+- Vídeos, caminhos de pastas e credenciais de outros serviços permanecem no computador.

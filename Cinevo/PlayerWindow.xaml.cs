@@ -14,6 +14,7 @@ public partial class PlayerWindow : Window
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     private bool updating, seeking, resumed, tracksLoaded, externalSubtitleLoaded, fullscreen, closed, teardownStarted, teardownFinished;
     private long lastSaved;
+    private long lastCapturedTime = -1;
     private int knownSubtitleCount = -1;
     private WindowState previousState;
     public PlayerWindow(Movie movie, Action save, bool hasNext = false)
@@ -65,7 +66,7 @@ public partial class PlayerWindow : Window
         if (!seeking) { Timeline.Maximum = Math.Max(1, length); Timeline.Value = Math.Clamp(engine.Time, 0, Timeline.Maximum); }
         Elapsed.Text = TimeText(engine.Time); Total.Text = TimeText(length); updating = false;
         if (!tracksLoaded || engine.Tracks(false).Count != knownSubtitleCount) { LoadTracks(); tracksLoaded = engine.Tracks(true).Any(track => track.Id >= 0); }
-        if (Environment.TickCount64 - lastSaved > 10000) { CaptureProgress(); save(); lastSaved = Environment.TickCount64; }
+        if (state == 3 && Environment.TickCount64 - lastSaved > 10000) { CaptureProgress(); save(); lastSaved = Environment.TickCount64; }
     }
     private void LoadTracks()
     {
@@ -82,8 +83,8 @@ public partial class PlayerWindow : Window
         SubtitleTracks.SelectedItem = subtitles.FirstOrDefault(t => t.Id == engine.CurrentSubtitleTrack) ?? subtitles[0];
         updating = false;
     }
-    private void CaptureProgress() { if (engine == null || engine.State is not (3 or 4)) return; movie.DurationMilliseconds = Math.Max(0, engine.Length); movie.ResumeMilliseconds = Math.Max(0, engine.Time); if (movie.DurationMilliseconds > 0 && movie.ResumeMilliseconds >= movie.DurationMilliseconds * .95) { movie.Watched = true; movie.ResumeMilliseconds = 0; } }
-    private void Pause_Click(object sender, RoutedEventArgs e) { if (engine == null) return; if (engine.State == 6) { engine.Open(movie.IsOnline&&!movie.HasLocalFile?movie.StreamUrl:movie.Path, Video.VideoHandle); resumed = true; timer.Start(); } else engine.Pause(engine.State != 4); }
+    private void CaptureProgress() { if (engine == null || engine.State is not (3 or 4) || engine.Time == lastCapturedTime) return; lastCapturedTime = engine.Time; movie.DurationMilliseconds = Math.Max(0, engine.Length); movie.ResumeMilliseconds = Math.Max(0, engine.Time); if (movie.DurationMilliseconds > 0 && movie.ResumeMilliseconds >= movie.DurationMilliseconds * .95) { movie.Watched = true; movie.ResumeMilliseconds = 0; } }
+    private void Pause_Click(object sender, RoutedEventArgs e) { if (engine == null) return; if (engine.State == 6) { engine.Open(movie.IsOnline&&!movie.HasLocalFile?movie.StreamUrl:movie.Path, Video.VideoHandle); resumed = true; timer.Start(); } else { if(engine.State == 3) { CaptureProgress(); save(); } engine.Pause(engine.State != 4); } }
     private void Back_Click(object sender, RoutedEventArgs e) => Close();
     private void BackTen_Click(object sender, RoutedEventArgs e) => Seek(-10000);
     private void ForwardTen_Click(object sender, RoutedEventArgs e) => Seek(10000);

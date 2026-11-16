@@ -17,6 +17,7 @@ public sealed class Movie : INotifyPropertyChanged
     public List<string> Collections { get; set; } = [];
     public double UserScore { get; set; }
     public string Notes { get; set; } = "";
+    public string CloudId { get; set; } = "";
     public string PortalId { get; set; } = "";
     public string PortalCoverUrl { get; set; } = "";
     public string SourceUrl { get; set; } = "";
@@ -32,7 +33,7 @@ public sealed class Movie : INotifyPropertyChanged
     public string TmdbUrl { get; set; } = "";
     public string CustomSynopsis { get; set; } = "";
     public bool ImportedOnly { get; set; }
-    [System.Text.Json.Serialization.JsonIgnore] public bool IsOnline => PortalId.Length > 0 || IsTmdbImport;
+    [System.Text.Json.Serialization.JsonIgnore] public bool IsOnline => PortalId.Length > 0 || IsTmdbImport || CloudId.Length>0 && (SourceUrl.Length>0 || StreamUrl.Length>0);
     public bool IsTmdbImport { get; set; }
     [System.Text.Json.Serialization.JsonIgnore] public bool HasLocalFile => Path.Length > 0 && File.Exists(Path);
     private string cover = "";
@@ -67,6 +68,7 @@ public sealed class Library
     public List<Movie> Movies { get; set; } = [];
     public List<CatalogSource> CatalogSources { get; set; } = [];
     public HashSet<string> RemovedPaths { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public bool EnableTv { get; set; }
     public bool AutoUpdate { get; set; } = true;
     public bool AutoCovers { get; set; } = true;
     public static string DataDirectory => Environment.GetEnvironmentVariable("CINEVO_TEST_DATA") is { Length: > 0 } testDirectory ? System.IO.Path.GetFullPath(testDirectory) : System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Cinevo");

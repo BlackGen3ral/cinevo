@@ -1,3 +1,5 @@
+export {AccountStore} from './accounts.mjs';
+import {accountApi} from './accounts.mjs';
 import {importCatalog,ImportError,boundedText,fetchPublic,loadDownloads} from './importer.mjs';
 import html from './index.html';
 const security={'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cache-Control':'no-store','Permissions-Policy':'camera=(), microphone=(), geolocation=()'};
@@ -14,6 +16,7 @@ export default {async fetch(request,env){
   if(url.pathname==='/robots.txt')return new Response('User-agent: *\nDisallow: /',{headers:{'Content-Type':'text/plain'}});
   if(!url.pathname.startsWith('/api/'))return json({error:'Página não encontrada.'},404);
   const origin=request.headers.get('Origin');if(origin&&origin!==url.origin)return json({error:'Origem inválida.'},403);
+  if(url.pathname.startsWith('/api/account/'))return await accountApi(request,env,json);
   if(url.pathname==='/api/session'&&request.method==='POST'){
    let body;try{body=JSON.parse(await boundedText(request,512));}catch{throw new ImportError('Conexão inválida.');}
    if(!/^[a-f0-9]{64}$/.test(body.connection||''))throw new ImportError('Conexão inválida.');

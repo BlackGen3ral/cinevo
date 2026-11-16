@@ -29,6 +29,8 @@ try {
  await CoverTests.Run(root);
  await TmdbTests.Run();
  await TorrentControlTests.Run();
+ AccountModelTests.Run();
+ await TvWebTests.Run(root);
  await PortalTests.Run(root);
  await CatalogWatchTests.Run();
  Environment.SetEnvironmentVariable("CINEVO_TEST_DATA", Path.Combine(root, "profile"));

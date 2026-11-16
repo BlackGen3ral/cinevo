@@ -197,7 +197,7 @@ public partial class MainWindow
         }
         return new
         {
-            id, movie.Title, movie.Year, movie.Genre, movie.Resolution, movie.Language, movie.Collections, movie.DurationMilliseconds, movie.UserScore, description = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description, movie.Favorite, movie.Watched,
+            id, movie.Title, movie.Year, movie.Genre, movie.Resolution, movie.Language, movie.Collections, movie.DurationMilliseconds, movie.ResumeMilliseconds, movie.UserScore, description = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description, movie.Favorite, movie.Watched,
             site = movie.IsOnline ? SourceSite(movie) : "",
             mediaType = kind.Type,
             seriesTitle = kind.Series,
@@ -296,6 +296,8 @@ public partial class MainWindow
                 .Where(RemoteFiles.IsPublicHttps).Distinct(StringComparer.Ordinal)
                 .OrderBy(address => address, StringComparer.OrdinalIgnoreCase).ToArray();
         }
+        if (command.Name.StartsWith("account-", StringComparison.Ordinal)) return await AccountActionAsync(command);
+        if (command.Name.StartsWith("tv-", StringComparison.Ordinal)) return await TvActionAsync(command);
         if (command.Name.StartsWith("smart-", StringComparison.Ordinal)) return await SmartActionAsync(command);
         if (command.Name.StartsWith("settings-", StringComparison.Ordinal)) return await WebSettingsAsync(command);
         if (command.Name.StartsWith("torrent-", StringComparison.Ordinal)) return await TorrentActionAsync(command);

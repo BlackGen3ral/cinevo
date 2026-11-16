@@ -15,7 +15,7 @@ const entry=(await readFile(new URL('../worker.mjs',import.meta.url),'utf8'))
  .replace("import html from './index.html';",'const html='+JSON.stringify(html)+';')
  .replace('await importCatalog(data.url,{catalogPage:data.continuation===true})','await importCatalog(data.url,{catalogPage:data.continuation===true,validate:async()=>{},fetcher:fixtureFetch})')
  .replace('await loadDownloads(data.url)','await loadDownloads(data.url,{validate:async()=>{},fetcher:fixtureFetch})')+fixture;
-const harness=`import worker,{fixtureFetch} from './worker.mjs';import {parsePage,importAddress,publicUrl,publicIp,fetchPublic,importCatalog,downloadOptions} from './importer.mjs';
+const harness=`export {AccountStore} from './worker.mjs';import worker,{fixtureFetch} from './worker.mjs';import {parsePage,importAddress,publicUrl,publicIp,fetchPublic,importCatalog,downloadOptions} from './importer.mjs';
 const card=(n)=>'<a href="/filmes/'+n+'"><img src="/'+n+'.jpg" alt="Filme '+n+'"></a>';
 const catalog=async address=>{const page=Number(new URL(address).searchParams.get('page')||1);const html='<title>Catálogo</title>'+card(page)+(page<6?'<a rel="next" href="?page='+(page+1)+'">Próximo</a>':'');return new Response(html,{headers:{'content-type':'text/html'}});};
 const base='https://catalog.example.org/filmes';
@@ -39,7 +39,7 @@ if(u.pathname==='/__quality'){
 }
 if(u.pathname==='/__options')return Response.json(await downloadOptions('<a href="magnet:?xt=urn:btih:'+'a'.repeat(40)+'&amp;dn=Demo">1080p | 4.50 GB | Dual Áudio</a><a href="/demo.mp4" download>720p</a><a href="/filmes/other">Outro filme</a>',base));
 `;
-const mf=new Miniflare({compatibilityDate:'2026-07-30',modules:[{type:'ESModule',path:'harness.mjs',contents:harness+handler.replace('return worker.fetch(request,env);',checks+'return worker.fetch(request,u.pathname==="/api/downloads"?{}:env);')},{type:'ESModule',path:'worker.mjs',contents:entry},{type:'ESModule',path:'importer.mjs',contents:await readFile(new URL('../importer.mjs',import.meta.url),'utf8')}],bindings:{AUTH_HASH:createHash('sha256').update(key).digest('hex')},d1Databases:{DB:'test-db'}});
+const mf=new Miniflare({compatibilityDate:'2026-07-30',modules:[{type:'ESModule',path:'harness.mjs',contents:harness+handler.replace('return worker.fetch(request,env);',checks+'return worker.fetch(request,u.pathname==="/api/downloads"?{}:env);')},{type:'ESModule',path:'worker.mjs',contents:entry},{type:'ESModule',path:'importer.mjs',contents:await readFile(new URL('../importer.mjs',import.meta.url),'utf8')},{type:'ESModule',path:'accounts.mjs',contents:await readFile(new URL('../accounts.mjs',import.meta.url),'utf8')}],bindings:{AUTH_HASH:createHash('sha256').update(key).digest('hex')},d1Databases:{DB:'test-db'},durableObjects:{ACCOUNTS:{className:'AccountStore',useSQLite:true}}});
 after(()=>mf.dispose());const db=await mf.getD1Database('DB');await db.exec(await readFile(new URL('../schema.sql',import.meta.url),'utf8'));const headers={Authorization:'Bearer '+key,'Content-Type':'application/json'};
 async function parse(markup){const response=await mf.dispatchFetch('https://portal.test/__parse',{method:'POST',body:JSON.stringify({html:markup,url:'https://movies.public-domain.org/film/demo'})});assert.equal(response.status,200);return response.json();}
 test('OpenGraph, HTML video and explicitly offered download',async()=>{const [item]=await parse('<title>Demo film</title><meta property="og:image" content="/poster.jpg"><meta name="description" content="A description"><video><source src="https://media.w3.org/demo.mp4"></video><a download href="https://media.w3.org/demo.mp4">Download</a>');assert.equal(item.title,'Demo film');assert.equal(item.coverUrl,'https://movies.public-domain.org/poster.jpg');assert.equal(item.streamUrl,'https://media.w3.org/demo.mp4');assert.equal(item.downloadUrl,item.streamUrl);});
@@ -141,4 +141,29 @@ test('download quality uses the own magnet or link label and ignores category ba
  const options=await(await mf.dispatchFetch('https://portal.test/__quality')).json();
  assert.deepEqual(options.map(({kind,label})=>[kind,label]),[['torrent','1080p'],['torrent','Qualidade não informada'],['torrent','4K'],['file','480p']]);
  assert.match(options[0].url,/&dn=Example%2E1080p%2EHEVC&tr=udp%3A%2F%2Ftracker\.example\.org$/);
+});
+async function accountRequest(route,body,token){return mf.dispatchFetch('https://portal.test/api/account/'+route,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});}
+test('accounts authenticate, revoke sessions and keep passwords out of responses',async()=>{
+ const login={username:'qa-login',password:'Uma-senha-de-teste-123'};
+ const created=await accountRequest('register',login);assert.equal(created.status,200);const auth=await created.json();assert.equal(auth.username,login.username);assert.match(auth.token,/\.[a-f0-9]{64}$/);assert.equal(auth.password,undefined);
+ assert.equal((await accountRequest('login',{...login,password:'senha-incorreta-123'})).status,401);
+ const logged=await accountRequest('login',login);assert.equal(logged.status,200);const token=(await logged.json()).token;
+ assert.equal((await accountRequest('me',null,token)).status,200);
+ assert.equal((await accountRequest('logout',{},token)).status,200);
+ assert.equal((await accountRequest('me',null,token)).status,401);
+
+});
+test('account synchronization isolates owners, rejects stale writes and excludes personal paths',async()=>{
+ const a=await(await accountRequest('register',{username:'qa-owner-a',password:'Senha-de-teste-12345'})).json();
+ const b=await(await accountRequest('register',{username:'qa-owner-b',password:'Senha-de-teste-67890'})).json();
+ const title={title:'Filme de teste',year:'2020',genre:'Drama',seriesTitle:'',sourceUrl:'',streamUrl:'',coverUrl:'',tmdbUrl:'',member:true,favorite:false,watched:false,resume:45000,duration:3600000,season:0,episode:0,path:'C:/privado/video.mp4',password:'Nunca sincronizar'};
+ const id='a'.repeat(64);let saved=await(await accountRequest('titles',{items:[{id,data:title,version:0}]},a.token)).json();assert.equal(saved.items[0].version,1);
+ const other=await(await accountRequest('titles',null,b.token)).json();assert.equal(other.items.length,0);
+ const own=await(await accountRequest('titles',null,a.token)).json();assert.equal(own.items[0].data.resume,45000);assert.equal(own.items[0].data.path,undefined);assert.equal(own.items[0].data.password,undefined);
+ const changes=await Promise.all([true,false].map(favorite=>accountRequest('titles',{items:[{id,data:{...title,favorite},version:1}]},a.token).then(r=>r.json())));
+ assert.equal(changes.filter(r=>r.items[0].conflict).length,1);
+ const final=await(await accountRequest('titles',null,a.token)).json();assert.equal(final.items[0].version,2);
+ assert.equal((await accountRequest('titles',{items:[{id,data:{...title,streamUrl:'https://192.168.1.1/video.mp4'},version:2}]},a.token)).status,400);
+ assert.equal((await accountRequest('delete',{password:'Senha-de-teste-12345'},a.token)).status,200);assert.equal((await accountRequest('me',null,a.token)).status,401);
+ const anonymous=await mf.dispatchFetch('https://portal.test/api/account/titles',{headers});assert.equal(anonymous.status,401);
 });

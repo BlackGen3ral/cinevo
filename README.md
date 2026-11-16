@@ -1,8 +1,8 @@
-# Cinevo 0.1.42 · Beta
+# Cinevo 0.1.43 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.42-beta.43/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.43-beta.44/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -106,7 +106,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.42-beta.43
+./scripts/build.ps1 -Version 0.1.43-beta.44
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.
@@ -128,3 +128,13 @@ Na ficha de um título, **Corrigir identificação / coleções** permite editar
 Em Downloads, **Fila e velocidade** altera os limites globais do qBittorrent. **Organizar / episódios** oferece prioridade, início agendado e seleção de arquivos. Para selecionar antes de baixar, marque essa opção ao adicionar o magnet: requer qBittorrent 5+, consulta os metadados e aguarda a escolha dos arquivos. O agendamento de início é persistido no Cinevo e executado a cada 30 segundos enquanto Cinevo e qBittorrent estiverem abertos.
 
 **Armazenamento** contabiliza os vídeos da biblioteca sem contar o mesmo caminho duas vezes, capas e pacotes temporários. A limpeza é restrita a capas sem referência e instaladores antigos na pasta de dados do Cinevo. Vídeos, legendas, capas referenciadas, downloads parciais e a atualização pendente são preservados.
+
+### Contas e TV (Beta)
+
+Abra **Conta e TV** no menu lateral. Criar ou conectar uma conta é opcional. A conta usa nome de usuário e senha de pelo menos 12 caracteres; nesta Beta não há recuperação por e-mail. São sincronizados os títulos adicionados à biblioteca, favoritos e progresso. Arquivos de vídeo, caminhos de pastas, anotações pessoais e credenciais de outros serviços não são enviados. Alterações feitas offline aguardam conexão. A sincronização ocorre a cada 30 segundos.
+
+Para usar a TV, ative a central e abra o endereço mostrado no navegador da TV, na mesma rede privada. Digite o código de 6 dígitos (válido por 5 minutos). O PC deve permanecer ligado com o Cinevo aberto. A central usa a porta 39876 e lembra a ativação; o botão Desativar central revoga as sessões dos aparelhos. No primeiro acesso, o Windows pode pedir permissão para a rede privada.
+
+O modo TV tem botões grandes, foco visível, navegação por setas/OK e controle remoto. No PC, o link **Abrir modo TV neste PC** permite usar controles padrão reconhecidos pelo navegador: direcional ou analógico esquerdo, A para selecionar, B para voltar e Start para pausar/continuar. Sons suaves podem ser desligados e não tocam automaticamente antes de interação. Não há downloads de pacotes de sons.
+
+Os vídeos locais são enviados diretamente pelo PC à TV com suporte a HTTP Range; vídeos online diretos continuam na origem. O player salva o progresso a cada 5 segundos e ao pausar/sair. Esta versão não converte formatos; codecs, faixas de áudio e legendas dependem do navegador da TV. A validação automatizada usa navegador no PC e controle simulado; não substitui o teste na TV física.

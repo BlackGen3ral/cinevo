@@ -35,11 +35,13 @@ public partial class MainWindow : Window
     internal async void Start()
     {
         StartDownloadSchedule();
+        StartAccountSync();
         var webStartup = OpenWebAsync();
         _ = Task.Run(() => PortalCoverCache.TrimAsync(Path.Combine(Library.DataDirectory, "covers")));
         if (Updater.IsInstalled) _ = Task.Run(Updater.CleanInstalledUpdatesAsync);
         var update = library.AutoUpdate && Updater.IsInstalled ? CheckUpdate(false) : Task.CompletedTask;
         await webStartup;
+        if(library.EnableTv)try{await TvActionAsync(new("tv-start",null,null,false));}catch(Exception){Status.Text="A central TV não pôde iniciar. Confira Conta e TV.";}
         if (!closed && !webShown) { Show(); Activate(); }
         if (closed) return;
         await SyncPortalAsync(false);
@@ -316,7 +318,7 @@ public partial class MainWindow : Window
     {
         scan?.Cancel();
         closed = true; lifetime.Cancel();
-        web?.Stop();
+        web?.Stop(); tv?.Stop();
         if (webWindow is { HasExited: false }) webWindow.CloseMainWindow();
     }
 }
