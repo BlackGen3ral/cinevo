@@ -24,7 +24,7 @@ public partial class MainWindow
                     var result=new List<Movie>();
                     foreach(var file in files.Where(f=>f.Progress>=1&&f.Priority>0)){
                         var path=VideoPath(torrent,file);if(path==null||!known.Add(path))continue;
-                        var (title,year)=Scanner.Parse(path);result.Add(new Movie{Title=title,Year=year,Path=path,Bytes=file.Size});
+                        var (title,year)=Scanner.Parse(path);result.Add(new Movie{Title=title,Year=year,Path=path,Bytes=file.Size,DownloadedAt=DateTime.UtcNow});
                     }
                     return result;
                 },lifetime.Token);

@@ -21,6 +21,7 @@ public partial class MainWindow
                 (operation,id,profile)=>Dispatcher.InvokeAsync(async()=>{
                     if(operation=="profiles")return (object?)ProfilesInfo();
                     if(id==null||!webMovies.TryGetValue(id,out var m)||m.ImportedOnly)throw new InvalidDataException("Série indisponível.");
+                    if(operation=="next"){var following=ImportedTitle.NextEpisode(m,library.Movies.Where(v=>!v.ImportedOnly));return following==null?null:WebMovieFor(following,CheckViewer(string.IsNullOrEmpty(profile)?null:profile));}
                     if(operation=="series")return SeriesHub(id,CheckViewer(string.IsNullOrEmpty(profile)?null:profile),true);
                     return await SeriesActionAsync(new("series-season",id,null,false));
                 }).Task.Unwrap(),ReadSeasonPosterAsync);

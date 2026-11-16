@@ -54,6 +54,7 @@ internal sealed class TvWeb(Func<string,int,string?,Task<object>> catalog,Func<s
             context.Response.Cookies.Append("cinevo_tv",session,new CookieOptions{HttpOnly=true,SameSite=SameSiteMode.Strict,MaxAge=TimeSpan.FromHours(12),Path="/"});Rotate();return Results.Json(new{ok=true});
         });
         app.MapGet("/api/profiles",async()=>extra==null?Results.NotFound():Results.Json(await extra("profiles",null,null)));
+        app.MapGet("/api/next/{id}",async(string id,string? profile)=>extra==null?Results.NotFound():Results.Json(await extra("next",id,profile)));
         app.MapGet("/api/series/{id}",async(string id,string? profile)=>extra==null?Results.NotFound():Results.Json(await extra("series",id,profile)));
         app.MapPost("/api/season/{id}",async(string id,string? profile)=>extra==null?Results.NotFound():Results.Json(await extra("season",id,profile)));
         app.MapGet("/api/season-cover/{id}",async(string id)=>seasonCover!=null&&await seasonCover(id) is {} bytes?Results.Bytes(bytes,bytes[0]==0xff?"image/jpeg":"image/png"):Results.NotFound());

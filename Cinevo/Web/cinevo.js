@@ -183,7 +183,7 @@ function movieCard(movie) {
   const open = node('button', 'poster-button');
   open.type = 'button';
   open.title = movie.title;
-  open.onclick = () => showDetails(movie);
+  open.onclick = () => openWithCover(movie,open.querySelector('img'));
   const art = node('span', 'poster', movie.title[0]?.toUpperCase() || 'C');
   const image = poster(movie);
   if (image) { art.append(image); imageObserver.observe(image); }
@@ -407,7 +407,10 @@ function render(data) {
     renderShelf(id, title, movies, rail, visibleShelves.size);
     visibleShelves.add(id);
   }
+  $('#profile-home').hidden=!home;$('#profile-home').textContent=home?'Sua sessão, '+(data.viewerName||'Principal')+'.':'';
   if (home && data.returning?.length) showShelf('returning', 'Continue assistindo', data.returning, true);
+  if (home && data.nextEpisodes?.length) showShelf('next-episodes','Próximo episódio',data.nextEpisodes,true);
+  if (home && data.recentDownloads?.length) showShelf('recent-downloads','Recém-baixados · prontos no PC',data.recentDownloads,true);
   if (home && data.favorites?.length) showShelf('favorites', 'Seus favoritos', data.favorites, true);
   if (home && state.movies.length > 1) showShelf('recent', 'Adicionados recentemente', state.movies.slice(0, 12), true);
   if (state.movies.length) {
@@ -484,6 +487,7 @@ function showDetails(movie, episode = false) {
   }
   const header = node('div', 'detail-header');
   header.append(artwork, introduction);
+  addCinematicArt(movie,header,false);
   const information = node('div', 'detail-information');
   const story = node('div', 'detail-story');
   const synopsis = node('section', 'detail-synopsis');
@@ -548,6 +552,7 @@ function showDetails(movie, episode = false) {
       citation.rel = 'noopener noreferrer';
       synopsis.append(citation);
     }
+    if(details?.tmdb?.backdrop)addCinematicArt(movie,header,true);
     if (details?.tmdb) renderTmdb(credits, introduction, synopsis, details.tmdb, details.tmdbSynopsis, movie);
     else if (details?.tmdbState && details.tmdbState !== 'disconnected')
       renderTmdbStatus(credits, movie, details.tmdbState, details.tmdbError);

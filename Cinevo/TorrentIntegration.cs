@@ -165,7 +165,7 @@ public partial class MainWindow
                 var videoPath = VideoPath(torrent, video);
                 if (videoPath == null || library.Movies.Any(item => item.Path.Equals(videoPath, StringComparison.OrdinalIgnoreCase))) continue;
                 var (title, year) = Scanner.Parse(videoPath);
-                var entry = new Movie { Title = title, Year = year, Path = videoPath, Bytes = video.Size };
+                var entry = new Movie { Title = title, Year = year, Path = videoPath, Bytes = video.Size, DownloadedAt=DateTime.UtcNow };
                 added.Add(entry); library.Movies.Add(entry);
             }
             try { library.Save(); }

@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 namespace Cinevo;
 
 internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, Task<object>> catalog, Func<WebAction, Task<object?>> action,
-    Func<string, Task<byte[]?>> cover, Func<Task<object>> status,Func<string,Task<byte[]?>>? seasonCover=null)
+    Func<string, Task<byte[]?>> cover, Func<Task<object>> status,Func<string,Task<byte[]?>>? seasonCover=null,Func<string,Task<byte[]?>>? backdrop=null)
 {
     private readonly string key = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     private WebApplication? app;
@@ -62,6 +62,7 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
         MapAsset("/cinevo.css", "cinevo.css", "text/css; charset=utf-8");
         MapAsset("/cinevo.js", "cinevo.js", "application/javascript; charset=utf-8");
         MapAsset("/downloads.js", "downloads.js", "application/javascript; charset=utf-8");
+        MapAsset("/cinema.js", "cinema.js", "application/javascript; charset=utf-8");
         MapAsset("/features.js", "features.js", "application/javascript; charset=utf-8");
         MapAsset("/account.js", "account.js", "application/javascript; charset=utf-8");
         MapAsset("/controller.js", "controller.js", "application/javascript; charset=utf-8");
@@ -80,6 +81,8 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
         });
         app.MapGet("/api/catalog", async (string? section, string? search, int? page, int? limit, string? site, string? type) =>
             Results.Json(await catalog(section ?? "library", search ?? "", Math.Clamp(page ?? 1, 1, 100000), Math.Clamp(limit ?? 30, 1, 60), site, type)));
+        app.MapGet("/api/backdrop/{id}",async(string id)=>backdrop!=null&&await backdrop(id) is {} bytes?Results.Bytes(bytes,ImageType(bytes)):Results.NotFound());
+        app.MapGet("/api/backdrop/{id}",async(string id)=>backdrop!=null&&await backdrop(id) is {} bytes?Results.Bytes(bytes,ImageType(bytes)):Results.NotFound());
         app.MapGet("/api/season-cover/{id}",async(string id)=>seasonCover!=null&&await seasonCover(id) is {} bytes?Results.Bytes(bytes,ImageType(bytes)):Results.NotFound());
         app.MapGet("/api/cover/{id}", async (string id) =>
             await cover(id) is { } data ? Results.Bytes(data, ImageType(data)) : Results.NotFound());

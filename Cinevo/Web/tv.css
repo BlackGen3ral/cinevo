@@ -3,3 +3,6 @@
 @keyframes tv-focus-glow{0%,100%{box-shadow:0 0 0 3px #fff,0 0 28px #ff719b66,0 0 65px #aa8fff33}50%{box-shadow:0 0 0 3px #fff,0 0 40px #ff719baa,0 0 85px #aa8fff66}}
 @media(prefers-reduced-motion:no-preference){button{transition:transform .24s cubic-bezier(.22,1,.36,1),background-color .2s,box-shadow .2s}.movie:focus{transform:translateY(-5px) scale(1.025);animation:tv-focus-glow 2.4s ease-in-out infinite;z-index:1;position:relative}.tv-overlay{animation:tv-sheet .26s ease-out}@keyframes tv-sheet{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+#auto-next{display:flex;align-items:center;justify-content:space-between;gap:20px;position:absolute;bottom:23%;right:4%;max-width:700px;padding:18px 22px;border:1px solid #ebc1db66;background:#211d2bf5;border-radius:16px;box-shadow:0 15px 60px #0009}#auto-next p{font-size:20px;color:#fff;margin:0}
+
+#tv-home h2{font-size:23px;font-weight:500;margin:25px 0 12px}.tv-home-rail{display:flex;overflow:auto;gap:10px;padding:8px 4px 16px}.tv-home-card{min-width:250px;max-width:430px;font-size:19px;text-align:left;background:linear-gradient(120deg,#302438,#202b3f);white-space:normal}

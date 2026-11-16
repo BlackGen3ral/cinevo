@@ -9,6 +9,8 @@ public sealed class Movie : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Changed([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new(name));
     public Dictionary<string,ViewingState> Viewers { get; set; } = [];
+    public DateTime? DownloadedAt { get; set; }
+    public string BackdropKey { get; set; } = "";
     public string SeasonPoster { get; set; } = "";
     public string Path { get; set; } = "";
     public string Title { get; set; } = "";
@@ -74,6 +76,7 @@ public sealed class Library
     public HashSet<string> RemovedPaths { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public bool AutoImportDownloads { get; set; } = true;
     public string MediaFolder { get; set; } = "";
+    public bool SidebarCollapsed { get; set; }
     public bool EnableTv { get; set; }
     public bool AutoUpdate { get; set; } = true;
     public bool AutoCovers { get; set; } = true;

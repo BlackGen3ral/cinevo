@@ -24,7 +24,7 @@ public partial class MainWindow
             {
                 case "settings-read":
                     var current = TorrentConnection.Load();
-                    return new { library.AutoUpdate, library.AutoCovers, version = Updater.CurrentVersion.ToString(),
+                    return new { library.AutoUpdate, library.AutoCovers, library.SidebarCollapsed, version = Updater.CurrentVersion.ToString(),
                         canUpdate = Updater.IsInstalled, tmdb = File.Exists(TmdbClient.CredentialPath),
                         port = current?.Port ?? 8080, username = current?.Username ?? "admin",
                         noPassword = current?.LocalWithoutPassword ?? true,
@@ -54,6 +54,8 @@ public partial class MainWindow
                             url = item.GetProperty("html_url").GetString()
                         }).ToArray();
                     }
+                case "settings-sidebar":
+                    using(var sidebar=JsonDocument.Parse(command.Address??"{}")){var previous=library.SidebarCollapsed;library.SidebarCollapsed=sidebar.RootElement.GetProperty("collapsed").GetBoolean();try{library.Save();}catch{library.SidebarCollapsed=previous;throw;}return null;}
                 case "settings-save":
                     using (var json = JsonDocument.Parse(command.Address ?? "{}"))
                     {

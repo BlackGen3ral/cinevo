@@ -1,8 +1,6 @@
-- Central de mídia adiciona automaticamente os vídeos e episódios concluídos no qBittorrent à biblioteca, com pasta padrão selecionável para os torrents.
-- Até oito perfis com favoritos, assistidos e progresso separados, preservando os dados antigos no perfil Principal.
-- Escolha independente do perfil na TV e sincronização dos perfis pela conta Cinevo.
-- Central de séries com uma ficha por série, temporadas, episódios disponíveis e indicação de onde continuar.
-- Capas de temporadas consultadas sob demanda pelo TMDB configurado; a capa disponível é usada como alternativa.
-- Interface reformulada com navegação compacta, mais espaço para as capas e remoção dos títulos grandes nas páginas.
-- Transições suaves e brilho animado no filme selecionado no modo controle, respeitando movimento reduzido.
-- Novidades com ícone para cada melhoria, tanto na versão atual quanto nas descrições do histórico.
+- Página inicial por perfil com continuar assistindo, próximos episódios e vídeos recém-baixados no PC.
+- Ficha cinematográfica com arte panorâmica do TMDB quando disponível, sinopse organizada e ações principais em destaque.
+- Expansão suave da capa ao abrir a ficha e retorno ao fechar, com alternativa simples quando o navegador não suporta a transição.
+- Menu lateral recolhível, com ícones, rótulos acessíveis e preferência preservada.
+- Próximo episódio automático no player do PC e no modo TV, após contagem de 10 segundos com botão para cancelar.
+- Imagens panorâmicas carregadas sob demanda, com cache limitado em memória e sem novos arquivos de imagem no disco.

@@ -132,18 +132,21 @@ public partial class MainWindow : Window
     }
     private async Task PlayEpisodesAsync(Movie movie)
     {
+        var wasFullscreen=false;double playbackVolume=80;
         while (!closed)
         {
             var next = ImportedTitle.NextEpisode(movie, library.Movies);
-            var player = new PlayerWindow(movie, () => library.Save(), next != null) { Owner = this };
+            var player = new PlayerWindow(movie, () => library.Save(), next != null,wasFullscreen,playbackVolume) { Owner = this };
             player.ShowDialog();
+            wasFullscreen=player.IsFullscreen;playbackVolume=player.CurrentVolume;
             Refresh();
             if (!player.PlayNextRequested || next == null) return;
             movie = next;
+            if(!library.Movies.Contains(movie)||(!movie.HasLocalFile&&movie.StreamUrl.Length==0)){Status.Text="O próximo episódio não está mais disponível.";return;}
             if (!movie.HasLocalFile)
             {
                 try { await RemoteFiles.ValidateAsync(movie.StreamUrl, lifetime.Token); }
-                catch (Exception ex) when (ex is IOException or System.Net.Http.HttpRequestException)
+                catch (Exception ex) when (ex is IOException or InvalidDataException or System.Net.Http.HttpRequestException or OperationCanceledException)
                 { Status.Text = "Não foi possível abrir o próximo episódio."; return; }
             }
         }

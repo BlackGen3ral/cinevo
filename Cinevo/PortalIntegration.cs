@@ -188,6 +188,6 @@ public partial class MainWindow
         var title=string.Concat(movie.Title.Select(ch=>System.IO.Path.GetInvalidFileNameChars().Contains(ch)?'_':ch));
         var dialog=new SaveFileDialog{Title="Salvar filme no PC",FileName=title+extension,Filter=$"Vídeo {extension}|*{extension}",DefaultExt=extension,AddExtension=true,OverwritePrompt=true};if(dialog.ShowDialog(owner)!=true)return;
         var download=new DownloadWindow(downloadUrl,dialog.FileName){Owner=owner};download.ShowDialog();
-        if(download.Completed){movie.Path=dialog.FileName;movie.Bytes=new FileInfo(dialog.FileName).Length;movie.Available=true;library.Save();Refresh();Status.Text="Download concluído. O filme pode ser assistido offline no Cinevo.";}
+        if(download.Completed){movie.DownloadedAt=DateTime.UtcNow;movie.Path=dialog.FileName;movie.Bytes=new FileInfo(dialog.FileName).Length;movie.Available=true;library.Save();Refresh();Status.Text="Download concluído. O filme pode ser assistido offline no Cinevo.";}
     }
 }

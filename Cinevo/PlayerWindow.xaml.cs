@@ -9,7 +9,12 @@ public partial class PlayerWindow : Window
 {
     private readonly Movie movie;
     private readonly Action save;
+    private readonly bool hasNext;
+    private readonly EpisodeCountdown countdown=new();
+    private bool ended;
     public bool PlayNextRequested { get; private set; }
+    public bool IsFullscreen=>fullscreen;
+    public double CurrentVolume=>Volume.Value;
     private VlcEngine? engine;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     private bool updating, seeking, resumed, tracksLoaded, externalSubtitleLoaded, fullscreen, closed, teardownStarted, teardownFinished;
@@ -17,13 +22,14 @@ public partial class PlayerWindow : Window
     private long lastCapturedTime = -1;
     private int knownSubtitleCount = -1;
     private WindowState previousState;
-    public PlayerWindow(Movie movie, Action save, bool hasNext = false)
+    public PlayerWindow(Movie movie, Action save, bool hasNext = false, bool startFullscreen=false, double startVolume=80)
     {
-        this.movie = movie; this.save = save; InitializeComponent();
+        this.movie = movie; this.save = save; this.hasNext=hasNext; InitializeComponent();
+        Volume.Value=Math.Clamp(startVolume,0,100);
         NextEpisodeButton.Visibility = hasNext ? Visibility.Visible : Visibility.Collapsed;
         SubtitleDelayInput.Text = (movie.SubtitleDelayMilliseconds / 1000d).ToString("0.0", System.Globalization.CultureInfo.CurrentCulture);
         MovieTitle.Text = movie.Title; Title = movie.Title + " — Cinevo";
-        Loaded += (_, _) => Start(); timer.Tick += (_, _) => Tick();
+        Loaded += (_, _) => {Start();if(startFullscreen)ToggleFullscreen();}; timer.Tick += (_, _) => Tick();
         Closing += Player_Closing;
         Closed += (_, _) => { closed = true; timer.Stop(); };
     }
@@ -51,8 +57,14 @@ public partial class PlayerWindow : Window
         if (closed || engine == null) return;
         var state = engine.State;
         if (state == 7) { PlayerStatus.Text = "Não foi possível reproduzir este arquivo. Ele pode estar incompleto ou usar um formato não suportado."; timer.Stop(); return; }
-        if (state == 6) { movie.Watched = true; movie.ResumeMilliseconds = 0; save(); PlayerStatus.Text = "Sessão concluída. Filme marcado como assistido."; PauseButton.Content = "▶  Rever"; timer.Stop(); return; }
+        if (state == 6) {
+            if(!ended){ended=true;movie.Watched=true;movie.ResumeMilliseconds=0;save();if(hasNext)countdown.Begin(DateTime.UtcNow);}
+            PlayerStatus.Text="Sessão concluída. Filme marcado como assistido.";PauseButton.Content="▶  Rever";
+            if(hasNext&&!countdown.Cancelled){AutoNextPanel.Visibility=Visibility.Visible;AutoNextText.Text=$"Próximo episódio em {countdown.Remaining(DateTime.UtcNow)} s";if(countdown.Due(DateTime.UtcNow)){PlayNextRequested=true;Close();}}
+            else timer.Stop();return;
+        }
         if (state is not (3 or 4)) { PlayerStatus.Text = "Carregando o vídeo…"; return; }
+        if(ended){ended=false;countdown.Reset();AutoNextPanel.Visibility=Visibility.Collapsed;}
         var length = engine.Length;
         if (!externalSubtitleLoaded)
         {
@@ -84,7 +96,7 @@ public partial class PlayerWindow : Window
         updating = false;
     }
     private void CaptureProgress() { if (engine == null || engine.State is not (3 or 4) || engine.Time == lastCapturedTime) return; lastCapturedTime = engine.Time; movie.DurationMilliseconds = Math.Max(0, engine.Length); movie.ResumeMilliseconds = Math.Max(0, engine.Time); if (movie.DurationMilliseconds > 0 && movie.ResumeMilliseconds >= movie.DurationMilliseconds * .95) { movie.Watched = true; movie.ResumeMilliseconds = 0; } }
-    private void Pause_Click(object sender, RoutedEventArgs e) { if (engine == null) return; if (engine.State == 6) { engine.Open(movie.IsOnline&&!movie.HasLocalFile?movie.StreamUrl:movie.Path, Video.VideoHandle); resumed = true; timer.Start(); } else { if(engine.State == 3) { CaptureProgress(); save(); } engine.Pause(engine.State != 4); } }
+    private void Pause_Click(object sender, RoutedEventArgs e) { if (engine == null) return; if (engine.State == 6) { ended=false;countdown.Reset();AutoNextPanel.Visibility=Visibility.Collapsed;engine.Open(movie.IsOnline&&!movie.HasLocalFile?movie.StreamUrl:movie.Path, Video.VideoHandle); resumed = true; timer.Start(); } else { if(engine.State == 3) { CaptureProgress(); save(); } engine.Pause(engine.State != 4); } }
     private void Back_Click(object sender, RoutedEventArgs e) => Close();
     private void BackTen_Click(object sender, RoutedEventArgs e) => Seek(-10000);
     private void ForwardTen_Click(object sender, RoutedEventArgs e) => Seek(10000);
@@ -95,6 +107,7 @@ public partial class PlayerWindow : Window
     private void Timeline_Changed(object sender, RoutedPropertyChangedEventArgs<double> e) { if (!updating && !seeking && engine != null) engine.Time = (long)e.NewValue; }
     private void Audio_Changed(object sender, SelectionChangedEventArgs e) { if (!updating && AudioTracks.SelectedItem is MediaTrack track) { engine?.AudioTrack(track.Id); movie.PreferredAudioTrack = track.Id; } }
     private void Subtitle_Changed(object sender, SelectionChangedEventArgs e) { if (!updating && SubtitleTracks.SelectedItem is MediaTrack track) { engine?.SubtitleTrack(track.Id); movie.PreferredSubtitleTrack = track.Id; } }
+    private void CancelNext_Click(object sender,RoutedEventArgs e){countdown.Cancel();AutoNextPanel.Visibility=Visibility.Collapsed;PlayerStatus.Text="Reprodução automática cancelada.";}
     private void NextEpisode_Click(object sender, RoutedEventArgs e) { PlayNextRequested = true; Close(); }
     private void SubtitleDelay_Click(object sender, RoutedEventArgs e)
     {

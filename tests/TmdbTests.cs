@@ -19,7 +19,7 @@ internal static class TmdbTests
             !TmdbClient.IsSiteUrl("https://www.themoviedb.org/?language=pt-BR") ||
             TmdbClient.RouteFromUrl("https://www.themoviedb.org/?language=pt-BR") != null ||
             await client.LookupLinkedAsync(linked, CancellationToken.None) is not
-                { Votes: 31, Title: "Filme de Teste", Year: "2024", Poster: "/filme.jpg" } ||
+                { Votes: 31, Title: "Filme de Teste", Year: "2024", Poster: "/filme.jpg", Backdrop:"/panorama.jpg" } ||
             TmdbClient.RouteFromUrl("https://themoviedb.org/tv/42-serie/season/2") != "tv/42/season/2")
             throw new Exception("O vínculo direto do TMDB precisa aceitar a ficha certa e rejeitar outros domínios.");
         handler.Series = true;
@@ -45,7 +45,7 @@ internal static class TmdbTests
                 "/3/search/multi" when Series => """{"results":[{"id":42,"media_type":"tv","name":"Série de Teste","first_air_date":"2022-02-01"}]}""",
                 "/3/search/multi" => """{"results":[{"id":41,"media_type":"movie","title":"Filme de Teste","release_date":"2024-02-01"},{"id":90,"media_type":"movie","title":"Filme de Teste","release_date":"2012-02-01","vote_count":900}]}""",
                 "/3/movie/41" => """
-                    {"title":"Filme de Teste","release_date":"2024-02-01","poster_path":"/filme.jpg",
+                    {"title":"Filme de Teste","release_date":"2024-02-01","poster_path":"/filme.jpg","backdrop_path":"/panorama.jpg",
                      "overview":"Sinopse em português.","vote_average":8.2,"vote_count":31,"runtime":106,
                      "credits":{"cast":[{"name":"Pessoa Atriz","character":"Protagonista"}],
                         "crew":[{"name":"Pessoa Diretora","job":"Director"},{"name":"Pessoa Roteirista","job":"Screenplay"}]},

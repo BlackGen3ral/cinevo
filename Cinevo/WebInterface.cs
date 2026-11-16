@@ -33,7 +33,7 @@ public partial class MainWindow
                     {
                         revision = webRevision, status = Status.Text, scanning = scan != null,
                         canUpdate = Updater.IsInstalled, update = updateProgress, updateRequested = installRequested
-                    }).Task,ReadSeasonPosterAsync);
+                    }).Task,ReadSeasonPosterAsync,ReadBackdropAsync);
                 try { await server.StartAsync(lifetime.Token); }
                 catch { server.Stop(); throw; }
                 if (closed) { server.Stop(); return; }
@@ -155,8 +155,8 @@ public partial class MainWindow
         var offset = (page - 1) * limit;
         var matches = collection.Where(movie => search.Length == 0 ||
             $"{movie.Title} {movie.Year} {movie.Genre}".Contains(search, StringComparison.CurrentCultureIgnoreCase)).ToList();
-        var returning = saved.Where(movie => !movie.Watched && movie.ResumeMilliseconds > 30000).OrderByDescending(movie => movie.Added).Take(12);
-        var favorites = saved.Where(movie => movie.Favorite).OrderByDescending(movie => movie.Added).Take(12);
+        var returning = HomeFeed.Returning(saved,profile,library.ActiveViewer);
+        var favorites = saved.Where(movie => Viewers.Get(movie,profile,library.ActiveViewer).Favorite).OrderByDescending(movie => movie.Added).Take(12);
         var spotlight = page == 1 && section == "library" && search.Length == 0 && smart == new SmartFilter()
             ? returning.FirstOrDefault() ?? saved.OrderByDescending(movie => movie.Added).FirstOrDefault() : null;
         return new
@@ -164,9 +164,12 @@ public partial class MainWindow
             movies = matches.Skip(offset).Take(limit).Select(m=>WebMovieFor(m,profile)).ToArray(),
             more = matches.Count > offset + limit,
             resultCount = matches.Count,
-            spotlight = spotlight == null ? null : WebMovie(spotlight),
-            returning = spotlight == null ? null : returning.Select(WebMovie).ToArray(),
-            favorites = spotlight == null ? null : favorites.Select(WebMovie).ToArray(),
+            spotlight = spotlight == null ? null : WebMovieFor(spotlight,profile),
+            returning = spotlight == null ? null : returning.Select(m=>WebMovieFor(m,profile)).ToArray(),
+            favorites = spotlight == null ? null : favorites.Select(m=>WebMovieFor(m,profile)).ToArray(),
+            nextEpisodes=spotlight==null?null:HomeFeed.Next(saved,profile,library.ActiveViewer).Select(m=>WebMovieFor(m,profile)).ToArray(),
+            recentDownloads=spotlight==null?null:saved.Where(m=>m.HasLocalFile&&m.DownloadedAt!=null).OrderByDescending(m=>m.DownloadedAt).Take(12).Select(m=>WebMovieFor(m,profile)).ToArray(),
+            viewerName=library.Profiles.First(p=>p.Id==profile).Name,
             total = saved.Count,
             folderCount = library.Folders.Count,
             imported = imports.Count(movie => movie.ImportedOnly),
@@ -252,6 +255,7 @@ public partial class MainWindow
         finally { portalCoverSlots.Release(); }
     }
 
+    private async Task<byte[]?> ReadBackdropAsync(string id){var key=await Dispatcher.InvokeAsync(()=>webMovies.TryGetValue(id,out var m)&&library.Movies.Contains(m)?m.BackdropKey:"");return await BackdropArtwork.FetchAsync(key,lifetime.Token);}
     private async Task<byte[]?> ReadCoverFileAsync(string path)
     {
         if (string.IsNullOrEmpty(path)) return null;

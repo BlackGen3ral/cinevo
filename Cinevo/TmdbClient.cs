@@ -10,7 +10,7 @@ namespace Cinevo;
 internal sealed record TmdbCredit(string Name, string Role);
 internal sealed record TmdbDetails(string Url, string OriginalTitle, string Overview, double Score, int Votes,
     int Minutes, string[] Genres, string[] Directors, string[] Writers, string[] Creators, TmdbCredit[] Cast, string? TrailerId,
-    string Title, string Year, string Poster);
+    string Title, string Year, string Poster, string Backdrop="");
 
 internal sealed class TmdbClient : IDisposable
 {
@@ -159,7 +159,7 @@ internal sealed class TmdbClient : IDisposable
             Number(selected, "vote_count"), duration, Items(root, "genres").Select(genre => Text(genre, "name")).ToArray(),
             Crew("Director"), Crew("Writer", "Screenplay", "Story"),
             Items(root, "created_by").Select(person => Text(person, "name")).Take(8).ToArray(), cast, trailer,
-            title, date.Length >= 4 ? date[..4] : "", poster);
+            title, date.Length >= 4 ? date[..4] : "", poster,Text(root,"backdrop_path"));
     }
 
     public async Task<string> DownloadPosterAsync(string poster, string route, CancellationToken token)

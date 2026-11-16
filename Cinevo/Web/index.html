@@ -15,6 +15,7 @@
   <script src="/controller.js" defer></script>
   <script src="/account.js" defer></script>
   <script src="/features.js" defer></script>
+  <script src="/cinema.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Ir para o conteúdo</a>
@@ -85,6 +86,7 @@
       <div id="torrent-rows"></div>
       <p id="torrent-empty" class="empty" hidden>Nenhuma transferência no qBittorrent.</p>
     </section>
+    <p id="profile-home" class="profile-home" hidden></p>
     <section id="hero" class="hero" hidden></section>
     <div id="collection">
       <div id="page-head" hidden></div>
@@ -129,7 +131,7 @@
     </section>
     <p id="settings-status" role="status"></p>
   </dialog>
-  <dialog id="news-dialog" aria-labelledby="news-title"><div class="settings-heading"><div><h2 id="news-title">Novidades</h2><p>Histórico de atualizações do Cinevo.</p></div><button id="news-close" class="button secondary">Fechar</button></div><div class="settings-tabs" role="tablist" aria-label="Atualizações"><button id="news-current-tab" role="tab" aria-selected="true" aria-controls="news-current">Novidades desta versão</button><button id="news-history-tab" role="tab" aria-selected="false" aria-controls="news-archive">Histórico</button></div><section id="news-current" role="tabpanel" aria-labelledby="news-current-tab" class="settings-card"><h3>Cinevo 0.1.44 · Beta</h3><ul><li>Central de mídia adiciona automaticamente os vídeos e episódios concluídos no qBittorrent à biblioteca, com pasta padrão selecionável para os torrents.</li><li>Até oito perfis com favoritos, assistidos e progresso separados, preservando os dados antigos no perfil Principal.</li><li>Escolha independente do perfil na TV e sincronização dos perfis pela conta Cinevo.</li><li>Central de séries com uma ficha por série, temporadas, episódios disponíveis e indicação de onde continuar.</li><li>Capas de temporadas consultadas sob demanda pelo TMDB configurado; a capa disponível é usada como alternativa.</li><li>Interface reformulada com navegação compacta, mais espaço para as capas e remoção dos títulos grandes nas páginas.</li><li>Transições suaves e brilho animado no filme selecionado no modo controle, respeitando movimento reduzido.</li><li>Novidades com ícone para cada melhoria, tanto na versão atual quanto nas descrições do histórico.</li></ul></section><section id="news-archive" role="tabpanel" aria-labelledby="news-history-tab" hidden><div id="news-history"></div><p id="news-status" role="status"></p><button id="news-more" class="button secondary">Carregar histórico</button></section></dialog>
+  <dialog id="news-dialog" aria-labelledby="news-title"><div class="settings-heading"><div><h2 id="news-title">Novidades</h2><p>Histórico de atualizações do Cinevo.</p></div><button id="news-close" class="button secondary">Fechar</button></div><div class="settings-tabs" role="tablist" aria-label="Atualizações"><button id="news-current-tab" role="tab" aria-selected="true" aria-controls="news-current">Novidades desta versão</button><button id="news-history-tab" role="tab" aria-selected="false" aria-controls="news-archive">Histórico</button></div><section id="news-current" role="tabpanel" aria-labelledby="news-current-tab" class="settings-card"><h3>Cinevo 0.1.45 · Beta</h3><ul><li>Página inicial por perfil com continuar assistindo, próximos episódios e vídeos recém-baixados no PC.</li><li>Ficha cinematográfica com arte panorâmica do TMDB quando disponível, sinopse organizada e ações principais em destaque.</li><li>Expansão suave da capa ao abrir a ficha e retorno ao fechar, com alternativa simples quando o navegador não suporta a transição.</li><li>Menu lateral recolhível, com ícones, rótulos acessíveis e preferência preservada.</li><li>Próximo episódio automático no player do PC e no modo TV, após contagem de 10 segundos com botão para cancelar.</li><li>Imagens panorâmicas carregadas sob demanda, com cache limitado em memória e sem novos arquivos de imagem no disco.</li></ul></section><section id="news-archive" role="tabpanel" aria-labelledby="news-history-tab" hidden><div id="news-history"></div><p id="news-status" role="status"></p><button id="news-more" class="button secondary">Carregar histórico</button></section></dialog>
   <dialog id="clear-dialog" aria-labelledby="clear-title">
     <h2 id="clear-title">Limpar biblioteca?</h2>
     <p>Todos os filmes saem da biblioteca e as pastas são desvinculadas. Os arquivos continuam no PC. Os títulos online voltam para <strong>Filmes importados</strong>.</p>

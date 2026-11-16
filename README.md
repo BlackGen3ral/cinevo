@@ -1,8 +1,8 @@
-# Cinevo 0.1.44 · Beta
+# Cinevo 0.1.45 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.44-beta.45/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.45-beta.46/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -106,7 +106,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.44-beta.45
+./scripts/build.ps1 -Version 0.1.45-beta.46
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.
@@ -146,3 +146,11 @@ Os vídeos locais são enviados diretamente pelo PC à TV com suporte a HTTP Ran
 **Mídia no PC** gerencia a inclusão automática de vídeos concluídos do qBittorrent, verifica novos arquivos e escolhe a pasta padrão dos torrents. A verificação ocorre a cada 30 segundos, em lotes, fora da thread da interface para indexação dos arquivos. Vídeos ainda incompletos, arquivos fora da pasta do torrent e caminhos removidos da biblioteca não são incluídos.
 
 Clicar em uma série abre sua central: uma ficha com temporadas em ordem, episódios disponíveis e continuação para o perfil escolhido. Capas de temporadas são consultadas sob demanda no TMDB quando configurado; na ausência delas, usa-se a capa disponível. O modo controle destaca a seleção com brilho animado, respeitando a preferência de movimento reduzido. Os controles adicionais ficam em **Ferramentas**, e os títulos grandes das páginas foram removidos.
+
+### Experiência de reprodução
+
+A tela inicial usa o perfil selecionado para as fileiras Continue assistindo e Próximo episódio. Vídeos concluídos pelo Cinevo aparecem em Recém-baixados. A ficha mostra a arte panorâmica do TMDB quando disponível, com alternativa visual pela capa existente. Artes panorâmicas são carregadas sob demanda e mantidas somente em memória: até quatro imagens, com limite de 6 MB por imagem.
+
+O botão Recolher menu libera espaço para as capas, mantém rótulos e ícones acessíveis e salva a preferência no PC. A expansão e o retorno das capas usam View Transitions quando disponíveis; movimento reduzido e navegadores sem suporte usam a abertura simples.
+
+No player Windows e no modo TV, o próximo episódio disponível é iniciado após uma contagem de 10 segundos ao terminar. Cancelar mantém a sessão no episódio atual. Na TV, sair do player, mudar de perfil ou ocultar a página interrompe a contagem. No Windows, volume e tela cheia são mantidos ao avançar. A reprodução na TV continua sujeita aos formatos aceitos pelo navegador.
