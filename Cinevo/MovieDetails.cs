@@ -12,7 +12,7 @@ public partial class MainWindow
     private readonly Dictionary<(string Title, string Year, string? Route), Task<TmdbDetails?>> tmdbCache = new();
     private int tmdbRevision;
 
-    private async Task<object> MovieDetailsAsync(Movie movie)
+    private async Task<object> MovieDetailsAsync(Movie movie, bool refresh=false)
     {
         var title = movie.IsOnline && !movie.IsTmdbImport
             ? Regex.Split(movie.Title, @"\s+(?:\d{3,4}p|WEB[ .-]?DL|Blu[ .-]?Ray|Dual [ÁA]udio|Dublado(?: e Legendado)?|Legendado|Torrent)\b",
@@ -31,6 +31,7 @@ public partial class MainWindow
         var synopsis = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description;
         var trailer = MovieTrailer.FromUrl(movie.TrailerUrl)?.VideoId;
         var tmdbState = "disconnected";
+        if(refresh){detailCache.Remove((title,year));detailCache.Remove((title,movie.Year));}
         try
         {
             var credential = TmdbClient.ReadCredential();
@@ -38,6 +39,7 @@ public partial class MainWindow
             {
                 tmdbState = "unmatched";
                 var key = (title, year, TmdbClient.RouteFromUrl(movie.TmdbUrl) ?? TmdbClient.RouteFromUrl(movie.SourceUrl));
+                if(refresh) tmdbCache.Remove(key);
                 if (!tmdbCache.TryGetValue(key, out var lookup))
                 {
                     if (tmdbCache.Count >= 150) tmdbCache.Clear();
@@ -57,7 +59,9 @@ public partial class MainWindow
                     if (castChanged||movie.UserScore != details.Score || movie.Genre.Length == 0 || movie.DurationMilliseconds == 0) { movie.UserScore=details.Score; if(movie.Genre.Length==0)movie.Genre=string.Join(" · ",details.Genres); if(movie.DurationMilliseconds==0)movie.DurationMilliseconds=details.Minutes*60000L; library.Save(); }
                     var useTmdbSynopsis = movie.CustomSynopsis.Length == 0 && details.Overview.Length > 0;
                     return new { synopsis = useTmdbSynopsis ? details.Overview : synopsis,
-                        trailerId = trailer ?? details.TrailerId, tmdb = details, tmdbSynopsis = useTmdbSynopsis };
+                        trailerId = trailer ?? details.TrailerId,
+                        trailerIds = (trailer==null?Array.Empty<string>():new[]{trailer}).Concat(details.TrailerIds??[]).Distinct().Take(6).ToArray(),
+                        tmdb = details, tmdbSynopsis = useTmdbSynopsis };
                 }
             }
         }

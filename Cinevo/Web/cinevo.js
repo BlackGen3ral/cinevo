@@ -455,6 +455,7 @@ function render(data) {
 }
 
 const movieDetails = new Map();
+function movieDetailKey(movie){return JSON.stringify([movie.id,movie.title,movie.year,movie.description,movie.customTrailer,movie.tmdbRevision,movie.tmdbLink,movie.tmdbConfigured]);}
 function showDetails(movie, episode = false) {
   if(movie.mediaType==='series'&&!episode)return openSeriesHub(movie);
   const signature = JSON.stringify(movie);
@@ -538,7 +539,7 @@ function showDetails(movie, episode = false) {
   }
   if (image) loadImage(image);
 
-  const key = JSON.stringify([movie.id, movie.title, movie.year, movie.description, movie.customTrailer, movie.tmdbRevision, movie.tmdbLink, movie.tmdbConfigured]);
+  const key = movieDetailKey(movie);
   if (!movieDetails.has(key)) {
     movieDetails.set(key, transferAction('movie-details', movie.id).catch(() => ({ retry: true })).then(details => {
       if (details?.retry) movieDetails.delete(key);
@@ -560,7 +561,7 @@ function showDetails(movie, episode = false) {
     if (details?.tmdb) renderTmdb(credits, introduction, synopsis, details.tmdb, details.tmdbSynopsis, movie);
     else if (details?.tmdbState && details.tmdbState !== 'disconnected')
       renderTmdbStatus(credits, movie, details.tmdbState, details.tmdbError);
-    renderMovieTrailer(trailer, mainActions, movie, details?.trailerId);
+    renderMovieTrailer(trailer, mainActions, movie, details?.trailerId, details?.trailerIds);
   });
 }
 
@@ -636,7 +637,8 @@ function renderTmdb(section, introduction, synopsis, tmdb, usesSynopsis, movie) 
   section.append(attribution);
 }
 
-function renderMovieTrailer(section,actions,movie,id){window.CinevoTrailers?.render(section,actions,movie,id);}
+function renderMovieTrailer(section,actions,movie,id,alternatives){window.CinevoTrailers?.render(section,actions,movie,id,alternatives);}
+window.refreshMovieTrailer=async(movie,section,actions)=>{const details=await transferAction('movie-details-refresh',movie.id);if(!section.isConnected)return;movieDetails.delete(movieDetailKey(movie));delete section.dataset.trailer;renderMovieTrailer(section,actions,movie,details?.trailerId,details?.trailerIds);};
 
 async function catalog(page, limit, signal) {
   const smartSearch = typeof smartFilters !== 'undefined' && Object.keys(smartFilters).length ? '@smart:' + JSON.stringify({search:state.search,filter:smartFilters}) : state.search;

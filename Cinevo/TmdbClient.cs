@@ -10,7 +10,7 @@ namespace Cinevo;
 internal sealed record TmdbCredit(string Name, string Role);
 internal sealed record TmdbDetails(string Url, string OriginalTitle, string Overview, double Score, int Votes,
     int Minutes, string[] Genres, string[] Directors, string[] Writers, string[] Creators, TmdbCredit[] Cast, string? TrailerId,
-    string Title, string Year, string Poster, string Backdrop="");
+    string Title, string Year, string Poster, string Backdrop="", string[]? TrailerIds=null);
 
 internal sealed class TmdbClient : IDisposable
 {
@@ -76,7 +76,16 @@ internal sealed class TmdbClient : IDisposable
         var season = Season.Match(title);
         if (season.Success) title = title[..season.Index].Trim();
         if (CoverService.Normalize(title).Length == 0) return null;
-        using var search = await GetAsync("search/multi?language=pt-BR&include_adult=false&query=" + Uri.EscapeDataString(title), token);
+        var result = await SearchTitleAsync(title, title, year, season, token);
+        // Some catalogs add a franchise number before the subtitle (e.g. Fallout).
+        // Retry only that precise variation; keep the full subtitle and year checks.
+        var alternate = Regex.Replace(title, @"(?<=\p{L})\s+[1-9][0-9]?\s*(?=[–—:\-]\s*\p{L})", " ");
+        return result ?? (alternate != title ? await SearchTitleAsync(alternate, alternate, year, season, token) : null);
+    }
+
+    private async Task<TmdbDetails?> SearchTitleAsync(string query, string title, string year, Match season, CancellationToken token)
+    {
+        using var search = await GetAsync("search/multi?language=pt-BR&include_adult=false&query=" + Uri.EscapeDataString(query), token);
         var candidates = Items(search.RootElement, "results")
             .Select(item => (Item: item, Kind: Text(item, "media_type")))
             .Where(row => row.Kind is "movie" or "tv" && (!season.Success || row.Kind == "tv"))
@@ -125,21 +134,28 @@ internal sealed class TmdbClient : IDisposable
 
     private async Task<TmdbDetails> FetchDetailsAsync(string route, string? seasonRoute, CancellationToken token)
     {
-        using var details = await GetAsync(route + "?language=pt-BR&append_to_response=credits,videos", token);
+        using var details = await GetAsync(route + "?language=pt-BR&append_to_response=credits,videos&include_video_language=pt,en,null", token);
         using var seasonDetails = seasonRoute == null ? null :
-            await GetAsync(seasonRoute + "?language=pt-BR&append_to_response=videos", token);
+            await GetAsync(seasonRoute + "?language=pt-BR&append_to_response=videos&include_video_language=pt,en,null", token);
         var root = details.RootElement;
         var selected = seasonDetails?.RootElement ?? root;
-        var trailer = SelectTrailer(selected);
-        if (trailer == null)
+        var videos = Items(Property(selected, "videos"), "results").Select(v=>v.Clone()).ToList();
+        if (!videos.Any(v=>Text(v,"site")=="YouTube"&&Text(v,"type")=="Trailer"&&MovieTrailer.IsVideoId(Text(v,"key"))))
         {
             try
             {
-                using var fallback = await GetAsync((seasonRoute ?? route) + "/videos?language=en-US", token);
-                trailer = PickVideo(Items(fallback.RootElement, "results"));
+                var original=Text(root,"original_language");
+                var languages="pt,en,null"+(Regex.IsMatch(original,@"\A[a-z]{2}\z")?","+original:"");
+                using var fallback = await GetAsync((seasonRoute ?? route) + "/videos?language=en-US&include_video_language="+languages, token);
+                videos.AddRange(Items(fallback.RootElement, "results").Select(v=>v.Clone()));
             }
             catch (Exception ex) when (!token.IsCancellationRequested && ex is InvalidDataException or HttpRequestException or OperationCanceledException) { }
         }
+        // A season may have no video of its own; use the identified series' video.
+        if (seasonRoute != null && PickVideos(videos).Length == 0)
+            videos.AddRange(Items(Property(root,"videos"),"results").Select(v=>v.Clone()));
+        var trailers=PickVideos(videos);
+        var trailer=trailers.FirstOrDefault();
         var credits = Property(root, "credits");
         var cast = Items(credits, "cast").Take(10)
             .Select(person => new TmdbCredit(Text(person, "name"), Text(person, "character"))).Where(person => person.Name.Length > 0).ToArray();
@@ -164,7 +180,7 @@ internal sealed class TmdbClient : IDisposable
             Number(selected, "vote_count"), duration, Items(root, "genres").Select(genre => Text(genre, "name")).ToArray(),
             Crew("Director"), Crew("Writer", "Screenplay", "Story"),
             Items(root, "created_by").Select(person => Text(person, "name")).Take(8).ToArray(), cast, trailer,
-            title, date.Length >= 4 ? date[..4] : "", poster,Text(root,"backdrop_path"));
+            title, date.Length >= 4 ? date[..4] : "", poster,Text(root,"backdrop_path"),trailers);
     }
 
     public async Task<string> DownloadPosterAsync(string poster, string route, CancellationToken token)
@@ -204,13 +220,15 @@ internal sealed class TmdbClient : IDisposable
         return season || date.Length == 0 ? 1 : 0;
     }
 
-    internal static string? SelectTrailer(JsonElement details) => PickVideo(Items(Property(details, "videos"), "results"));
+    internal static string? SelectTrailer(JsonElement details) => PickVideos(Items(Property(details, "videos"), "results")).FirstOrDefault();
 
-    private static string? PickVideo(IEnumerable<JsonElement> videos) => videos
-        .Where(video => Text(video, "site") == "YouTube" && Text(video, "type") == "Trailer" && MovieTrailer.IsVideoId(Text(video, "key")))
-        .OrderByDescending(video => Text(video, "iso_639_1") == "pt" && Text(video, "iso_3166_1") == "BR")
+    private static string[] PickVideos(IEnumerable<JsonElement> videos) => videos
+        .Where(video => Text(video, "site") == "YouTube" && Text(video, "type") is "Trailer" or "Teaser" && MovieTrailer.IsVideoId(Text(video, "key")))
+        .OrderByDescending(video => Text(video,"type")=="Trailer")
+        .ThenByDescending(video => Text(video, "iso_639_1") == "pt" && Text(video, "iso_3166_1") == "BR")
+        .ThenByDescending(video => Text(video,"iso_639_1")=="pt")
         .ThenByDescending(video => Property(video, "official").ValueKind == JsonValueKind.True)
-        .Select(video => Text(video, "key")).FirstOrDefault();
+        .Select(video => Text(video, "key")).Distinct().Take(6).ToArray();
 
     private static JsonElement Property(JsonElement data, string name) =>
         data.ValueKind == JsonValueKind.Object && data.TryGetProperty(name, out var value) ? value : default;

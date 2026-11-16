@@ -319,11 +319,11 @@ public partial class MainWindow
         if (command.Name.StartsWith("smart-", StringComparison.Ordinal)) return await SmartActionAsync(command);
         if (command.Name.StartsWith("settings-", StringComparison.Ordinal)) return await WebSettingsAsync(command);
         if (command.Name.StartsWith("torrent-", StringComparison.Ordinal)) return await TorrentActionAsync(command);
-        if (command.Name == "movie-details")
+        if (command.Name is "movie-details" or "movie-details-refresh")
         {
             if (command.Id == null || !webMovies.TryGetValue(command.Id, out var movie) || !library.Movies.Contains(movie))
                 throw new InvalidDataException("O título não está mais disponível.");
-            return await MovieDetailsAsync(movie);
+            return await MovieDetailsAsync(movie,command.Name=="movie-details-refresh");
         }
         if (command.Name == "hero-slide")
         {

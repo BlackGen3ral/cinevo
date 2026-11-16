@@ -229,6 +229,25 @@ $('#torrent-form').onsubmit = async event => {
 $('#transfer-search').oninput=applyTransferFilter;$('#transfer-sort').onchange=applyTransferFilter;
 setInterval(() => refreshTransfers(), 1500);
 
+function sourceOptionInfo(option){
+  let name='',bytes=0;try{if(option.url?.startsWith('magnet:')){const url=new URL(option.url);name=url.searchParams.get('dn')||'';bytes=Number(url.searchParams.get('xl'))||0;}}catch{}
+  const label=option.label||'Download da origem',text=label+' '+name;
+  const resolution=text.match(/\b(4320|2160|1440|1080|720|576|480)p\b/i)?.[0].toLowerCase()||(/\b4k\b/i.test(text)?'2160p':'');
+  const size=label.match(/\b\d+(?:[.,]\d+)?\s*(?:TiB|GiB|MiB|KiB|TB|GB|MB|KB)\b/i)?.[0]||(Number.isSafeInteger(bytes)&&bytes>0?storageSize(bytes):'');
+  const audio=/\bdual\b|dublado\s+e\s+legendado/i.test(text)?'Dual áudio':/\bdublado\b/i.test(text)?'Dublado':/\blegendado\b/i.test(text)?'Legendado':'';
+  const format=/\bWEB[ .-]?DL\b/i.test(text)?'WEB-DL':/\bBlu[ .-]?Ray\b/i.test(text)?'Blu-ray':'';
+  return {label,resolution,size,audio,format};
+}
+function renderSourceOption(control,option){
+  const info=sourceOptionInfo(option),quality=node('span','source-quality',info.resolution||'Vídeo');quality.dataset.quality=info.resolution;
+  const copy=node('span','source-copy'),meta=node('span','source-specs');
+  copy.append(node('strong','',info.resolution==='2160p'?'4K Ultra HD':info.resolution==='1080p'?'Full HD':info.resolution==='720p'?'HD':info.resolution||'Qualidade não informada'));
+  for(const text of [info.resolution,info.size,info.audio,info.format].filter(Boolean))meta.append(node('span','',text));if(meta.childElementCount)copy.append(meta);
+  copy.append(node('small','source-original',info.label));
+  const action=node('span','source-option-action'),kind=option.kind==='torrent'?'qBittorrent':option.kind==='file'?'Arquivo direto':option.kind==='resolve'?'Verificar origem':'Link externo';
+  action.append(node('span','source-cta',option.kind==='resolve'?'Consultar ↗':option.kind==='link'?'Abrir ↗':'Baixar ↓'),node('small','source-kind',kind));
+  control.setAttribute('aria-label',[info.resolution||'Qualidade não informada',info.size,info.audio,info.label,kind].filter(Boolean).join(' · '));control.append(quality,copy,action);
+}
 async function showSourceDownloads(movie, trigger) {
   const existing=document.querySelector('.source-dialog[open] .source-downloads');
   if (existing) {
@@ -236,29 +255,31 @@ async function showSourceDownloads(movie, trigger) {
   }
   const view=smartDialog('Opções de download');view.dialog.classList.add('source-dialog');view.dialog.setAttribute('aria-label','Opções de download de '+movie.title);
   const choices=node('div','source-downloads');choices.dataset.movie=movie.id;view.body.append(choices);
-  const selected=node('div','source-selected'),cover=poster(movie);if(cover){selected.append(cover);imageObserver.observe(cover);}selected.append(node('strong','',movie.title));view.body.prepend(selected);
-  const message = node('p', '', 'Consultando opções da origem…');
-  choices.append(node('h3','','Escolha seu download'),node('p','source-context',movie.title+' · Opções publicadas pelas fontes deste título.'),message);
+  const selected=node('div','source-selected'),cover=poster(movie);if(cover){selected.append(cover);imageObserver.observe(cover);}const selectedCopy=node('div');const availability=node('p','source-availability','Consultando fontes disponíveis…');selectedCopy.append(node('p','eyebrow','ESCOLHA SUA VERSÃO'),node('strong','',movie.title),availability);selected.append(selectedCopy);view.body.prepend(selected);
+  const message = node('p', 'source-message');
+  choices.append(message);choices.setAttribute('aria-busy','true');
   message.setAttribute('role', 'status');
   const sourceFolder = folderPicker();
-  choices.append(sourceFolder.element);
-  const selectEpisodes=smartField(choices,'Escolher arquivos antes de baixar (qBittorrent 5+)',null,'checkbox');
+  const preferences=node('div','source-preferences');preferences.append(node('p','source-preference-label','DESTINO DO TORRENT'),sourceFolder.element);choices.append(preferences);
+  const selectEpisodes=smartField(preferences,'Escolher episódios / arquivos antes de baixar (qBittorrent 5+)',null,'checkbox');
   selectEpisodes.parentElement.classList.add('source-file-choice');
-  choices.scrollIntoView({ block: 'nearest' });
+  const sourceList=node('div','source-list');choices.append(sourceList);
   trigger.disabled = true;
   try {
     const sources = await transferAction('movie-sources', movie.id);
-    let found = 0;
+    let found = 0,offering=0;
     for (const source of sources) {
     if(!choices.isConnected)break;
     const group = node('section', 'source-group');
-    group.append(node('h4', '', source.site || 'Origem'));
-    choices.append(group);
+    const heading=node('div','source-group-heading'),count=node('span','source-count','Consultando…');heading.append(node('h4', '', source.site || 'Origem'),count);group.append(heading);
+    sourceList.append(group);const loading=node('div','source-loading');loading.setAttribute('aria-hidden','true');loading.append(node('span'),node('span'));group.append(loading);
     let options;
     try { options = await transferAction('download-options', source.id); }
-    catch (error) { group.append(node('p', '', error.message)); continue; }
+    catch (error) { count.textContent='Indisponível';group.append(node('p', '', error.message)); continue; }
+    finally{loading.remove();}
     if(!choices.isConnected)break;
     found += options.length;
+    if(options.length)offering++;count.textContent=options.length+' '+(options.length===1?'opção':'opções');availability.textContent=found+' '+(found===1?'opção':'opções')+' em '+offering+' '+(offering===1?'fonte':'fontes');
     if (!options.length) group.append(node('p', '', 'Nenhuma opção disponível nesta origem.'));
     for (const option of options) {
       const choose=button('', 'secondary source-option', async event => {
@@ -302,19 +323,21 @@ async function showSourceDownloads(movie, trigger) {
             choices.append(actions);
           }
         } finally { selected.disabled = false; }
-      });const copy=node('span');copy.append(node('strong','',option.label||'Download da origem'),node('small','',option.kind==='torrent'?'Enviar ao qBittorrent':option.kind==='file'?'Salvar o arquivo oferecido pela origem':option.kind==='resolve'?'Consultar a opção disponibilizada pelo site':'Abrir o link de download na origem'));choose.append(copy,node('span','source-kind',option.kind==='torrent'?'Torrent':option.kind==='file'?'Arquivo':option.kind==='resolve'?'Consultar':'Link ↗'));group.append(choose);
+      });renderSourceOption(choose,option);group.append(choose);
     }
     }
     setText(message, found ? '' : 'Nenhuma fonte retornou opções. Confira as mensagens de cada site.');
+    if(!found)availability.textContent='Sem opções disponíveis nesta consulta';
     if (!found) choices.append(button('Consultar fontes novamente', 'secondary', () => {
       view.dialog.close();
       showSourceDownloads(movie, trigger);
     }));
   } catch (error) {
+    availability.textContent='Não foi possível consultar as fontes';
     setText(message, error.message || 'A consulta falhou. Tente novamente.');
     choices.append(button('Tentar novamente', 'secondary', () => {
       view.dialog.close();
       return showSourceDownloads(movie, trigger);
     }));
-  } finally { trigger.disabled = false; }
+  } finally { trigger.disabled = false;choices.setAttribute('aria-busy','false'); }
 }

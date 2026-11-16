@@ -1,6 +1,5 @@
-- O modo controle é ativado ao movimentar o analógico ou usar um botão do gamepad. Mouse e teclado retomam o modo normal no PC; um controle parado ou usado fora da janela não muda a interface.
-- Minha biblioteca ganhou um cabeçalho por perfil, resumo da coleção, filtros rápidos para filmes e séries e um destaque mais compacto.
-- Filmes importados agora têm um controle deslizante para aumentar ou diminuir as capas na hora. O tamanho é salvo por perfil, sem recriar os cartões nem duplicar imagens no disco.
-- Opções de download agora abrem em uma janela compacta sobre a ficha, mantendo as fontes e a escolha da pasta no mesmo lugar.
-- Trailers vinculados do YouTube carregam dentro da ficha, sem reprodução ou som automático. Há opção para recarregar e abrir no YouTube quando o vídeo não permitir reprodução incorporada.
-- Corrigido o nome das abas que permanecia sobre o conteúdo depois de clicar no menu recolhido. A indicação desaparece ao clicar, sair com o mouse ou após uma breve exibição.
+- A busca de trailers reconhece variações com número da franquia antes do subtítulo, como Missão: Impossível 6 – Efeito Fallout, mantendo a conferência do ano. As prévias priorizam português, aceitam outros idiomas e usam teaser quando não há trailer disponível.
+- O player pode escolher entre as prévias do mesmo título e tenta outra quando um vídeo foi removido ou bloqueia a reprodução incorporada. Buscar trailer consulta novamente a identificação. Nenhuma prévia inicia com som automaticamente.
+- A central de séries agora exibe o trailer integrado. Uma temporada sem prévia própria pode utilizar a prévia da série identificada.
+- Rolagem suave no modo controle, para cima, para baixo e entre capas. A animação acompanha a nova seleção e é interrompida ao voltar para mouse ou teclado; a preferência de movimento reduzido continua respeitada.
+- Opções de download reorganizadas em cartões por fonte, com qualidade, tamanho, áudio, formato e ação em destaque quando publicados pela origem. A janela mostra a contagem de opções, estados de consulta e o destino do torrent, preservando a escolha de episódios / arquivos.
