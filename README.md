@@ -1,8 +1,8 @@
-# Cinevo 0.1.47 · Beta
+# Cinevo 0.1.48 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.47-beta.48/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.48-beta.49/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -19,6 +19,9 @@ O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda 
 Requisitos: Windows 10/11 x64. O motor LibVLC e seus módulos já vêm no instalador: não é necessário instalar VLC ou outro player. Arquivos incompletos, protegidos por DRM ou com formatos incomuns ainda podem falhar na reprodução.
 
 ## Recursos
+
+A interface usa painéis de vidro, bordas suaves e iluminação ambiente em violeta e rosa. O fundo é feito com gradientes locais e anima apenas transformações; não baixa novas imagens nem grava cache para esse efeito. O movimento pausa quando o app perde o foco, fica oculto ou mostra o player da TV. A intensidade acompanha o brilho do perfil, e a preferência do sistema por movimento reduzido desativa a animação. Navegadores sem suporte ao desfoque recebem painéis sólidos.
+
 
 - Indexação recursiva em segundo plano, cancelável e sem duplicatas por caminho.
 - Reconhecimento de títulos e anos a partir do nome do arquivo.
@@ -121,7 +124,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.47-beta.48
+./scripts/build.ps1 -Version 0.1.48-beta.49
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.

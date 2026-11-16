@@ -1,5 +1,5 @@
-- Downloads solicitados na TV: escolha entre as opções publicadas pela origem e envie ao PC, com acompanhamento da fila. Torrents usam o qBittorrent do computador; arquivos diretos são gravados em streaming.
-- Vídeos concluídos são disponibilizados na biblioteca da central. Solicitações diretas podem ser canceladas pela TV, com remoção do arquivo parcial; torrents podem ser pausados e retomados.
-- Prévias reais ao navegar pela linha do tempo e usar os saltos do player no PC e na TV, para vídeos locais. Extração silenciosa e cache de até 8 MiB apenas em memória, sem miniaturas gravadas no disco.
-- Diagnóstico da central com contato recente da TV, disponibilidade do PC pela rede e explicações para arquivo ausente, perda de conexão e falha de formato ou decodificação.
-- Opções de download vinculadas à sessão pareada e ao título, com expiração, revalidação da origem e proteção contra solicitações duplicadas.
+- Interface de vidro com painéis translúcidos, bordas iluminadas e acabamento unificado no menu, busca, cartões, downloads e janelas.
+- Fundo ambiente animado em violeta e rosa, criado com gradientes do próprio app, sem novas imagens ou arquivos de cache.
+- Movimento do fundo pausado quando o app perde o foco, fica oculto ou reproduz um vídeo no modo TV. A preferência de movimento reduzido é respeitada.
+- Leitura refinada nas capas, destaque cinematográfico e detalhes, com ações e estados mais consistentes.
+- Modo TV com o mesmo acabamento visual, mantendo foco visível, intensidade de brilho por perfil e uma alternativa sólida para navegadores sem suporte ao vidro.

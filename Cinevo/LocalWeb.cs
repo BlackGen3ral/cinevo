@@ -59,6 +59,8 @@ internal sealed class LocalWeb(Func<string, string, int, int, string?, string?, 
             await next(context);
         });
         MapAsset("/", "index.html", "text/html; charset=utf-8");
+        MapAsset("/glass.css", "glass.css", "text/css; charset=utf-8");
+        MapAsset("/glass.js", "glass.js", "application/javascript; charset=utf-8");
         MapAsset("/cinevo.css", "cinevo.css", "text/css; charset=utf-8");
         MapAsset("/cinevo.js", "cinevo.js", "application/javascript; charset=utf-8");
         MapAsset("/downloads.js", "downloads.js", "application/javascript; charset=utf-8");
