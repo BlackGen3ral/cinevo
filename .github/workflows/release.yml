@@ -67,3 +67,33 @@ jobs:
           $displayVersion = ($env:RELEASE_VERSION -split '-')[0]
           gh release create "v$env:RELEASE_VERSION" dist/Cinevo-Setup.exe dist/Cinevo-Update.exe dist/runtime-id.txt dist/SHA256SUMS.txt dist/vlc-3.0.24-source.tar.xz --title "Cinevo $displayVersion Beta" --prerelease --notes-file release-notes.md --target $env:GITHUB_SHA
           if ($LASTEXITCODE -ne 0) { throw 'Publicação falhou' }
+      - name: Verify published checksums
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "v$env:RELEASE_VERSION"
+          $release = gh release view $version --json isPrerelease --repo $env:GITHUB_REPOSITORY | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or !$release.isPrerelease) { throw 'A release precisa estar publicada como Beta.' }
+          $verifyDirectory = Join-Path $env:RUNNER_TEMP ('Cinevo-release-check-' + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $verifyDirectory | Out-Null
+          $names = @('Cinevo-Setup.exe','Cinevo-Update.exe','runtime-id.txt','SHA256SUMS.txt','vlc-3.0.24-source.tar.xz')
+          try {
+            gh release download $version --repo $env:GITHUB_REPOSITORY --dir $verifyDirectory --pattern Cinevo-Setup.exe --pattern Cinevo-Update.exe --pattern runtime-id.txt --pattern SHA256SUMS.txt --pattern vlc-3.0.24-source.tar.xz
+            if ($LASTEXITCODE -ne 0) { throw 'Falha ao conferir os arquivos publicados.' }
+            $expected = @{}
+            foreach ($line in Get-Content (Join-Path $verifyDirectory 'SHA256SUMS.txt')) {
+              if ($line -notmatch '^([a-f0-9]{64})  (Cinevo-(?:Setup|Update)\.exe|runtime-id\.txt)$') { throw 'Manifesto de integridade inválido.' }
+              $expected[$Matches[2]] = $Matches[1]
+            }
+            if ($expected.Count -ne 3) { throw 'Manifesto incompleto.' }
+            $expected['vlc-3.0.24-source.tar.xz'] = 'e7cab503d1d7d5849b89d2cf0e1ee60d0ef6d012407791b644b9cfc0cc225fdf'
+            foreach ($name in $expected.Keys) {
+              $hash = (Get-FileHash -LiteralPath (Join-Path $verifyDirectory $name) -Algorithm SHA256).Hash.ToLowerInvariant()
+              if ($hash -ne $expected[$name]) { throw "Integridade inválida: $name" }
+              Write-Output "VERIFIED $name $hash"
+            }
+          } finally {
+            foreach ($name in $names) { $file = Join-Path $verifyDirectory $name; if (Test-Path -LiteralPath $file) { Remove-Item -LiteralPath $file -Force } }
+            Remove-Item -LiteralPath $verifyDirectory -ErrorAction SilentlyContinue
+          }
