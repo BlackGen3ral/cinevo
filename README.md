@@ -1,8 +1,8 @@
-# Cinevo 0.1.41 · Beta
+# Cinevo 0.1.42 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.41-beta.42/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.42-beta.43/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -106,7 +106,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.41-beta.42
+./scripts/build.ps1 -Version 0.1.42-beta.43
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.
@@ -118,3 +118,13 @@ Para testes de interface sem tocar no catálogo real, defina `CINEVO_TEST_DATA` 
 ## Licença
 
 Código do Cinevo sob MIT. LibVLC e módulos VLC têm licenças LGPL/GPL; as licenças, os autores e a origem do código-fonte são preservados. Veja [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). O runtime [.NET](https://github.com/dotnet/runtime/blob/main/LICENSE.TXT) e o [Inno Setup](https://jrsoftware.org/isinfo.php) também têm suas próprias licenças.
+
+### Biblioteca inteligente e downloads
+
+Na interface web, use **Filtros e duplicados** para combinar gênero, duração, nota (TMDB ou informada, de 0 a 10), resolução, idioma e coleção. Valores desconhecidos não atendem filtros que exigem esses dados. Duplicados são sugestões por título, ano e episódio; nenhum arquivo é apagado.
+
+Na ficha de um título, **Corrigir identificação / coleções** permite editar metadados ou vincular a ficha/temporada correta do TMDB, incluindo a capa. A vinculação exige a credencial TMDB configurada.
+
+Em Downloads, **Fila e velocidade** altera os limites globais do qBittorrent. **Organizar / episódios** oferece prioridade, início agendado e seleção de arquivos. Para selecionar antes de baixar, marque essa opção ao adicionar o magnet: requer qBittorrent 5+, consulta os metadados e aguarda a escolha dos arquivos. O agendamento de início é persistido no Cinevo e executado a cada 30 segundos enquanto Cinevo e qBittorrent estiverem abertos.
+
+**Armazenamento** contabiliza os vídeos da biblioteca sem contar o mesmo caminho duas vezes, capas e pacotes temporários. A limpeza é restrita a capas sem referência e instaladores antigos na pasta de dados do Cinevo. Vídeos, legendas, capas referenciadas, downloads parciais e a atualização pendente são preservados.

@@ -71,7 +71,7 @@ function createTransferCard(hash) {
     }));
   const reannounce = button('Buscar pares novamente', 'secondary', event =>
     actOnTransfer('torrent-reannounce', hash, event.currentTarget));
-  controls.append(control, reannounce, button('Diagnóstico', 'secondary', () => diagnoseTransfer(hash)), remove);
+  controls.append(button('Organizar / episódios', 'secondary', () => organizeTorrent(hash)), control, reannounce, button('Diagnóstico', 'secondary', () => diagnoseTransfer(hash)), remove);
   foot.append(rates, controls);
   card.append(header, metrics, track, foot);
   return { card, update(item) {
@@ -79,7 +79,7 @@ function createTransferCard(hash) {
     const progress = Math.max(0, Math.min(100, (item.progress || 0) * 100));
     const value = Math.floor(progress * 10) / 10;
     setText(title, item.name || hash);
-    setText(badge, label);
+    setText(badge, label + (item.priority>0?' · Fila '+item.priority:''));
     badge.dataset.status = color;
     setText(percent, value.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%');
     setText(bytes, storageSize(item.completed) + (item.size > 0 ? ' de ' + storageSize(item.size) : ''));
@@ -91,7 +91,7 @@ function createTransferCard(hash) {
     const peerStatus = peers === 0 ? 'Nenhum par conectado' : peers === null ? '' :
       peers.toLocaleString('pt-BR') + (peers === 1 ? ' par conectado' : ' pares conectados');
     reannounce.hidden = !waitingForPeers;
-    setText(rates, item.fallback || (waitingForPeers ? peerStatus : color === 'done' ? 'Disponível no PC' :
+    setText(rates, (item.scheduled ? 'Início: '+new Date(item.scheduled).toLocaleString('pt-BR') : '') || item.fallback || (waitingForPeers ? peerStatus : color === 'done' ? 'Disponível no PC' :
       (item.speed > 0 ? storageSize(item.speed) + '/s · ' + timeLeft(item.eta) : '')));
     const nextMode = color === 'done' ? 'torrent-files' : color === 'paused' ? 'torrent-resume' : 'torrent-pause';
     card.dataset.status = color;
@@ -233,7 +233,7 @@ async function actOnTransfer(name, hash, trigger, address) {
     } else if (name === 'torrent-reannounce') {
       setText($('#torrent-message'), 'O qBittorrent solicitou uma nova busca aos trackers.');
     } else if (name === 'torrent-add') {
-      setText($('#torrent-message'), 'Link enviado ao qBittorrent.');
+      setText($('#torrent-message'), 'Link enviado. Se escolheu consultar arquivos, abra Organizar / episódios após receber os metadados.');
     }
     refreshTransfers(true);
     return true;
@@ -253,7 +253,8 @@ $('#torrent-form').onsubmit = async event => {
   event.preventDefault();
   const input = $('#torrent-magnet');
   const submit = event.submitter || $('#torrent-form button[type="submit"]');
-  if (await actOnTransfer('torrent-add', null, submit, input.value.trim())) input.value = '';
+  if($('#torrent-choose-before')?.checked){try{await smartCall('smart-metadata',null,{url:input.value.trim(),folder:magnetFolder.value||''});input.value='';setText($('#torrent-message'),'Consultando metadados. Abra Organizar / episódios para selecionar os arquivos.');refreshTransfers(true);}catch(error){setText($('#torrent-message'),error.message);}}
+  else if (await actOnTransfer('torrent-add', null, submit, input.value.trim())) input.value = '';
 };
 setInterval(() => refreshTransfers(), 1500);
 
@@ -271,6 +272,7 @@ async function showSourceDownloads(movie, trigger) {
   message.setAttribute('role', 'status');
   const sourceFolder = folderPicker();
   choices.append(sourceFolder.element);
+  const selectEpisodes=smartField(choices,'Escolher arquivos antes de baixar (qBittorrent 5+)',null,'checkbox');
   choices.scrollIntoView({ block: 'nearest' });
   trigger.disabled = true;
   try {
@@ -302,11 +304,12 @@ async function showSourceDownloads(movie, trigger) {
             return;
           }
           setText(message, 'Enviando ao qBittorrent…');
-          await transferAction('torrent-add', source.id, resolved.url, sourceFolder.value);
+          if(selectEpisodes.checked) await smartCall('smart-metadata', source.id, {url:resolved.url,folder:sourceFolder.value||''});
+          else await transferAction('torrent-add', source.id, resolved.url, sourceFolder.value);
           if (choices.isConnected && $('#details').open) {
             $('#details').close();
             changeSection('downloads');
-            setText($('#torrent-message'), 'Link enviado ao qBittorrent.');
+            setText($('#torrent-message'), 'Link enviado. Se escolheu consultar arquivos, abra Organizar / episódios após receber os metadados.');
           }
         } catch (error) {
           setText(message, error.message);

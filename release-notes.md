@@ -1,9 +1,8 @@
-- Séries locais agrupadas e episódios ordenados por temporada e número.
-- Lista de temporadas e episódios na ficha da série.
-- Botão Próximo episódio para continuar com o vídeo seguinte disponível na biblioteca.
-- Vídeos concluídos de um torrent incluídos na biblioteca ao iniciar a reprodução.
-- Ajuste da sincronização de legendas em segundos, salvo por vídeo.
-- Seleção de áudio e legenda preservada para cada vídeo.
-- Retomada do ponto salvo mesmo em reproduções interrompidas antes de 30 segundos.
-- Novo pacote de atualização contendo só o aplicativo quando o runtime instalado for compatível. Esta versão exige uma instalação completa de transição.
-- Novidades da versão instalada e histórico de atualizações em abas separadas.
+- Filtros combinados por gênero, duração, nota TMDB ou informada, resolução, idioma e coleção.
+- Identificação de possíveis duplicados por título, ano e episódio, sem excluir arquivos.
+- Correção de título, ano, série, temporada e episódio; escolha da ficha e capa correta pelo endereço do TMDB.
+- Coleções pessoais editáveis na ficha de cada título.
+- Prioridade na fila, limite global de velocidade e quantidade de downloads simultâneos no qBittorrent.
+- Agendamento de início por transferência, com Cinevo e qBittorrent abertos.
+- Consulta de metadados antes do download e seleção de arquivos ou episódios no qBittorrent 5 ou superior.
+- Painel de armazenamento com tamanho dos vídeos, capas e pacotes temporários, e limpeza selecionável de caches sem uso.

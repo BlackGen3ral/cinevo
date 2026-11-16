@@ -31,7 +31,7 @@ public partial class MainWindow
             {
                 Title = details.Title, Year = details.Year, ImportedOnly = true, IsTmdbImport = true,
                 SourceUrl = details.Url, ImportedFrom = details.Url, TmdbUrl = details.Url,
-                Description = details.Overview, Genre = string.Join(" · ", details.Genres), Cover = cover,
+                UserScore=details.Score, DurationMilliseconds=details.Minutes*60000L, Description = details.Overview, Genre = string.Join(" · ", details.Genres), Cover = cover,
                 CoverSource = details.Url, MediaType = route.StartsWith("tv/", StringComparison.Ordinal) ? "series" : "movie"
             };
             library.Movies.Add(movie);

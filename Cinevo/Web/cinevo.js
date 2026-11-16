@@ -495,6 +495,7 @@ function showDetails(movie) {
   const summary = node('p', '', movie.description || 'Buscando sinopse…');
   synopsis.append(summary);
   const tools = node('div', 'actions detail-tools');
+  tools.append(button('Corrigir identificação / coleções', 'secondary', () => openIdentification(movie)));
   tools.append(command(movie.favorite ? 'Remover favorito' : 'Favoritar', 'secondary', 'favorite', movie.id),
     command(movie.watched ? 'Marcar como não assistido' : 'Marcar como assistido', 'secondary', 'watched', movie.id),
     command('Editar detalhes', 'secondary', 'details', movie.id));
@@ -657,7 +658,8 @@ function renderMovieTrailer(section, actions, movie, id) {
 }
 
 async function catalog(page, limit, signal) {
-  const query = new URLSearchParams({ section: state.section, search: state.search, page, limit, site: state.site, type: state.type });
+  const smartSearch = typeof smartFilters !== 'undefined' && Object.keys(smartFilters).length ? '@smart:' + JSON.stringify({search:state.search,filter:smartFilters}) : state.search;
+  const query = new URLSearchParams({ section: state.section, search: smartSearch, page, limit, site: state.site, type: state.type });
   return (await request('/api/catalog?' + query, { signal })).json();
 }
 

@@ -12,6 +12,10 @@ public sealed class Movie : INotifyPropertyChanged
     public string Title { get; set; } = "";
     public string Year { get; set; } = "";
     public string Genre { get; set; } = "";
+    public string Resolution { get; set; } = "";
+    public string Language { get; set; } = "";
+    public List<string> Collections { get; set; } = [];
+    public double UserScore { get; set; }
     public string Notes { get; set; } = "";
     public string PortalId { get; set; } = "";
     public string PortalCoverUrl { get; set; } = "";
@@ -54,8 +58,10 @@ public sealed class Movie : INotifyPropertyChanged
     [System.Text.Json.Serialization.JsonIgnore] public string PlayLabel => IsOnline && !HasLocalFile && StreamUrl.Length == 0 ? "↗  Abrir origem" : ResumeMilliseconds > 30000 && !Watched ? "▶  Continuar" : "▶  Assistir";
     [System.Text.Json.Serialization.JsonIgnore] public double Progress => DurationMilliseconds > 0 ? Math.Clamp(ResumeMilliseconds * 100d / DurationMilliseconds, 0, 100) : 0;
 }
+public sealed record ScheduledTorrent(string Hash, DateTime At);
 public sealed class Library
 {
+    public List<ScheduledTorrent> DownloadSchedule { get; set; } = [];
     public List<ImportCheckpoint> ImportCheckpoints { get; set; } = [];
     public List<string> Folders { get; set; } = [];
     public List<Movie> Movies { get; set; } = [];

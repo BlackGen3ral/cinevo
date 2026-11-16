@@ -52,6 +52,7 @@ public partial class MainWindow
                 }
                 if (details != null)
                 {
+                    if (movie.UserScore != details.Score || movie.Genre.Length == 0 || movie.DurationMilliseconds == 0) { movie.UserScore=details.Score; if(movie.Genre.Length==0)movie.Genre=string.Join(" · ",details.Genres); if(movie.DurationMilliseconds==0)movie.DurationMilliseconds=details.Minutes*60000L; library.Save(); }
                     var useTmdbSynopsis = movie.CustomSynopsis.Length == 0 && details.Overview.Length > 0;
                     return new { synopsis = useTmdbSynopsis ? details.Overview : synopsis,
                         trailerId = trailer ?? details.TrailerId, tmdb = details, tmdbSynopsis = useTmdbSynopsis };

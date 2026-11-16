@@ -12,6 +12,7 @@ var root = Path.Combine(Path.GetTempPath(), "Cinevo-tests-" + Guid.NewGuid());
 Directory.CreateDirectory(Path.Combine(root, "sub"));
 try {
  SeriesTests.Run(root);
+ SmartLibraryTests.Run(root);
  File.WriteAllText(Path.Combine(root, "Teste.2023.MKV"), "movie");
  File.WriteAllText(Path.Combine(root, "sub", "Outro.mp4"), "movie");
  File.WriteAllText(Path.Combine(root, "ignorar.txt"), "text");
@@ -27,6 +28,7 @@ try {
  await UpdateTests.Run(root);
  await CoverTests.Run(root);
  await TmdbTests.Run();
+ await TorrentControlTests.Run();
  await PortalTests.Run(root);
  await CatalogWatchTests.Run();
  Environment.SetEnvironmentVariable("CINEVO_TEST_DATA", Path.Combine(root, "profile"));

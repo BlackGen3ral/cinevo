@@ -148,12 +148,14 @@ public partial class MainWindow
             "continue" => saved.Where(movie => !movie.Watched && movie.ResumeMilliseconds > 30000).OrderByDescending(movie => movie.Added),
             _ => saved.OrderByDescending(movie => movie.Added)
         };
+        var smart = SmartFilter.Parse(ref search);
+        collection = smart.Apply(collection);
         var offset = (page - 1) * limit;
         var matches = collection.Where(movie => search.Length == 0 ||
             $"{movie.Title} {movie.Year} {movie.Genre}".Contains(search, StringComparison.CurrentCultureIgnoreCase)).ToList();
         var returning = saved.Where(movie => !movie.Watched && movie.ResumeMilliseconds > 30000).OrderByDescending(movie => movie.Added).Take(12);
         var favorites = saved.Where(movie => movie.Favorite).OrderByDescending(movie => movie.Added).Take(12);
-        var spotlight = page == 1 && section == "library" && search.Length == 0
+        var spotlight = page == 1 && section == "library" && search.Length == 0 && smart == new SmartFilter()
             ? returning.FirstOrDefault() ?? saved.OrderByDescending(movie => movie.Added).FirstOrDefault() : null;
         return new
         {
@@ -195,7 +197,7 @@ public partial class MainWindow
         }
         return new
         {
-            id, movie.Title, movie.Year, movie.Genre, description = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description, movie.Favorite, movie.Watched,
+            id, movie.Title, movie.Year, movie.Genre, movie.Resolution, movie.Language, movie.Collections, movie.DurationMilliseconds, movie.UserScore, description = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description, movie.Favorite, movie.Watched,
             site = movie.IsOnline ? SourceSite(movie) : "",
             mediaType = kind.Type,
             seriesTitle = kind.Series,
@@ -294,6 +296,7 @@ public partial class MainWindow
                 .Where(RemoteFiles.IsPublicHttps).Distinct(StringComparer.Ordinal)
                 .OrderBy(address => address, StringComparer.OrdinalIgnoreCase).ToArray();
         }
+        if (command.Name.StartsWith("smart-", StringComparison.Ordinal)) return await SmartActionAsync(command);
         if (command.Name.StartsWith("settings-", StringComparison.Ordinal)) return await WebSettingsAsync(command);
         if (command.Name.StartsWith("torrent-", StringComparison.Ordinal)) return await TorrentActionAsync(command);
         if (command.Name == "movie-details")

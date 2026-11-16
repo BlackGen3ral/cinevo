@@ -25,7 +25,7 @@ internal sealed record TorrentTransfer(string Hash, string Name, double Progress
     [property: JsonPropertyName("dlspeed")] long Speed, long Eta, string State,
     [property: JsonPropertyName("save_path")] string SavePath,
     [property: JsonPropertyName("num_seeds")] int Seeds = -1,
-    [property: JsonPropertyName("num_leechs")] int Leechers = -1);
+    [property: JsonPropertyName("num_leechs")] int Leechers = -1, int Priority = 0);
 
 internal sealed record TorrentFile(int Index, string Name, double Progress, int Priority, long Size);
 internal sealed record TorrentTracker(string Url, int Status,
@@ -201,13 +201,20 @@ internal sealed class TorrentClient : IDisposable
             ["hashes"] = hash, ["deleteFiles"] = "false"
         }));
 
-    public async Task AddAsync(string address, CancellationToken token, string? folder = null)
+    public Task<JsonElement> PreferencesAsync(CancellationToken token) => ReadAsync<JsonElement>("app/preferences",token);
+    public Task ConfigureAsync(Dictionary<string,string> values, CancellationToken token) =>
+        SendAsync("app/setPreferences", token, () => new FormUrlEncodedContent(values));
+    public Task ControlAsync(string method, Dictionary<string,string> values, CancellationToken token) =>
+        SendAsync("torrents/" + method, token, () => new FormUrlEncodedContent(values));
+
+    public async Task AddAsync(string address, CancellationToken token, string? folder = null, bool metadataOnly = false)
     {
         if (!IsMagnet(address)) throw new InvalidDataException("Cole um link magnet válido.");
         var result = await SendAsync("torrents/add", token, () =>
         {
             var form = new MultipartFormDataContent();
             form.Add(new StringContent(address), "urls");
+            if (metadataOnly) { form.Add(new StringContent("MetadataReceived"), "stopCondition"); form.Add(new StringContent("false"), "stopped"); form.Add(new StringContent("false"), "paused"); }
             if (!string.IsNullOrWhiteSpace(folder)) form.Add(new StringContent(folder), "savepath");
             return form;
         });

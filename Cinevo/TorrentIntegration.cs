@@ -187,8 +187,8 @@ public partial class MainWindow
             return new
             {
                 configured = true,
-                transfers = transfers.Where(item => TorrentClient.IsHash(item.Hash)).Select(item =>
-                    new { item.Hash, item.Name, item.Progress, item.Size, item.Completed, item.Speed, item.Eta, item.State, item.Seeds, item.Leechers, fallback = torrentFallbackStatus.GetValueOrDefault(item.Hash) })
+                transfers = transfers.Where(item => TorrentClient.IsHash(item.Hash)).OrderBy(item=>item.Priority>0?item.Priority:int.MaxValue).Select(item =>
+                    new { item.Hash, item.Name, item.Priority, item.Progress, item.Size, item.Completed, item.Speed, item.Eta, item.State, item.Seeds, item.Leechers, scheduled = library.DownloadSchedule.FirstOrDefault(s=>s.Hash==item.Hash)?.At, fallback = torrentFallbackStatus.GetValueOrDefault(item.Hash) })
             };
         }
         if (command.Name == "torrent-add")
@@ -223,6 +223,7 @@ public partial class MainWindow
                 await GetTorrentClient().ReannounceAsync(hash, lifetime.Token);
                 return null;
             case "torrent-remove":
+                library.DownloadSchedule.RemoveAll(s=>s.Hash==hash); library.Save();
                 CancelTorrentFallback(hash);
                 await GetTorrentClient().RemoveAsync(hash, lifetime.Token);
                 return null;
@@ -230,6 +231,7 @@ public partial class MainWindow
                 CancelTorrentFallback(hash);
                 goto case "torrent-resume";
             case "torrent-resume":
+                library.DownloadSchedule.RemoveAll(s=>s.Hash==hash); library.Save();
                 await GetTorrentClient().SetRunningAsync(hash, command.Name == "torrent-resume", lifetime.Token);
                 return null;
             case "torrent-files":
