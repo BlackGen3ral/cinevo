@@ -19,6 +19,7 @@ public partial class MainWindow
                 }).Task,
                 (id,profile)=>Dispatcher.InvokeAsync<object?>(()=>webMovies.TryGetValue(id,out var m)&&library.Movies.Contains(m)&&!m.ImportedOnly?WebMovieFor(m,CheckViewer(string.IsNullOrEmpty(profile)?null:profile)):null).Task,
                 (operation,id,profile)=>Dispatcher.InvokeAsync(async()=>{
+                    if(operation=="visual")return VisualInfo(string.IsNullOrEmpty(profile)?null:profile);
                     if(operation=="profiles")return (object?)ProfilesInfo();
                     if(id==null||!webMovies.TryGetValue(id,out var m)||m.ImportedOnly)throw new InvalidDataException("Série indisponível.");
                     if(operation=="next"){var following=ImportedTitle.NextEpisode(m,library.Movies.Where(v=>!v.ImportedOnly));return following==null?null:WebMovieFor(following,CheckViewer(string.IsNullOrEmpty(profile)?null:profile));}

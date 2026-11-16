@@ -66,6 +66,11 @@ internal sealed class TmdbClient : IDisposable
         return JsonDocument.Parse(await RemoteFiles.ReadBoundedAsync(response, 5 * 1024 * 1024, limit.Token));
     }
 
+    public sealed record Person(int Id,string Name,string KnownFor);
+    public sealed record Credit(string Route,string Title,string Year);
+    public async Task<Person[]> PeopleAsync(string query,CancellationToken token){using var json=await GetAsync("search/person?language=pt-BR&include_adult=false&query="+Uri.EscapeDataString(query),token);return Items(json.RootElement,"results").Where(p=>Number(p,"id")>0).Take(20).Select(p=>new Person(Number(p,"id"),Text(p,"name"),string.Join(" · ",Items(p,"known_for").Select(c=>Text(c,"title").Length>0?Text(c,"title"):Text(c,"name"))))).ToArray();}
+    public async Task<Credit[]> PersonCreditsAsync(int id,CancellationToken token){using var json=await GetAsync("person/"+id+"/combined_credits?language=pt-BR",token);return Items(json.RootElement,"cast").Where(c=>Text(c,"media_type") is "movie" or "tv").Select(c=>{var movie=Text(c,"media_type")=="movie";var date=Text(c,movie?"release_date":"first_air_date");return new Credit((movie?"movie/":"tv/")+Number(c,"id"),Text(c,movie?"title":"name"),date.Length>=4?date[..4]:"");}).ToArray();}
+
     public async Task<TmdbDetails?> LookupAsync(string title, string year, CancellationToken token)
     {
         var season = Season.Match(title);

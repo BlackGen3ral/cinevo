@@ -8,6 +8,8 @@ public sealed class Movie : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Changed([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new(name));
+    public List<string> CastNames { get; set; } = [];
+    public HashSet<string> TorrentHashes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string,ViewingState> Viewers { get; set; } = [];
     public DateTime? DownloadedAt { get; set; }
     public string BackdropKey { get; set; } = "";
@@ -66,6 +68,7 @@ public sealed class Movie : INotifyPropertyChanged
 public sealed record ScheduledTorrent(string Hash, DateTime At);
 public sealed class Library
 {
+    public Dictionary<string,VisualStyle> VisualStyles { get; set; } = [];
     public List<ViewerProfile> Profiles { get; set; } = [new("principal","Principal")];
     public string ActiveViewer { get; set; } = "principal";
     public List<ScheduledTorrent> DownloadSchedule { get; set; } = [];

@@ -191,6 +191,7 @@ function movieCard(movie) {
   detail.dataset.icon = 'info';
   detail.setAttribute('aria-hidden', 'true');
   art.append(detail);
+  art.append(selectionInfo(movie));
   if (state.section === 'imports' && !movie.importedOnly) art.append(node('span', 'label', 'Na biblioteca'));
   if (!movie.watched && movie.progress > 0) {
     const progress = node('progress');
@@ -668,6 +669,8 @@ let fetchCatalog;
 let firstPage;
 async function refresh(append = false, keepPages = false) {
   if (state.section === 'downloads') return true;
+  if (state.search && window.organizedSearch) return window.organizedSearch(state.search);
+  window.hideOrganizedSearch?.();
   fetchCatalog?.abort();
   const current = fetchCatalog = new AbortController();
   const requestedPage = append ? state.page + 1 : 1;
@@ -701,6 +704,7 @@ async function refresh(append = false, keepPages = false) {
 
 function changeSection(section) {
   fetchCatalog?.abort();
+  window.hideOrganizedSearch?.();
   state.section = section;
   $('#current-section').textContent = sectionNames[section];
   state.search = '';

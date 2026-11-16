@@ -1,8 +1,8 @@
-# Cinevo 0.1.45 · Beta
+# Cinevo 0.1.46 · Beta
 
 **Seu cinema, em casa.** Gerenciador de filmes locais para Windows, com interface em português, instalador simples e atualizações pelo GitHub.
 
-[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.45-beta.46/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
+[Baixar o instalador Beta](https://github.com/BlackGen3ral/cinevo/releases/download/v0.1.46-beta.47/Cinevo-Setup.exe) · [Portal online](https://cinevo-portal.arthurgabrielfera.workers.dev) · [Versões](https://github.com/BlackGen3ral/cinevo/releases)
 
 O Cinevo está em **Beta**: esta é a versão inicial de desenvolvimento, ainda sujeita a ajustes e melhorias.
 
@@ -24,6 +24,11 @@ Requisitos: Windows 10/11 x64. O motor LibVLC e seus módulos já vêm no instal
 - Reconhecimento de títulos e anos a partir do nome do arquivo.
 - Busca por título, ano, gênero e caminho; filtros para favoritos e assistidos.
 - Ordenação por título, data de adição, ano e avaliação.
+- Aparência por perfil: tamanho das capas, intensidade do brilho no modo controle, volume dos cliques e densidade. Ajuste em Configurações → Aparência e sons.
+- Downloads com capa quando identificado no catálogo, progresso, velocidade real e previsão de término quando disponível no qBittorrent.
+- Duração, resolução e disponibilidade ao focar ou apontar uma capa. Dados ausentes são indicados.
+- Busca em categorias de filmes, séries, episódios e elenco identificado; pessoas no TMDB conectado sob demanda.
+- Controles do player recolhem após três segundos sem interação durante a reprodução e reaparecem com mouse, teclado ou controle. Pausa e final mantêm os botões visíveis.
 - Interface com grade de pôsteres responsiva, destaque para a próxima sessão e indicação do progresso.
 - Capas automáticas da Wikipédia com cache local, correção por busca e imagens escolhidas do computador.
 - Player integrado: pausa, volume, busca na linha do tempo, saltos de 10 segundos, tela cheia, faixas de áudio, legendas internas e arquivo de legenda externo.
@@ -106,7 +111,7 @@ WPF, C# e .NET 10. Sem dependências NuGet de terceiros. O runtime .NET e as bib
 
 ```powershell
 dotnet run --project tests/Cinevo.Tests.csproj -c Release
-./scripts/build.ps1 -Version 0.1.45-beta.46
+./scripts/build.ps1 -Version 0.1.46-beta.47
 ```
 
 Pré-requisitos de compilação: .NET SDK 10 e Inno Setup 6 ou 7. Para um compilador fora do local padrão, passe `-InnoCompiler C:\caminho\ISCC.exe`. `scripts/icon.ps1` regenera o ícone ICO em seis tamanhos e a imagem PNG.

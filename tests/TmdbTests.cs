@@ -7,6 +7,9 @@ internal static class TmdbTests
     {
         using var handler = new Fixture();
         using var client = new TmdbClient("eyabcdefgh.abcdefghi.abcdefghijkl", handler);
+        var people=await client.PeopleAsync("Pessoa Atriz",CancellationToken.None);
+        var credits=await client.PersonCreditsAsync(7,CancellationToken.None);
+        if(people.Single() is not {Id:7,Name:"Pessoa Atriz"}||credits.Length!=2||credits[0].Route!="movie/41"||credits[1].Route!="tv/42")throw new Exception("Busca de pessoas ou créditos TMDB incorretos");
         var movie = await client.LookupAsync("Filme de Teste", "2024", CancellationToken.None);
         if (movie is not { Overview: "Sinopse em português.", Score: 8.2, Votes: 31, TrailerId: "BRabcdefgh0" } ||
             movie.Cast.Single().Role != "Protagonista" || movie.Directors.Single() != "Pessoa Diretora" ||
@@ -42,6 +45,8 @@ internal static class TmdbTests
                 throw new Exception("Destino ou autenticação do TMDB incorretos.");
             var data = uri.AbsolutePath switch
             {
+                "/3/search/person" => """{"results":[{"id":7,"name":"Pessoa Atriz","known_for":[{"title":"Filme de Teste"}]}]}""",
+                "/3/person/7/combined_credits" => """{"cast":[{"id":41,"media_type":"movie","title":"Filme de Teste","release_date":"2024-01-01"},{"id":42,"media_type":"tv","name":"Série de Teste","first_air_date":"2025-01-01"},{"id":5,"media_type":"person","name":"Ignorar"}]}""",
                 "/3/search/multi" when Series => """{"results":[{"id":42,"media_type":"tv","name":"Série de Teste","first_air_date":"2022-02-01"}]}""",
                 "/3/search/multi" => """{"results":[{"id":41,"media_type":"movie","title":"Filme de Teste","release_date":"2024-02-01"},{"id":90,"media_type":"movie","title":"Filme de Teste","release_date":"2012-02-01","vote_count":900}]}""",
                 "/3/movie/41" => """

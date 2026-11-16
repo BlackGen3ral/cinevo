@@ -58,6 +58,7 @@ public partial class MainWindow
         }
         if(command.Name == "smart-metadata") { var version=(await GetTorrentClient().VersionAsync(token)).Trim().TrimStart('v'); if(!Version.TryParse(version,out var parsed) || parsed.Major<5) throw new InvalidDataException("A seleção antes de baixar requer qBittorrent 5 ou superior.");
             if(TorrentClient.MagnetHash(Text("url")) is {} existing && (await GetTorrentClient().TransfersAsync(token,existing)).Any()) throw new InvalidDataException("Esse torrent já está na fila. Use Organizar / episódios na transferência existente.");
+            RememberTransfer(command.Id,Text("url"));
             await GetTorrentClient().AddAsync(Text("url"),token,ValidateDownloadFolder(Text("folder").Length>0?Text("folder"):library.MediaFolder.Length>0?library.MediaFolder:null),true); return null; }
         if (command.Name.StartsWith("smart-torrent-")) {
             if(!TorrentClient.IsHash(command.Id)) throw new InvalidDataException("Torrent inválido.");

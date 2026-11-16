@@ -45,6 +45,8 @@ function setText(element, value) {
 
 function createTransferCard(hash) {
   const card = node('article', 'transfer-card');
+  const artwork=node('div','transfer-art','C');const body=node('div','transfer-body');let coverKey='';const fileName=node('small','transfer-filename');
+  const speedValue=node('strong');const etaValue=node('strong');const vitals=node('div','transfer-vitals');for(const [label,value] of [['Velocidade',speedValue],['Previsão de término',etaValue]]){const item=node('div');item.append(node('small','',label),value);vitals.append(item);}
   const title = node('h2');
   const badge = node('span', 'transfer-badge');
   const header = node('div', 'transfer-card-header');
@@ -73,12 +75,14 @@ function createTransferCard(hash) {
     actOnTransfer('torrent-reannounce', hash, event.currentTarget));
   controls.append(button('Organizar / episódios', 'secondary', () => organizeTorrent(hash)), control, reannounce, button('Diagnóstico', 'secondary', () => diagnoseTransfer(hash)), remove);
   foot.append(rates, controls);
-  card.append(header, metrics, track, foot);
+  body.append(header,fileName,metrics,track,vitals,foot);card.append(artwork,body);
   return { card, update(item) {
     const [label, color] = transferState(item);
     const progress = Math.max(0, Math.min(100, (item.progress || 0) * 100));
     const value = Math.floor(progress * 10) / 10;
-    setText(title, item.name || hash);
+    setText(title,item.movie?.title||item.name||hash);setText(fileName,item.movie?item.name||'':'');
+    const nextCover=item.movie?.hasCover?item.movie.id+'|'+item.movie.coverVersion:'';if(nextCover!==coverKey){coverKey=nextCover;const old=artwork.querySelector('img');if(old)imageObserver.unobserve(old);artwork.replaceChildren();if(nextCover){const image=poster(item.movie);image.alt='Capa de '+item.movie.title;artwork.append(image);imageObserver.observe(image);}else artwork.textContent='C';}
+    setText(speedValue,item.speed>0?storageSize(item.speed)+'/s':color==='done'?'Concluído':'0 B/s');const estimated=item.speed>0&&Number.isFinite(item.eta)&&item.eta>0&&item.eta<8640000;setText(etaValue,color==='done'?'Disponível':estimated?new Date(Date.now()+item.eta*1000).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · '+timeLeft(item.eta):'Sem estimativa');
     setText(badge, label + (item.priority>0?' · Fila '+item.priority:''));
     badge.dataset.status = color;
     setText(percent, value.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%');
@@ -92,7 +96,7 @@ function createTransferCard(hash) {
       peers.toLocaleString('pt-BR') + (peers === 1 ? ' par conectado' : ' pares conectados');
     reannounce.hidden = !waitingForPeers;
     setText(rates, (item.scheduled ? 'Início: '+new Date(item.scheduled).toLocaleString('pt-BR') : '') || item.fallback || (waitingForPeers ? peerStatus : color === 'done' ? 'Disponível no PC' :
-      (item.speed > 0 ? storageSize(item.speed) + '/s · ' + timeLeft(item.eta) : '')));
+      peerStatus));
     const nextMode = color === 'done' ? 'torrent-files' : color === 'paused' ? 'torrent-resume' : 'torrent-pause';
     card.dataset.status = color;
     if (mode !== nextMode) {

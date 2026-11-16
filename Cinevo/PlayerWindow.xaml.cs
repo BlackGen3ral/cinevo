@@ -8,6 +8,8 @@ namespace Cinevo;
 public partial class PlayerWindow : Window
 {
     private readonly Movie movie;
+    private readonly PlayerActivity activity=new();
+    private readonly PlayerInput playerInput=new();
     private readonly Action save;
     private readonly bool hasNext;
     private readonly EpisodeCountdown countdown=new();
@@ -28,6 +30,8 @@ public partial class PlayerWindow : Window
         Volume.Value=Math.Clamp(startVolume,0,100);
         NextEpisodeButton.Visibility = hasNext ? Visibility.Visible : Visibility.Collapsed;
         SubtitleDelayInput.Text = (movie.SubtitleDelayMilliseconds / 1000d).ToString("0.0", System.Globalization.CultureInfo.CurrentCulture);
+        activity.Touch(Environment.TickCount64);
+        PreviewMouseMove+=(_,_)=>RevealControls();PreviewMouseDown+=(_,_)=>RevealControls();
         MovieTitle.Text = movie.Title; Title = movie.Title + " — Cinevo";
         Loaded += (_, _) => {Start();if(startFullscreen)ToggleFullscreen();}; timer.Tick += (_, _) => Tick();
         Closing += Player_Closing;
@@ -56,6 +60,10 @@ public partial class PlayerWindow : Window
     {
         if (closed || engine == null) return;
         var state = engine.State;
+        if(IsActive&&playerInput.Changed(new System.Windows.Interop.WindowInteropHelper(this).Handle))RevealControls();
+        var interacting=seeking||ControlsPanel.IsMouseOver||AudioTracks.IsDropDownOpen||SubtitleTracks.IsDropDownOpen||SubtitleDelayInput.IsKeyboardFocusWithin;
+        var hide=activity.Hide(Environment.TickCount64,state==3,interacting);
+        ControlsPanel.Visibility=hide?Visibility.Collapsed:Visibility.Visible;Header.Visibility=hide||fullscreen?Visibility.Collapsed:Visibility.Visible;
         if (state == 7) { PlayerStatus.Text = "Não foi possível reproduzir este arquivo. Ele pode estar incompleto ou usar um formato não suportado."; timer.Stop(); return; }
         if (state == 6) {
             if(!ended){ended=true;movie.Watched=true;movie.ResumeMilliseconds=0;save();if(hasNext)countdown.Begin(DateTime.UtcNow);}
@@ -121,8 +129,10 @@ public partial class PlayerWindow : Window
     private void Subtitle_Click(object sender, RoutedEventArgs e) { if (engine == null) return; var d = new OpenFileDialog { Filter = "Legendas|*.srt;*.ass;*.ssa;*.vtt;*.sub" }; if (d.ShowDialog(this) == true) { if (engine.AddSubtitle(d.FileName) == 0) { movie.ExternalSubtitlePath = d.FileName; movie.PreferredSubtitleTrack = null; LoadTracks(); save(); PlayerStatus.Text = "Legenda carregada."; } else PlayerStatus.Text = "Não foi possível carregar esta legenda."; } }
     private void Fullscreen_Click(object sender, RoutedEventArgs e) => ToggleFullscreen();
     private void ToggleFullscreen() { fullscreen = !fullscreen; if (fullscreen) { previousState = WindowState; WindowState = WindowState.Normal; WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize; WindowState = WindowState.Maximized; Header.Visibility = Visibility.Collapsed; } else { WindowState = WindowState.Normal; WindowStyle = WindowStyle.SingleBorderWindow; ResizeMode = ResizeMode.CanResize; WindowState = previousState; Header.Visibility = Visibility.Visible; } }
+    private void RevealControls(){activity.Touch(Environment.TickCount64);ControlsPanel.Visibility=Visibility.Visible;if(!fullscreen)Header.Visibility=Visibility.Visible;}
     private void Player_KeyDown(object sender, KeyEventArgs e)
     {
+        RevealControls();
         if (e.OriginalSource is ComboBox or ComboBoxItem or System.Windows.Controls.Primitives.TextBoxBase) return;
         if (e.Key == Key.Space && e.OriginalSource is not Button) { Pause_Click(this, new()); e.Handled = true; }
         else if (e.Key == Key.F) { ToggleFullscreen(); e.Handled = true; }

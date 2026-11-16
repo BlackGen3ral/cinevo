@@ -32,6 +32,7 @@ try {
  AccountModelTests.Run();
  ViewerTests.Run(root);
  ExperienceTests.Run(root);
+ InterfaceTests.Run();
  await TvWebTests.Run(root);
  await PortalTests.Run(root);
  await CatalogWatchTests.Run();

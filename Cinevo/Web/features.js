@@ -6,7 +6,7 @@ async function openProfiles(){
   view.body.append(node('p','meta','A biblioteca e os arquivos são compartilhados. Favoritos, assistidos e progresso ficam separados. A TV escolhe seu próprio perfil, sem trocar o perfil do PC.'));
  }catch(error){view.status.textContent=error.message;}
 }
-async function updateProfileLabel(){try{const data=await transferAction('profile-list');$('#viewer-button').textContent=data.profiles.find(p=>p.id===data.active)?.name||'Perfis';}catch{}}
+async function updateProfileLabel(){try{const data=await transferAction('profile-list');$('#viewer-button').textContent=data.profiles.find(p=>p.id===data.active)?.name||'Perfis';await window.refreshVisualPrefs?.();}catch{}}
 async function openMediaCenter(){const view=smartDialog('Seu PC, sua central de mídia');
  async function load(command='media-read'){try{const data=await transferAction(command);view.body.replaceChildren();const stats=node('div','media-stats');stats.append(node('strong','',data.ready+' vídeos prontos'),node('span','',data.tv?'Central TV ativa':'Ative a central em Conta e TV'));view.body.append(stats,node('p','',data.status),node('p','meta','Os downloads ficam no PC. Vídeos concluídos no qBittorrent são adicionados automaticamente à biblioteca, inclusive episódios concluídos de um pacote. A TV reproduz pela rede local com o computador ligado.'));
  view.body.append(button(data.automatic?'Desativar inclusão automática':'Ativar inclusão automática','secondary',()=>load('media-auto')));

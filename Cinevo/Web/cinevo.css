@@ -364,3 +364,29 @@ body{background:radial-gradient(ellipse at 80% 0,#25223933,transparent 48%),var(
 .sidebar-collapsed .sidebar-support>button::before{font-family:"Segoe Fluent Icons","Segoe MDL2 Assets"}.sidebar-collapsed .sidebar-support>button[data-sidebar-kind=account]::before{content:'\e77b'}.sidebar-collapsed .sidebar-support>button[data-sidebar-kind=settings]::before{content:'\e713'}.sidebar-collapsed .sidebar-support>button[data-sidebar-kind=news]::before{content:'\e8a5'}
 ::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}::view-transition-old(root){display:none}::view-transition-group(cinevo-cover){animation-duration:.32s;animation-timing-function:cubic-bezier(.22,1,.36,1)}::view-transition-old(cinevo-cover),::view-transition-new(cinevo-cover){height:100%;object-fit:cover}
 .profile-home{margin:4px 0 20px;font-size:15px;font-weight:500;color:#b7bfd1;letter-spacing:-.01em}
+
+/* Profile appearance: responsive covers, density and focus intensity. */
+:root{--cover-min:178px;--rail-cover:196px;--card-gap:18px;--focus-glow:.65}
+:root[data-covers=small]{--cover-min:138px;--rail-cover:150px}
+:root[data-covers=large]{--cover-min:224px;--rail-cover:245px}
+:root[data-density=compact]{--card-gap:9px}
+:root[data-density=spacious]{--card-gap:28px}
+.grid{grid-template-columns:repeat(auto-fill,minmax(min(var(--cover-min),100%),1fr));gap:var(--card-gap)}
+.rail{grid-auto-columns:min(52vw,var(--rail-cover));gap:var(--card-gap)}
+[data-density=compact] .card-text{padding:9px 10px}[data-density=spacious] .card-text{padding:20px 15px}
+.selection-info{position:absolute;left:0;right:0;bottom:0;display:flex;flex-wrap:wrap;gap:5px 9px;padding:30px 12px 13px;background:linear-gradient(transparent,#0b1018f5 35%);font:500 11px/1.5 var(--font,Segoe UI),sans-serif;color:#f7f4ff;opacity:0;transform:translateY(6px);transition:opacity .18s,transform .22s;pointer-events:none;z-index:2}
+.selection-info span:last-child{flex-basis:100%;color:#c5d2e9}
+.poster-button:hover .selection-info,.poster-button:focus .selection-info{opacity:1;transform:none}
+.poster-button:hover .poster-action,.poster-button:focus .poster-action{bottom:84px}
+#rows[data-view=list] .selection-info{display:none}
+.transfer-card{display:grid;grid-template-columns:108px minmax(0,1fr);gap:22px;padding:20px;border-radius:18px;background:linear-gradient(115deg,#202433,#171a25)}
+.transfer-art{aspect-ratio:2/3;overflow:hidden;border-radius:10px;background:linear-gradient(130deg,#4a3047,#23263b);display:grid;place-items:center;color:#a4aac2;font-size:34px;align-self:start}
+.transfer-art img{width:100%;height:100%;object-fit:cover}.transfer-body{min-width:0}.transfer-filename{display:block;overflow-wrap:anywhere;color:#929db4;margin:0 0 16px;font-size:11px}.transfer-filename:empty{display:none}
+.transfer-vitals{display:flex;gap:36px;margin:17px 0}.transfer-vitals small,.transfer-vitals strong{display:block}.transfer-vitals small{font-size:10px;color:#9aa8c0;margin-bottom:6px}.transfer-vitals strong{font-size:16px;font-weight:550}
+.transfer-card-foot{flex-wrap:wrap;gap:15px}.transfer-actions{flex-wrap:wrap}.transfer-card h2{font-size:16px;line-height:1.5}
+.organized-search{padding:26px 0}.organized-search>h1{font-size:24px;letter-spacing:-.02em}.search-category{margin:28px 0 42px}.search-category h2{font-size:18px;font-weight:550;margin-bottom:18px}.people-results{display:flex;gap:10px;flex-wrap:wrap}.people-results button{text-align:left;padding:15px 20px}.people-results strong,.people-results small{display:block}.people-results small{margin-top:7px;max-width:300px;color:#a6b3ca;white-space:normal}.smart-field select{padding:12px;border-radius:9px;color:#fff;background:#242936;border:1px solid #626c83}.smart-field input[type=range]{width:100%;padding:8px 0;accent-color:#f87799}
+@keyframes cinevo-focus-glow{0%,100%{box-shadow:0 0 24px rgb(255 113 155 / var(--focus-glow)),0 0 55px rgb(171 147 255 / calc(var(--focus-glow)*.4))}50%{box-shadow:0 0 34px rgb(255 113 155 / var(--focus-glow)),0 0 75px rgb(171 147 255 / calc(var(--focus-glow)*.6))}}
+[data-glow=off] .poster-button:focus{box-shadow:none!important;animation:none!important}
+@media(max-width:650px){.transfer-card{grid-template-columns:65px minmax(0,1fr);gap:13px;padding:14px}.transfer-vitals{gap:15px;flex-wrap:wrap}.transfer-actions{margin-left:-78px;margin-top:12px}.transfer-vitals strong{font-size:13px}}
+@media(prefers-reduced-motion:reduce){.selection-info{transition:none;transform:none}}
+

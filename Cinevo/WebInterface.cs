@@ -205,7 +205,7 @@ public partial class MainWindow
         }
         return new
         {
-            id, movie.Title, movie.Year, movie.Genre, movie.Resolution, movie.Language, movie.Collections, movie.DurationMilliseconds, resumeMilliseconds=viewing.Resume, movie.UserScore, description = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description, favorite=viewing.Favorite, watched=viewing.Watched,
+            id, movie.Title, movie.Year, movie.Genre, resolution=SmartFilter.Quality(movie), movie.Language, movie.Collections, movie.DurationMilliseconds, resumeMilliseconds=viewing.Resume, movie.UserScore, description = movie.CustomSynopsis.Length > 0 ? movie.CustomSynopsis : movie.Description, favorite=viewing.Favorite, watched=viewing.Watched,
             site = movie.IsOnline ? SourceSite(movie) : "",
             mediaType = kind.Type,
             seriesTitle = kind.Series,
@@ -305,6 +305,8 @@ public partial class MainWindow
                 .Where(RemoteFiles.IsPublicHttps).Distinct(StringComparer.Ordinal)
                 .OrderBy(address => address, StringComparer.OrdinalIgnoreCase).ToArray();
         }
+        if (command.Name.StartsWith("visual-", StringComparison.Ordinal)) return await VisualActionAsync(command);
+        if (command.Name.StartsWith("search-", StringComparison.Ordinal)) return await SearchActionAsync(command);
         if (command.Name.StartsWith("profile-", StringComparison.Ordinal)) return await ProfileActionAsync(command);
         if (command.Name.StartsWith("media-", StringComparison.Ordinal)) return await MediaActionAsync(command);
         if (command.Name.StartsWith("series-", StringComparison.Ordinal) && command.Name!="series-episodes") return await SeriesActionAsync(command);

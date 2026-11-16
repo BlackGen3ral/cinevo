@@ -184,17 +184,19 @@ public partial class MainWindow
         {
             if (torrents == null && TorrentConnection.Load() == null) return new { configured = false };
             var transfers = await GetTorrentClient().TransfersAsync(lifetime.Token);
+            await PrepareTransferArtwork();
             return new
             {
                 configured = true,
                 transfers = transfers.Where(item => TorrentClient.IsHash(item.Hash)).OrderBy(item=>item.Priority>0?item.Priority:int.MaxValue).Select(item =>
-                    new { item.Hash, item.Name, item.Priority, item.Progress, item.Size, item.Completed, item.Speed, item.Eta, item.State, item.Seeds, item.Leechers, scheduled = library.DownloadSchedule.FirstOrDefault(s=>s.Hash==item.Hash)?.At, fallback = torrentFallbackStatus.GetValueOrDefault(item.Hash) })
+                    new { movie=TransferMovie(item.Hash,item.Name) is {} matched?WebMovie(matched):null,item.Hash, item.Name, item.Priority, item.Progress, item.Size, item.Completed, item.Speed, item.Eta, item.State, item.Seeds, item.Leechers, scheduled = library.DownloadSchedule.FirstOrDefault(s=>s.Hash==item.Hash)?.At, fallback = torrentFallbackStatus.GetValueOrDefault(item.Hash) }).ToArray()
             };
         }
         if (command.Name == "torrent-add")
         {
             var address = command.Address ?? "";
             var client = GetTorrentClient();
+            RememberTransfer(command.Id,address);
             await client.AddAsync(address, lifetime.Token, ValidateDownloadFolder(command.DownloadFolder??(library.MediaFolder.Length>0?library.MediaFolder:null)));
             if (command.Id != null && webMovies.TryGetValue(command.Id, out var movie) && library.Movies.Contains(movie))
                 TrackTorrentFallback(client, movie, address, command.DownloadFolder);

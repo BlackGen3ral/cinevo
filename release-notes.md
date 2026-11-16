@@ -1,6 +1,5 @@
-- Página inicial por perfil com continuar assistindo, próximos episódios e vídeos recém-baixados no PC.
-- Ficha cinematográfica com arte panorâmica do TMDB quando disponível, sinopse organizada e ações principais em destaque.
-- Expansão suave da capa ao abrir a ficha e retorno ao fechar, com alternativa simples quando o navegador não suporta a transição.
-- Menu lateral recolhível, com ícones, rótulos acessíveis e preferência preservada.
-- Próximo episódio automático no player do PC e no modo TV, após contagem de 10 segundos com botão para cancelar.
-- Imagens panorâmicas carregadas sob demanda, com cache limitado em memória e sem novos arquivos de imagem no disco.
+- Downloads com capa associada ao catálogo, progresso, velocidade real e previsão de término no mesmo cartão.
+- Duração, resolução e disponibilidade ao focar ou passar o mouse em uma capa, quando os dados estão disponíveis.
+- Aparência e sons nas configurações: tamanho das capas, intensidade do brilho, volume dos cliques e densidade, salvos por perfil neste PC.
+- Controles do player recolhidos após inatividade durante a reprodução e revelados por mouse, teclado ou controle. Em pausa e ao terminar, os botões ficam visíveis.
+- Busca separada em filmes, séries, episódios e elenco identificado na coleção; pesquisa opcional de pessoas pelo TMDB conectado.

@@ -53,6 +53,7 @@ internal sealed class TvWeb(Func<string,int,string?,Task<object>> catalog,Func<s
             var session=Convert.ToHexString(RandomNumberGenerator.GetBytes(32));sessions[session]=now.AddHours(12);
             context.Response.Cookies.Append("cinevo_tv",session,new CookieOptions{HttpOnly=true,SameSite=SameSiteMode.Strict,MaxAge=TimeSpan.FromHours(12),Path="/"});Rotate();return Results.Json(new{ok=true});
         });
+        app.MapGet("/api/visual",async(string? profile)=>extra==null?Results.NotFound():Results.Json(await extra("visual",null,profile)));
         app.MapGet("/api/profiles",async()=>extra==null?Results.NotFound():Results.Json(await extra("profiles",null,null)));
         app.MapGet("/api/next/{id}",async(string id,string? profile)=>extra==null?Results.NotFound():Results.Json(await extra("next",id,profile)));
         app.MapGet("/api/series/{id}",async(string id,string? profile)=>extra==null?Results.NotFound():Results.Json(await extra("series",id,profile)));
